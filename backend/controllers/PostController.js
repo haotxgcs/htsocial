@@ -1,0 +1,198 @@
+const Post = require("../models/PostModel");
+const User = require("../models/UserModel");
+const Comment = require("../models/CommentModel");
+const Share = require("../models/ShareModel");
+
+// Tạo post mới hỗ trợ cả ảnh và video
+exports.createPost = async (req, res) => {
+  try {
+    const { content, author } = req.body;
+    const media = req.file ? `uploads/${req.file.filename}` : null;
+    const mediaType = req.file
+      ? req.file.mimetype.startsWith("image")
+        ? "image"
+        : req.file.mimetype.startsWith("video")
+        ? "video"
+        : null
+      : null;
+
+    // Tìm user theo username
+    const existingUser = await User.findOne({ username: author });
+    if (!existingUser) {
+      return res.status(400).json({ msg: "Author does not exist" });
+    }
+
+    // Tạo post mới
+    const newPost = new Post({
+      content,
+      author: existingUser._id,
+      media,
+      mediaType
+    });
+
+    await newPost.save();
+
+    // Cập nhật postCount
+    await User.findByIdAndUpdate(existingUser._id, {
+      $inc: { postCount: 1 }
+    });
+
+    // Populate thông tin author
+    const populatedPost = await Post.findById(newPost._id)
+      .populate("author", "firstname lastname username");
+
+    res.status(201).json({
+      msg: "Post created successfully",
+      post: populatedPost
+    });
+  } catch (err) {
+    console.error("Create post error:", err);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
+
+
+exports.getAllPosts = async (req, res) => {
+  try {
+    const posts = await Post.find()
+      .populate("author", "firstname lastname username")
+      .sort({ createdAt: -1 });
+
+    // Map lại để thêm trường likesCount
+    const postsWithLikeCount = posts.map(post => ({
+      ...post.toObject(),
+      likesCount: post.likes.length
+    }));
+
+    res.status(200).json(postsWithLikeCount);
+  } catch (err) {
+    console.error("Get all posts error:", err);
+    res.status(500).json({ msg: "Error fetching posts" });
+  }
+};
+
+
+
+exports.getPostById = async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id)
+      .populate("author", "firstname lastname username");
+
+    if (!post) return res.status(404).json({ msg: "Post not found" });
+
+    const postWithLikeCount = {
+      ...post.toObject(),
+      likesCount: post.likes.length
+    };
+
+    res.status(200).json(postWithLikeCount);
+  } catch (err) {
+    console.error("Get post by ID error:", err);
+    res.status(500).json({ msg: "Error fetching post" });
+  }
+};
+
+
+
+// controllers/PostController.js
+exports.updatePost = async (req, res) => {
+  try {
+    const { content } = req.body;
+    const file = req.file;
+
+    const post = await Post.findById(req.params.id);
+    if (!post) return res.status(404).json({ msg: "Post not found" });
+
+    if (content) post.content = content;
+
+    if (file) {
+      post.media = file.path;
+      post.mediaType = file.mimetype.startsWith("image") ? "image" :
+                       file.mimetype.startsWith("video") ? "video" : null;
+    }
+
+    await post.save();
+
+    const updatedPost = await Post.findById(post._id)
+      .populate("author", "firstname lastname username");
+
+    res.status(200).json({ msg: "Post updated", post: updatedPost });
+  } catch (err) {
+    console.error("Update post error:", err);
+    res.status(500).json({ msg: "Error updating post" });
+  }
+};
+
+
+// Xóa post
+exports.deletePost = async (req, res) => {
+  try {
+    const deleted = await Post.findByIdAndDelete(req.params.id);
+    if (!deleted) return res.status(404).json({ msg: "Post not found" });
+
+    // Giảm postCount
+    await User.findByIdAndUpdate(deleted.author, {
+      $inc: { postCount: -1 }
+    });
+
+    // Gỡ postId khỏi likedPosts của tất cả users
+    await User.updateMany(
+      { likedPosts: deleted._id },
+      { $pull: { likedPosts: deleted._id } }
+    );
+
+    await Comment.deleteMany({ post: deleted._id });
+    await Share.deleteMany({ post: deleted._id });
+
+    res.json({ msg: "Post deleted" });
+  } catch (err) {
+    console.error("Delete post error:", err);
+    res.status(500).json({ msg: "Error deleting post" });
+  }
+};
+
+
+exports.toggleLike = async (req, res) => {
+  try {
+    const postId = req.params.id;
+    const { username } = req.body;
+
+    // Tìm user theo username
+    const user = await User.findOne({ username });
+    if (!user) return res.status(404).json({ msg: "User not found" });
+
+    const post = await Post.findById(postId);
+    if (!post) return res.status(404).json({ msg: "Post not found" });
+
+    const userId = user._id;
+    const hasLiked = post.likes.includes(userId);
+
+    if (hasLiked) {
+      // Unlike
+      post.likes.pull(userId);
+      user.likedPosts.pull(postId); // 👈 Gỡ postId khỏi likedPosts
+    } else {
+      // Like
+      post.likes.push(userId);
+      user.likedPosts.push(postId); // 👈 Thêm postId vào likedPosts
+    }
+
+    await post.save();
+    await user.save(); // 👈 Lưu lại user sau khi thay đổi
+
+    res.status(200).json({
+      msg: hasLiked ? "Post unliked" : "Post liked",
+      likes: post.likes, 
+      postId: post._id,
+      author: {
+        username: user.username,
+        id: user._id
+      },
+      likesCount: post.likes.length
+    });
+  } catch (err) {
+    console.error("Toggle like error:", err);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
+

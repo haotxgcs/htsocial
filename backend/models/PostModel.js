@@ -1,0 +1,19 @@
+const mongoose = require("mongoose");
+
+const postSchema = new mongoose.Schema(
+  {
+    content: { type: String, required: true },
+    // image: { type: String },
+    media: { type: String },
+    mediaType: { type: String, enum: ['image', 'video'], default: 'image' },
+    author: { type: mongoose.Schema.Types.ObjectId, ref: "User",required: true },
+    likes: [{type: mongoose.Schema.Types.ObjectId,ref: "User"}],
+    commentCount: { type: Number, default: 0 },
+    sharesCount: { type: Number, default: 0 },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+module.exports = mongoose.model("Post", postSchema);
