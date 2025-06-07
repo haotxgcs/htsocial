@@ -45,23 +45,21 @@
   <div class="post-menu-wrapper">
     <img src="../assets/menu.png" class="menu-post-icon" @click="toggleMenu(post._id)" />
     <div v-if="openMenuId === post._id" class="dropdown-menu">
-      <button>📌 Ghim bài viết</button>
-      <button>💾 Lưu bài viết</button>
-      <button @click="editPost(post)">✏️ Chỉnh sửa bài viết</button>
-      <button>⚙️ Chỉnh sửa đối tượng</button>
-      <button>🔕 Tắt thông báo về bài viết này</button>
-      <button v-if="isMyPost(post)" @click="deletePost(post._id)" style="color: red">🗑️ Xoá bài viết</button>
+      <button> Ẩn bài viết</button>
+      <button v-if="isMyPost(post)" @click="editPost(post)"> Chỉnh sửa bài viết</button>
+      <button v-if="isMyPost(post)"> Chỉnh sửa đối tượng</button>
+      <button v-if="isMyPost(post)" @click="deletePost(post._id)" style="color: red"> Xoá bài viết</button>
     </div>
   </div>
 </div>
 
 
 
-  <p class="post-text">{{ post.content }}</p>
+  <p class="post-text" @click="openPostDetail(post)">{{ post.content }}</p>
 
   
   <!-- Media (ảnh hoặc video) -->
- <div v-if="post.media" class="post-media">
+ <div v-if="post.media" class="post-media" @click="openPostDetail(post)">
   <img
     v-if="post.mediaType === 'image'"
     :src="`http://localhost:3000/${post.media}`"
@@ -82,7 +80,7 @@
       <img :src="isLiked(post) ? require('../assets/like.png') : require('../assets/unlike.png')" class="action-icon" />
       <span>Like</span>
     </button>
-  <button @click="commentPost(post)">
+  <button @click="openPostDetail(post)">
     <img src="../assets/comment.png" alt="Comment" class="action-icon" />
     <span>Comment</span>
   </button>
@@ -104,7 +102,7 @@
       <ul>
         <li><img src="../assets/user.png" class="menu-icon-right"/><span class="status online"></span> Trần Xuân Hào</li>
         <li><img src="../assets/user.png" class="menu-icon-right"/><span class="status online"></span> Tran Hao</li>
-        <li><img src="../assets/user.png" class="menu-icon-right"/><span class="status offline"></span> Phi Rùi</li>
+        <li><img src="../assets/user.png" class="menu-icon-right"/><span class="status offline"></span> Hao Tran</li>
       </ul>
     </aside>
   </div>
@@ -126,15 +124,19 @@
     </div>
   </div>
 </div>
+
+<PostDetailModal v-if="selectedPost" :post="selectedPost" @close="closePostDetail" />
 </template>
 
 <script>
 import ConfirmDialog from './ConfirmDialog.vue';
+import PostDetailModal from './PostDetailModal.vue';
 
 export default {
   name: "HomePage",
   components: {
-  ConfirmDialog
+  ConfirmDialog,
+  PostDetailModal
   },
   data() {
     return {
@@ -147,6 +149,7 @@ export default {
       editModalVisible: false,
       editContent: '',
       editPostId: null, // ID của bài viết đang được chỉnh sửa
+      selectedPost: null
     }
   },
 
@@ -190,6 +193,12 @@ export default {
   this.postToDeleteId = postId;
   this.confirmVisible = true;
 },
+    openPostDetail(post) {
+      this.selectedPost = post;
+    },
+    closePostDetail() {
+      this.selectedPost = null;
+    },
   async handleConfirmedDelete() {
   try {
     await this.$axios.delete(`/posts/${this.postToDeleteId}`);
@@ -215,10 +224,6 @@ export default {
   formatTime(dateStr) {
     const date = new Date(dateStr);
     return date.toLocaleString();
-  },
-  
-  commentPost(post) {
-    alert(`Bạn muốn bình luận bài viết: ${post.content}`);
   },
   sharePost(post) {
     alert(`Bạn đã chia sẻ bài viết: ${post.content}`);
