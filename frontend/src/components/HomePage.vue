@@ -45,11 +45,9 @@
   <div class="post-menu-wrapper">
     <img src="../assets/menu.png" class="menu-post-icon" @click="toggleMenu(post._id)" />
     <div v-if="openMenuId === post._id" class="dropdown-menu">
-      <button>📌 Ghim bài viết</button>
-      <button>💾 Lưu bài viết</button>
-      <button @click="editPost(post)">✏️ Chỉnh sửa bài viết</button>
-      <button>⚙️ Chỉnh sửa đối tượng</button>
-      <button>🔕 Tắt thông báo về bài viết này</button>
+      <button v-if="isMyPost(post)" @click="editPost(post)"> Chỉnh sửa bài viết</button>
+      <button v-if="isMyPost(post)"> Chỉnh sửa đối tượng</button>
+      <button>Hide this Post</button>
       <button v-if="isMyPost(post)" @click="deletePost(post._id)" style="color: red">🗑️ Xoá bài viết</button>
     </div>
   </div>
@@ -77,12 +75,13 @@
   </video>
 </div>
 
+
   <div class="post-actions">
   <button @click="toggleLike(post)">
       <img :src="isLiked(post) ? require('../assets/like.png') : require('../assets/unlike.png')" class="action-icon" />
       <span>Like</span>
     </button>
-  <button @click="commentPost(post)">
+  <button @click="openCommentModal(post)">
     <img src="../assets/comment.png" alt="Comment" class="action-icon" />
     <span>Comment</span>
   </button>
@@ -91,6 +90,8 @@
     <span>Share</span>
   </button>
 </div>
+
+
 
 </div>
 
@@ -126,15 +127,132 @@
     </div>
   </div>
 </div>
+
+<!-- Modal Comment -->
+<div v-if="commentModalVisible" class="comment-modal-overlay" @click="closeCommentModal">
+  <div class="comment-modal-content" @click.stop>
+    <!-- Header modal -->
+    <div class="comment-modal-header">
+      <h3>Bài viết của {{ selectedPost?.author.firstname }} {{ selectedPost?.author.lastname }}</h3>
+      <button class="close-btn" @click="closeCommentModal">&times;</button>
+    </div>
+
+    <!-- Nội dung bài viết -->
+    <div class="post-detail">
+      <div class="post-author-info">
+        <img :src="`http://localhost:3000/${selectedPost?.author.avatar || 'user.png'}`" alt="avatar" class="author-avatar" />
+        <div class="author-details">
+          <strong>{{ selectedPost?.author.firstname }} {{ selectedPost?.author.lastname }}</strong>
+          <p class="time">{{ formatTime(selectedPost?.createdAt) }}</p>
+        </div>
+      </div>
+      
+      <p class="post-content">{{ selectedPost?.content }}</p>
+      
+      <!-- Media trong modal -->
+      <div v-if="selectedPost?.media" class="post-media-modal">
+        <img
+          v-if="selectedPost.mediaType === 'image'"
+          :src="`http://localhost:3000/${selectedPost.media}`"
+          class="post-image-modal"
+        />
+        <video
+          v-else-if="selectedPost.mediaType === 'video'"
+          controls
+          class="post-video-modal"
+        >
+          <source :src="`http://localhost:3000/${selectedPost.media}`" type="video/mp4" />
+        </video>
+      </div>
+
+      <!-- Thống kê like/comment -->
+      <div class="post-stats">
+        <span v-if="selectedPost?.likes?.length > 0">{{ selectedPost.likes.length }} lượt thích</span>
+        <span v-if="selectedPost?.comments?.length > 0">{{ selectedPost.comments.length }} bình luận</span>
+      </div>
+
+      <!-- Action buttons -->
+      <div class="post-actions-modal">
+        <button @click="toggleLike(selectedPost)" class="action-btn">
+          <img :src="isLiked(selectedPost) ? require('../assets/like.png') : require('../assets/unlike.png')" class="action-icon" />
+          <span>Thích</span>
+        </button>
+        <button @click="openCommentModal(post)" class="action-btn">
+          <img src="../assets/comment.png" alt="Comment" class="action-icon" />
+          <span>Bình luận</span>
+        </button>
+        <button @click="sharePost(selectedPost)" class="action-btn">
+          <img src="../assets/share.png" alt="Share" class="action-icon" />
+          <span>Chia sẻ</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Danh sách comments -->
+    <div class="comments-section">
+      <div class="comments-list">
+        <div v-if="comments.length === 0" class="no-comments">
+          <div class="no-comments-icon">💬</div>
+          <p>Chưa có bình luận nào</p>
+          <p class="sub-text">Hãy là người đầu tiên bình luận.</p>
+        </div>
+        
+        <div v-else>
+          <div v-for="comment in comments" :key="comment._id" class="comment-item">
+            <img :src="`http://localhost:3000/${comment.author.avatar || 'user.png'}`" alt="avatar" class="comment-avatar" />
+            <div class="comment-content">
+              <div class="comment-bubble">
+                <strong class="comment-author">{{ comment.author.firstname }} {{ comment.author.lastname }}</strong>
+                <p class="comment-text">{{ comment.content }}</p>
+              </div>
+              <div class="comment-actions">
+                <span class="comment-time">{{ formatTime(comment.createdAt) }}</span>
+                <button class="comment-action-btn">Thích</button>
+                <button class="comment-action-btn">Phản hồi</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Form thêm comment -->
+      <div class="add-comment-section">
+        <img :src="`http://localhost:3000/${user?.avatar || 'user.png'}`" alt="avatar" class="user-avatar" />
+        <div class="comment-input-wrapper">
+          <input 
+            v-model="newComment" 
+            @keypress.enter="submitComment"
+            placeholder="Viết bình luận..."
+            class="comment-input"
+          />
+          <button @click="submitComment" class="send-comment-btn" :disabled="!newComment.trim()">
+            ➤
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<CommentModal 
+  v-if="commentModalVisible"
+  :post="selectedPost"
+  :comments="comments"
+  @new-comment="comments.push($event)"
+  @close="closeCommentModal"
+/>
+
 </template>
 
 <script>
 import ConfirmDialog from './ConfirmDialog.vue';
+import CommentModal from './CommentModal.vue';
 
 export default {
   name: "HomePage",
   components: {
-  ConfirmDialog
+  ConfirmDialog,
+  CommentModal
   },
   data() {
     return {
@@ -147,6 +265,12 @@ export default {
       editModalVisible: false,
       editContent: '',
       editPostId: null, // ID của bài viết đang được chỉnh sửa
+      
+      // Comment modal data
+      commentModalVisible: false,
+      selectedPost: null,
+      comments: [],
+      newComment: '',
     }
   },
 
@@ -167,6 +291,57 @@ export default {
       console.error("Lỗi khi tải bài viết:", err);
     }
   },
+
+  // Comment modal methods
+  async openCommentModal(post) {
+    this.selectedPost = post;
+    this.commentModalVisible = true;
+    await this.fetchComments(post._id);
+  },
+
+  closeCommentModal() {
+    this.commentModalVisible = false;
+    this.selectedPost = null;
+    this.comments = [];
+    this.newComment = '';
+  },
+
+  async fetchComments(postId) {
+    try {
+      const res = await this.$axios.get(`comments/posts/${postId}`);
+      this.comments = res.data;
+    } catch (err) {
+      console.error("Lỗi khi tải comments:", err);
+      this.comments = []; // Fallback to empty array
+    }
+  },
+
+  async submitComment() {
+    if (!this.newComment.trim()) return;
+    
+    const savedUser = JSON.parse(localStorage.getItem("user"));
+    if (!savedUser) return alert("Vui lòng đăng nhập");
+
+    try {
+      const res = await this.$axios.post(`/comments/posts/${this.selectedPost._id}`, {
+        content: this.newComment,
+        author: savedUser.id
+      });
+
+      // Add new comment to list
+      this.comments.push(res.data);
+      this.newComment = '';
+      
+      // Update post comments count if needed
+      if (this.selectedPost.comments) {
+        this.selectedPost.comments.push(res.data);
+      }
+    } catch (err) {
+      console.error("Không thể thêm comment:", err);
+      alert("Không thể thêm bình luận");
+    }
+  },
+
   async toggleLike(post) {
     const savedUser = JSON.parse(localStorage.getItem("user"));
     if (!savedUser) return alert("Vui lòng đăng nhập");
@@ -218,7 +393,7 @@ export default {
   },
   
   commentPost(post) {
-    alert(`Bạn muốn bình luận bài viết: ${post.content}`);
+    this.openCommentModal(post);
   },
   sharePost(post) {
     alert(`Bạn đã chia sẻ bài viết: ${post.content}`);
@@ -669,6 +844,468 @@ mounted() {
   font-size: 12px;
   color: gray;
   margin-top: 2px;
+}
+
+/* Comment Modal Styles - Improved */
+.comment-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.comment-modal-content {
+  background: white;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Modal Header */
+.comment-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e4e6eb;
+  background: white;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.comment-modal-header h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #1c1e21;
+}
+
+.close-btn {
+  background: #f0f2f5;
+  border: none;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 20px;
+  color: #606770;
+  transition: all 0.2s ease;
+}
+
+.close-btn:hover {
+  background: #e4e6ea;
+  color: #1c1e21;
+}
+
+/* Post Detail Section */
+.post-detail {
+  padding: 20px 24px;
+  border-bottom: 1px solid #e4e6eb;
+}
+
+.post-author-info {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.author-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  margin-right: 12px;
+  object-fit: cover;
+}
+
+.author-details strong {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1c1e21;
+}
+
+.author-details .time {
+  font-size: 13px;
+  color: #65676b;
+  margin-top: 2px;
+}
+
+.post-content {
+  font-size: 15px;
+  line-height: 1.4;
+  color: #1c1e21;
+  margin: 12px 0;
+}
+
+/* Media in Modal */
+.post-media-modal {
+  margin: 16px 0;
+}
+
+.post-image-modal,
+.post-video-modal {
+  width: 100%;
+  max-height: 400px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+/* Post Stats */
+.post-stats {
+  display: flex;
+  gap: 16px;
+  margin: 16px 0 12px 0;
+  font-size: 14px;
+  color: #65676b;
+}
+
+/* Action Buttons in Modal */
+.post-actions-modal {
+  display: flex;
+  justify-content: space-around;
+  padding: 8px 0;
+  border-top: 1px solid #e4e6eb;
+  margin-top: 12px;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 600;
+  color: #65676b;
+  transition: all 0.2s ease;
+  flex: 1;
+  justify-content: center;
+}
+
+.action-btn:hover {
+  background: #f0f2f5;
+  color: #1877f2;
+}
+
+.action-icon {
+  width: 20px;
+  height: 20px;
+}
+
+/* Comments Section */
+.comments-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.comments-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 24px;
+  max-height: 400px;
+}
+
+/* No Comments State */
+.no-comments {
+  text-align: center;
+  padding: 40px 20px;
+  color: #65676b;
+}
+
+.no-comments-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.no-comments p {
+  margin: 8px 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.sub-text {
+  font-size: 14px;
+  font-weight: normal !important;
+  opacity: 0.8;
+}
+
+/* Comment Items */
+.comment-item {
+  display: flex;
+  margin-bottom: 16px;
+  padding: 8px 0;
+}
+
+.comment-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  margin-right: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.comment-content {
+  flex: 1;
+}
+
+.comment-bubble {
+  background: #f0f2f5;
+  border-radius: 16px;
+  padding: 8px 12px;
+  display: inline-block;
+  max-width: 100%;
+}
+
+.comment-author {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1c1e21;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.comment-text {
+  font-size: 14px;
+  color: #1c1e21;
+  margin: 0;
+  line-height: 1.4;
+  word-wrap: break-word;
+}
+
+.comment-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+  margin-left: 12px;
+}
+
+.comment-time {
+  font-size: 12px;
+  color: #65676b;
+}
+
+.comment-action-btn {
+  background: none;
+  border: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: #65676b;
+  cursor: pointer;
+  padding: 0;
+}
+
+.comment-action-btn:hover {
+  text-decoration: underline;
+  color: #1877f2;
+}
+
+/* Add Comment Section */
+.add-comment-section {
+  display: flex;
+  align-items: center;
+  padding: 16px 24px;
+  border-top: 1px solid #e4e6eb;
+  background: white;
+  gap: 8px;
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.comment-input-wrapper {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  background: #f0f2f5;
+  border-radius: 20px;
+  padding: 8px 12px;
+}
+
+.comment-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 14px;
+  padding: 0;
+  color: #1c1e21;
+}
+
+.comment-input::placeholder {
+  color: #65676b;
+}
+
+.send-comment-btn {
+  background: none;
+  border: none;
+  color: #1877f2;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 4px;
+  margin-left: 8px;
+  transition: all 0.2s ease;
+}
+
+.send-comment-btn:hover:not(:disabled) {
+  transform: scale(1.1);
+  color: #166fe5;
+}
+
+.send-comment-btn:disabled {
+  color: #bcc0c4;
+  cursor: not-allowed;
+}
+
+/* Edit Modal - cũng cải thiện luôn */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  padding: 20px;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  width: 100%;
+  max-width: 500px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+.modal-content h3 {
+  margin: 0 0 16px 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #1c1e21;
+}
+
+.modal-content textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.modal-content textarea:focus {
+  border-color: #1877f2;
+  box-shadow: 0 0 0 2px rgba(24, 119, 242, 0.2);
+}
+
+.modal-content button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.modal-content button:first-of-type {
+  background: #e4e6ea;
+  color: #1c1e21;
+}
+
+.modal-content button:first-of-type:hover {
+  background: #d8dadf;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .comment-modal-overlay {
+    padding: 10px;
+  }
+  
+  .comment-modal-content {
+    max-width: 100%;
+    max-height: 95vh;
+  }
+  
+  .comment-modal-header,
+  .post-detail,
+  .add-comment-section {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  
+  .comments-list {
+    padding: 0 16px;
+  }
+}
+
+/* Scrollbar styling */
+.comments-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.comments-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.comments-list::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.comments-list::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
 }
 
 </style>

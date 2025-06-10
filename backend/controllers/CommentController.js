@@ -2,28 +2,28 @@ const Comment = require("../models/CommentModel");
 const Post = require("../models/PostModel");
 const User = require("../models/UserModel");
 
-// Tạo comment mới (dùng username thay vì userId)
+// Tạo comment mới
 exports.createComment = async (req, res) => {
   try {
-    const { post, author, content } = req.body;
+    const { content, author } = req.body;
+    const postId = req.params.postId || req.body.post; // Cho phép lấy từ params hoặc body
 
-    // Tìm user theo username
+    if (!content || !author || !postId) {
+      return res.status(400).json({ msg: "Missing content, author, or post ID" });
+    }
+
     const user = await User.findOne({ username: author });
     if (!user) return res.status(404).json({ msg: "Author not found" });
 
-    // Tạo comment
     const comment = new Comment({
       content,
       author: user._id,
-      post
+      post: postId
     });
 
     await comment.save();
+    await Post.findByIdAndUpdate(postId, { $inc: { commentCount: 1 } });
 
-    // Tăng commentCount cho bài post
-    await Post.findByIdAndUpdate(post, { $inc: { commentCount: 1 } });
-
-    // Populate lại để trả dữ liệu
     const populated = await Comment.findById(comment._id)
       .populate("author", "username firstname lastname");
 
@@ -41,7 +41,7 @@ exports.getCommentsByPost = async (req, res) => {
 
     const comments = await Comment.find({ post: postId })
       .populate("author", "username firstname lastname")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: 1 });
 
     res.json(comments);
   } catch (err) {
@@ -53,14 +53,10 @@ exports.getCommentsByPost = async (req, res) => {
 exports.updateComment = async (req, res) => {
   try {
     const { content } = req.body;
-    const image = req.file ? req.file.path : null;
-
     const comment = await Comment.findById(req.params.id);
     if (!comment) return res.status(404).json({ msg: "Comment not found" });
 
-    // Cập nhật nội dung mới
     if (content) comment.content = content;
-    if (image) comment.image = image;
 
     await comment.save();
 
@@ -74,14 +70,12 @@ exports.updateComment = async (req, res) => {
   }
 };
 
-
-// Xoá comment theo commentId
+// Xoá comment
 exports.deleteComment = async (req, res) => {
   try {
     const comment = await Comment.findByIdAndDelete(req.params.id);
     if (!comment) return res.status(404).json({ msg: "Comment not found" });
 
-    // Giảm commentCount cho bài viết
     await Post.findByIdAndUpdate(comment.post, { $inc: { commentCount: -1 } });
 
     res.json({ msg: "Comment deleted" });
@@ -91,7 +85,7 @@ exports.deleteComment = async (req, res) => {
   }
 };
 
-// ✅ Like/Unlike comment (toggle)
+// Toggle like comment
 exports.toggleLikeComment = async (req, res) => {
   try {
     const comment = await Comment.findById(req.params.commentId);
@@ -101,9 +95,9 @@ exports.toggleLikeComment = async (req, res) => {
 
     const index = comment.likes.indexOf(userId);
     if (index > -1) {
-      comment.likes.splice(index, 1); // Unlike
+      comment.likes.splice(index, 1);
     } else {
-      comment.likes.push(userId); // Like
+      comment.likes.push(userId);
     }
 
     await comment.save();
@@ -116,17 +110,13 @@ exports.toggleLikeComment = async (req, res) => {
   }
 };
 
+// Trả lời comment
 exports.addReply = async (req, res) => {
   try {
     const { content, author } = req.body;
     const comment = await Comment.findById(req.params.commentId);
     if (!comment) return res.status(404).json({ msg: "Comment not found" });
 
-    if (!content || !author) {
-      return res.status(400).json({ msg: "Missing content or author" });
-    }
-
-    // ✅ Tìm user theo username
     const user = await User.findOne({ username: author });
     if (!user) return res.status(404).json({ msg: "Author not found" });
 
