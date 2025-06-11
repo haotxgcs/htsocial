@@ -177,7 +177,7 @@
           <img :src="isLiked(selectedPost) ? require('../assets/like.png') : require('../assets/unlike.png')" class="action-icon" />
           <span>Thích</span>
         </button>
-        <button @click="openCommentModal(post)" class="action-btn">
+        <button class="action-btn" disabled>
           <img src="../assets/comment.png" alt="Comment" class="action-icon" />
           <span>Bình luận</span>
         </button>
@@ -234,25 +234,15 @@
   </div>
 </div>
 
-<CommentModal 
-  v-if="commentModalVisible"
-  :post="selectedPost"
-  :comments="comments"
-  @new-comment="comments.push($event)"
-  @close="closeCommentModal"
-/>
-
 </template>
 
 <script>
 import ConfirmDialog from './ConfirmDialog.vue';
-import CommentModal from './CommentModal.vue';
 
 export default {
   name: "HomePage",
   components: {
-  ConfirmDialog,
-  CommentModal
+  ConfirmDialog
   },
   data() {
     return {
@@ -308,8 +298,9 @@ export default {
 
   async fetchComments(postId) {
     try {
-      const res = await this.$axios.get(`comments/posts/${postId}`);
-      this.comments = res.data;
+      const res = await fetch(`http://localhost:3000/comments/posts/${postId}`);
+      const data = await res.json();
+      this.comments = data;
     } catch (err) {
       console.error("Lỗi khi tải comments:", err);
       this.comments = []; // Fallback to empty array
@@ -323,18 +314,26 @@ export default {
     if (!savedUser) return alert("Vui lòng đăng nhập");
 
     try {
-      const res = await this.$axios.post(`/comments/posts/${this.selectedPost._id}`, {
-        content: this.newComment,
-        author: savedUser.id
+      const res = await fetch(`http://localhost:3000/comments/posts/${this.selectedPost._id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          content: this.newComment,
+          author: savedUser.id
+        })
       });
 
+      const newComment = await res.json();
+
       // Add new comment to list
-      this.comments.push(res.data);
+      this.comments.push(newComment);
       this.newComment = '';
       
       // Update post comments count if needed
       if (this.selectedPost.comments) {
-        this.selectedPost.comments.push(res.data);
+        this.selectedPost.comments.push(newComment);
       }
     } catch (err) {
       console.error("Không thể thêm comment:", err);
@@ -347,13 +346,20 @@ export default {
     if (!savedUser) return alert("Vui lòng đăng nhập");
 
     try {
-      const res = await this.$axios.post(`/posts/${post._id}/like`, {
-        username: savedUser.username
+      const res = await fetch(`http://localhost:3000/posts/${post._id}/like`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: savedUser.username
+        })
       });
 
-      post.likes = res.data.likes; // cập nhật lại mảng likes mới
+      const data = await res.json();
+      post.likes = data.likes; // cập nhật lại mảng likes mới
     } catch (err) {
-      console.error("Không thể like:", err.response?.data || err.message);
+      console.error("Không thể like:", err);
       alert("Không thể like bài viết");
     }
   },
@@ -367,9 +373,14 @@ export default {
 },
   async handleConfirmedDelete() {
   try {
-    await this.$axios.delete(`/posts/${this.postToDeleteId}`);
-    this.posts = this.posts.filter(p => p._id !== this.postToDeleteId);
-    this.openMenuId = null;
+    const res = await fetch(`http://localhost:3000/posts/${this.postToDeleteId}`, {
+      method: 'DELETE'
+    });
+    
+    if (res.ok) {
+      this.posts = this.posts.filter(p => p._id !== this.postToDeleteId);
+      this.openMenuId = null;
+    }
   } catch (err) {
     console.error("Xoá bài viết thất bại:", err);
   }
@@ -381,7 +392,7 @@ export default {
   },
   isLiked(post) {
     const savedUser = JSON.parse(localStorage.getItem("user"));
-    return post.likes.includes(savedUser.id); // `savedUser.id` là chuỗi
+    return post.likes && post.likes.includes(savedUser.id); // `savedUser.id` là chuỗi
   },
 
   isImage(filePath) {
@@ -846,7 +857,7 @@ mounted() {
   margin-top: 2px;
 }
 
-/* Comment Modal Styles - Improved */
+/* Comment Modal Styles - Fixed Layout */
 .comment-modal-overlay {
   position: fixed;
   top: 0;
@@ -867,7 +878,9 @@ mounted() {
   border-radius: 12px;
   width: 100%;
   max-width: 600px;
-  max-height: 90vh;
+  height: 85vh; /* Đặt chiều cao cố định cho modal */
+  max-height: 800px; /* Giới hạn chiều cao tối đa */
+  min-height: 500px; /* Chiều cao tối thiểu */
   overflow: hidden;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   display: flex;
@@ -886,7 +899,7 @@ mounted() {
   }
 }
 
-/* Modal Header */
+/* Modal Header - Fixed at top */
 .comment-modal-header {
   display: flex;
   justify-content: space-between;
@@ -894,6 +907,7 @@ mounted() {
   padding: 20px 24px;
   border-bottom: 1px solid #e4e6eb;
   background: white;
+  flex-shrink: 0; /* Không cho phép co lại */
   position: sticky;
   top: 0;
   z-index: 10;
@@ -926,10 +940,13 @@ mounted() {
   color: #1c1e21;
 }
 
-/* Post Detail Section */
+/* Post Detail Section - Scrollable */
 .post-detail {
   padding: 20px 24px;
   border-bottom: 1px solid #e4e6eb;
+  flex-shrink: 0; /* Không cho phép co lại */
+  overflow-y: auto; /* Thêm cuộn nếu nội dung quá dài */
+  max-height: 300px; /* Giới hạn chiều cao để không chiếm hết không gian */
 }
 
 .post-author-info {
@@ -944,6 +961,7 @@ mounted() {
   border-radius: 50%;
   margin-right: 12px;
   object-fit: cover;
+  flex-shrink: 0;
 }
 
 .author-details strong {
@@ -963,19 +981,23 @@ mounted() {
   line-height: 1.4;
   color: #1c1e21;
   margin: 12px 0;
+  word-wrap: break-word;
 }
 
-/* Media in Modal */
+/* Media in Modal - Fixed sizing */
 .post-media-modal {
   margin: 16px 0;
+  text-align: center;
 }
 
 .post-image-modal,
 .post-video-modal {
   width: 100%;
-  max-height: 400px;
-  object-fit: cover;
+  max-width: 100%;
+  max-height: 200px; /* Giới hạn chiều cao hình ảnh */
+  object-fit: contain; /* Thay đổi từ cover thành contain để không bị cắt */
   border-radius: 8px;
+  display: block;
 }
 
 /* Post Stats */
@@ -994,6 +1016,7 @@ mounted() {
   padding: 8px 0;
   border-top: 1px solid #e4e6eb;
   margin-top: 12px;
+  flex-shrink: 0;
 }
 
 .action-btn {
@@ -1023,19 +1046,21 @@ mounted() {
   height: 20px;
 }
 
-/* Comments Section */
+/* Comments Section - Flexible height */
 .comments-section {
-  flex: 1;
+  flex: 1; /* Chiếm toàn bộ không gian còn lại */
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 0; /* Quan trọng để flex hoạt động đúng */
 }
 
 .comments-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: 0 24px;
-  max-height: 400px;
+  flex: 1; /* Chiếm không gian còn lại */
+  overflow-y: auto; /* Bật thanh cuộn dọc */
+  overflow-x: hidden; /* Ẩn thanh cuộn ngang */
+  padding: 16px 24px;
+  min-height: 200px; /* Đặt chiều cao tối thiểu */
 }
 
 /* No Comments State */
@@ -1043,6 +1068,12 @@ mounted() {
   text-align: center;
   padding: 40px 20px;
   color: #65676b;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  min-height: 150px;
 }
 
 .no-comments-icon {
@@ -1067,7 +1098,7 @@ mounted() {
 .comment-item {
   display: flex;
   margin-bottom: 16px;
-  padding: 8px 0;
+  padding: 8px 4px;
 }
 
 .comment-avatar {
@@ -1081,6 +1112,7 @@ mounted() {
 
 .comment-content {
   flex: 1;
+  min-width: 0; /* Ngăn overflow */
 }
 
 .comment-bubble {
@@ -1089,6 +1121,7 @@ mounted() {
   padding: 8px 12px;
   display: inline-block;
   max-width: 100%;
+  word-wrap: break-word;
 }
 
 .comment-author {
@@ -1135,7 +1168,7 @@ mounted() {
   color: #1877f2;
 }
 
-/* Add Comment Section */
+/* Add Comment Section - Fixed at bottom */
 .add-comment-section {
   display: flex;
   align-items: center;
@@ -1143,6 +1176,10 @@ mounted() {
   border-top: 1px solid #e4e6eb;
   background: white;
   gap: 8px;
+  flex-shrink: 0; /* Không cho phép co lại - luôn hiển thị */
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
 }
 
 .user-avatar {
@@ -1185,6 +1222,7 @@ mounted() {
   padding: 0 4px;
   margin-left: 8px;
   transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 
 .send-comment-btn:hover:not(:disabled) {
@@ -1197,73 +1235,27 @@ mounted() {
   cursor: not-allowed;
 }
 
-/* Edit Modal - cũng cải thiện luôn */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.6);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 9999;
-  padding: 20px;
+/* Scrollbar styling */
+.comments-list::-webkit-scrollbar,
+.post-detail::-webkit-scrollbar {
+  width: 6px;
 }
 
-.modal-content {
-  background: white;
-  border-radius: 12px;
-  padding: 24px;
-  width: 100%;
-  max-width: 500px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  animation: modalSlideIn 0.3s ease-out;
+.comments-list::-webkit-scrollbar-track,
+.post-detail::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
 }
 
-.modal-content h3 {
-  margin: 0 0 16px 0;
-  font-size: 20px;
-  font-weight: 600;
-  color: #1c1e21;
+.comments-list::-webkit-scrollbar-thumb,
+.post-detail::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
 }
 
-.modal-content textarea {
-  width: 100%;
-  min-height: 100px;
-  padding: 12px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  font-size: 14px;
-  font-family: inherit;
-  resize: vertical;
-  outline: none;
-  box-sizing: border-box;
-}
-
-.modal-content textarea:focus {
-  border-color: #1877f2;
-  box-shadow: 0 0 0 2px rgba(24, 119, 242, 0.2);
-}
-
-.modal-content button {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.modal-content button:first-of-type {
-  background: #e4e6ea;
-  color: #1c1e21;
-}
-
-.modal-content button:first-of-type:hover {
-  background: #d8dadf;
+.comments-list::-webkit-scrollbar-thumb:hover,
+.post-detail::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
 }
 
 /* Responsive Design */
@@ -1273,39 +1265,21 @@ mounted() {
   }
   
   .comment-modal-content {
-    max-width: 100%;
-    max-height: 95vh;
+    height: 90vh; /* Chiều cao lớn hơn trên mobile */
+    max-height: none;
   }
   
-  .comment-modal-header,
-  .post-detail,
-  .add-comment-section {
-    padding-left: 16px;
-    padding-right: 16px;
+  .post-detail {
+    max-height: 250px; /* Giảm chiều cao post detail trên mobile */
   }
   
   .comments-list {
     padding: 0 16px;
   }
-}
-
-/* Scrollbar styling */
-.comments-list::-webkit-scrollbar {
-  width: 6px;
-}
-
-.comments-list::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 3px;
-}
-
-.comments-list::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 3px;
-}
-
-.comments-list::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
+  
+  .add-comment-section {
+    padding: 12px 16px;
+  }
 }
 
 </style>

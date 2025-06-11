@@ -1,20 +1,32 @@
 const express = require("express");
 const router = express.Router();
 const AuthController = require("../controllers/AuthController");
+const multer = require("multer");
 
-// Đăng ký / Xác minh / Login
+// Optional: middleware xác thực
+// const verifyToken = require("../middlewares/verifyToken");
+
+// Cấu hình multer
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, "uploads/"),
+  filename: (req, file, cb) => cb(null, Date.now() + "-" + file.originalname)
+});
+const upload = multer({ storage });
+
+// Auth
 router.post("/register", AuthController.register);
 router.get("/verify/:id", AuthController.verifyByLink);
 router.post("/login", AuthController.login);
 router.post("/logout", AuthController.logout);
 
-// Lấy danh sách user, user theo ID
+// User info
 router.get("/", AuthController.getAllUsers);
 router.get("/:id", AuthController.getUserById);
-
-// Cập nhật / Xóa User
 router.put("/:id", AuthController.updateUser);
 router.delete("/:id", AuthController.deleteUser);
+
+// Cập nhật ảnh bìa và bio
+router.put("/profile/:id", upload.single("coverPhoto"), AuthController.updateProfile);
 
 // Kết bạn
 router.post("/friend-request/send", AuthController.sendFriendRequest);
@@ -22,7 +34,7 @@ router.post("/friend-request/accept", AuthController.acceptFriendRequest);
 router.post("/friend-request/cancel", AuthController.cancelFriendRequest);
 router.post("/unfriend", AuthController.unFriend);
 
-// Cập nhật trạng thái hoạt động
+// Online status
 router.post("/active-status", AuthController.setActiveStatus);
 
 module.exports = router;

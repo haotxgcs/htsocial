@@ -6,16 +6,17 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 
-
 // ===== 1. Đăng ký (Register) =====
 exports.register = async (req, res) => {
-  const { username, email, password, firstname, lastname } = req.body;
+  const { username, email, password, firstname, lastname, role = "user" } = req.body;
 
   try {
     const existingUser = await User.findOne({ $or: [{ email }, { username }] });
     if (existingUser) return res.status(400).json({ msg: "User already exists" });
 
     const hashedPassword = await bcrypt.hash(password, 10);
+
+    const avatar = `uploads/${role === "admin" ? "admin.png" : "user.png"}`;
 
     const newUser = new User({
       firstname,
@@ -24,18 +25,20 @@ exports.register = async (req, res) => {
       email,
       password: hashedPassword,
       isVerified: false,
-      avatar: "user.png",
-      role: "user",
+      avatar,
+      coverPhoto: "uploads/cover.png",
+      bio: "",
+      role,
       friends: [],
       likedPosts: [],
-      active: false,           // Mặc định mới tạo chưa active
+      active: false,
       requestSent: [],
       requestReceived: []
     });
 
     await newUser.save();
 
-    // 📧 Gửi link xác minh
+    // Gửi email xác minh
     const verificationLink = `http://localhost:8080/verify/${newUser._id}`;
 
     const transporter = nodemailer.createTransport({
@@ -50,28 +53,42 @@ exports.register = async (req, res) => {
       from: '"HT Social" <htsocial1st@gmail.com>',
       to: email,
       subject: "Account Verification",
-      html: `<p>Click the link to verify your account:</p>
-             <a href="${verificationLink}">${verificationLink}</a>`
+      html: `<p>Click the link to verify your account:</p><a href="${verificationLink}">${verificationLink}</a>`
     });
 
-    res.status(201).json({
-      msg: "User registered. Verification email sent.",
-      userId: newUser._id
-    });
-
+    res.status(201).json({ msg: "User registered. Verification email sent.", userId: newUser._id });
   } catch (err) {
     console.error("Register error:", err);
     res.status(500).json({ msg: "Server error" });
   }
 };
 
-
-// ===== 2. Xác minh tài khoản qua link (Verify by Link) =====
-exports.verifyByLink = async (req, res) => {
-  const userId = req.params.id;
+// ===== Update User Profile: coverPhoto & bio =====
+exports.updateProfile = async (req, res) => {
+  const { bio } = req.body;
+  const userId = req.user?.id || req.params.id;
 
   try {
-    const user = await User.findById(userId);
+    let updateData = { bio };
+    if (req.file) updateData.coverPhoto = req.file.path;
+
+    const user = await User.findByIdAndUpdate(userId, updateData, {
+      new: true,
+      runValidators: true
+    }).select("-password");
+
+    if (!user) return res.status(404).json({ msg: "User not found" });
+    res.status(200).json({ msg: "Cập nhật hồ sơ thành công", user });
+  } catch (err) {
+    console.error("Update profile error:", err);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
+
+// ===== 2. Xác minh tài khoản =====
+exports.verifyByLink = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ msg: "User not found" });
     if (user.isVerified) return res.status(400).json({ msg: "Already verified" });
 
@@ -80,13 +97,12 @@ exports.verifyByLink = async (req, res) => {
 
     res.status(200).json({ msg: "Account verified successfully" });
   } catch (err) {
-    console.error("Link verify error:", err);
+    console.error("Verify error:", err);
     res.status(500).json({ msg: "Server error" });
   }
 };
 
-
-// ===== 3. Đăng nhập (Login) =====
+// ===== 3. Đăng nhập =====
 exports.login = async (req, res) => {
   const { username, password } = req.body;
   try {
@@ -96,16 +112,8 @@ exports.login = async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ msg: "Invalid credentials" });
 
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || "default_secret", { expiresIn: "1h" });
 
-
-    // Tạo token JWT
-    const token = jwt.sign(
-      { id: user._id },
-      process.env.JWT_SECRET || "default_secret",
-      { expiresIn: "1h" }
-    );
-
-    // ===== Cập nhật active: true khi login =====
     user.active = true;
     await user.save();
 
@@ -118,6 +126,8 @@ exports.login = async (req, res) => {
         lastname: user.lastname,
         email: user.email,
         avatar: user.avatar,
+        coverPhoto: user.coverPhoto,
+        bio: user.bio,
         role: user.role,
         friends: user.friends,
         likedPosts: user.likedPosts,
@@ -132,15 +142,12 @@ exports.login = async (req, res) => {
   }
 };
 
-
-// ===== 4. Đăng xuất (Logout) =====
+// ===== 4. Đăng xuất =====
 exports.logout = async (req, res) => {
-  const { userId } = req.body;
   try {
-    const user = await User.findById(userId);
+    const user = await User.findById(req.body.userId);
     if (!user) return res.status(404).json({ msg: "User not found" });
 
-    // Cập nhật active: false khi logout
     user.active = false;
     await user.save();
 
@@ -199,7 +206,7 @@ exports.getUserById = async (req, res) => {
 
 // ===== 7. Cập nhật user (Update User) =====
 exports.updateUser = async (req, res) => {
-  const { firstname, lastname, username, email, avatar, role } = req.body;
+  const { firstname, lastname, username, email, avatar, role, bio, coverPhoto, gender, location } = req.body;
 
   try {
     const updatedUser = await User.findByIdAndUpdate(
@@ -210,7 +217,11 @@ exports.updateUser = async (req, res) => {
         username,
         email,
         avatar,
-        role
+        role,
+        bio,
+        coverPhoto,
+        gender,
+        location
       },
       { new: true, runValidators: true, fields: "-password" }
     );
