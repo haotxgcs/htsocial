@@ -5,17 +5,12 @@
     <aside class="sidebar-left">
       <h2 class="profile-name"><img src="../assets/user.png" class="menu-icon-left"/>{{ user?.firstname }} {{ user?.lastname }}</h2>
       <ul>
-        <li><img src="../assets/user.png" class="menu-icon-left"/>Meta AI</li>
-        <li><img src="../assets/user.png" class="menu-icon-left"/>Bạn bè</li>
-        <li><img src="../assets/user.png" class="menu-icon-left"/>Công cụ chuyên nghiệp</li>
-        <li><img src="../assets/user.png" class="menu-icon-left"/>Trang</li>
-        <li><img src="../assets/user.png" class="menu-icon-left"/>Bảng feed</li>
-        <li><img src="../assets/user.png" class="menu-icon-left"/>Nhóm</li>
-        <li><img src="../assets/user.png" class="menu-icon-left"/>Marketplace</li>
-        <li><img src="../assets/user.png" class="menu-icon-left"/>Chiến dịch gây quỹ</li>
-        <li><img src="../assets/user.png" class="menu-icon-left"/>Chơi game</li>
-        <li><img src="../assets/user.png" class="menu-icon-left"/>Đã lưu</li>
-        <li><img src="../assets/user.png" class="menu-icon-left"/>Đơn đặt hàng và thanh toán</li>
+        <li><img src="../assets/sidebar/ai.png" class="menu-icon-left"/>AI</li>
+        <li><img src="../assets/sidebar/friend.png" class="menu-icon-left"/>Bạn bè</li>
+        <li><img src="../assets/sidebar/group.png" class="menu-icon-left"/>Nhóm</li>
+        <li><img src="../assets/sidebar/marketplace.png" class="menu-icon-left"/>Marketplace</li>
+        <li><img src="../assets/sidebar/game.png" class="menu-icon-left"/>Chơi game</li>
+        
       </ul>
     </aside>
 

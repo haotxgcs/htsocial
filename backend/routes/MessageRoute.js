@@ -1,8 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const messageCtrl = require('../controllers/MessageController');
+const MessageController = require('../controllers/MessageController');
 
-router.post('/', messageCtrl.sendMessage);
-router.get('/:user1/:user2', messageCtrl.getConversation);
+router.post('/', MessageController.sendMessage);
+router.get('/:user1/:user2', MessageController.getConversation);
+router.put("/recall/:id", MessageController.recallMessage);
+router.delete("/:id", MessageController.deleteMessage);
 
 module.exports = router;

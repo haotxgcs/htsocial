@@ -6,7 +6,7 @@ const Share = require("../models/ShareModel");
 // Tạo post mới hỗ trợ cả ảnh và video
 exports.createPost = async (req, res) => {
   try {
-    const { content, author } = req.body;
+    const { content, author,audience } = req.body;
     const media = req.file ? `uploads/${req.file.filename}` : null;
     const mediaType = req.file
       ? req.file.mimetype.startsWith("image")
@@ -27,7 +27,8 @@ exports.createPost = async (req, res) => {
       content,
       author: existingUser._id,
       media,
-      mediaType
+      mediaType,
+      audience: audience || "public"
     });
 
     await newPost.save();
@@ -97,13 +98,14 @@ exports.getPostById = async (req, res) => {
 // controllers/PostController.js
 exports.updatePost = async (req, res) => {
   try {
-    const { content } = req.body;
+    const { content,audience } = req.body;
     const file = req.file;
 
     const post = await Post.findById(req.params.id);
     if (!post) return res.status(404).json({ msg: "Post not found" });
 
     if (content) post.content = content;
+    if (audience) post.audience = audience;
 
     if (file) {
       post.media = file.path;
