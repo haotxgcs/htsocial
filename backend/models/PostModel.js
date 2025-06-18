@@ -5,7 +5,7 @@ const postSchema = new mongoose.Schema(
     content: { type: String, required: true },
     author: { type: mongoose.Schema.Types.ObjectId, ref: "User",required: true },
     media: { type: String },
-    mediaType: { type: String, enum: ['image', 'video'], default: 'image' },
+    mediaType: { type: String, enum: ['image', 'video'], default: null },
     likes: [{type: mongoose.Schema.Types.ObjectId,ref: "User"}],
     commentCount: { type: Number, default: 0 },
     sharesCount: { type: Number, default: 0 },
