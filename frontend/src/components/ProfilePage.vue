@@ -94,21 +94,21 @@
       <div class="content-right">
         <div class="posts-section">
           <div class="create-post">
-        <input type="text" @click="$router.push('/posts')" placeholder="Bạn đang nghĩ gì thế?" />
+        <input type="text" @click="openCreatePostModal" placeholder="Bạn đang nghĩ gì thế?" />
 
-        <div class="post-options">
+        <!-- <div class="post-options">
           <button>🎥 Video</button>
           <button>📷 Ảnh</button>
           <button>🎬 Thước phim</button>
-        </div>
+        </div> -->
       </div>
 
       <div class="post" v-for="post in posts" :key="post._id">
   <div class="post-header">
   <div class="post-author-info">
-    <img :src="`http://localhost:3000/${post.author.avatar || 'user.png'}`" alt="avatar" />
+    <img :src="getAvatarUrl(post.author)" alt="avatar" />
     <div class="author-details">
-      <strong>{{ post.author.firstname }} {{ post.author.lastname }}</strong>
+      <strong>{{ post.author?.firstname }} {{ post.author?.lastname }}</strong>
       <p class="time">{{ formatTime(post.createdAt) }}</p>
     </div>
   </div>
@@ -117,8 +117,9 @@
   <div class="post-menu-wrapper">
     <img src="../assets/menu.png" class="menu-post-icon" @click="toggleMenu(post._id)" />
     <div v-if="openMenuId === post._id" class="dropdown-menu">
-      <button @click="editPost(post)"> Chỉnh sửa bài viết</button>
-      <button> Chỉnh sửa đối tượng</button>
+      <button v-if="isMyPost(post)" @click="editPost(post)"> Chỉnh sửa bài viết</button>
+      <button v-if="isMyPost(post)"> Chỉnh sửa đối tượng</button>
+      <button>Hide this Post</button>
       <button v-if="isMyPost(post)" @click="deletePost(post._id)" style="color: red">🗑️ Xoá bài viết</button>
     </div>
   </div>
@@ -161,6 +162,119 @@
   </button>
 </div>
 </div>
+
+<!-- Create Post Modal -->
+<div v-if="createPostModalVisible" class="create-post-modal-overlay" @click="closeCreatePostModal">
+  <div class="create-post-modal-content" @click.stop>
+    <!-- Header modal -->
+    <div class="create-post-modal-header">
+      <h3>Tạo bài viết</h3>
+      <button class="close-btn" @click="closeCreatePostModal">&times;</button>
+    </div>
+
+    <!-- User info -->
+    <div class="post-creator-info">
+      <img :src="`http://localhost:3000/${user?.avatar || 'user.png'}`" alt="avatar" class="creator-avatar" />
+      <div class="creator-details">
+        <strong>{{ user?.firstname }} {{ user?.lastname }}</strong>
+        <div class="privacy-selector">
+          <select v-model="postPrivacy">
+            <option value="public">🌐 Công khai</option>
+            <option value="friends">👥 Bạn bè</option>
+            <option value="private">🔒 Chỉ mình tôi</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Post content -->
+    <div class="post-content-area">
+      <textarea 
+        v-model="newPostContent" 
+        :placeholder="`${user?.firstname} ${user?.lastname} ơi, bạn đang nghĩ gì thế?`"
+        class="post-textarea"
+        ref="postTextarea"
+        @input="adjustTextareaHeight"
+      ></textarea>
+      
+      <!-- Emoji picker button -->
+      <div class="emoji-toolbar">
+        <button @click="toggleEmojiPicker" class="emoji-btn" type="button"><img src="../assets/emoji.png"></button>
+        <div v-if="showEmojiPicker" class="emoji-picker">
+          <div class="emoji-categories">
+            <button 
+              v-for="category in emojiCategories" 
+              :key="category.name"
+              @click="selectedEmojiCategory = category.name"
+              :class="{ active: selectedEmojiCategory === category.name }"
+              class="emoji-category-btn"
+            >
+              {{ category.icon }}
+            </button>
+          </div>
+          <div class="emoji-grid">
+            <button 
+              v-for="emoji in getCurrentCategoryEmojis()" 
+              :key="emoji"
+              @click="insertEmoji(emoji)"
+              class="emoji-item"
+            >
+              {{ emoji }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Media preview -->
+    <div v-if="selectedMedia" class="media-preview">
+      <div class="media-preview-container">
+        <img v-if="isImageFile(selectedMedia)" :src="mediaPreviewUrl" class="preview-image" />
+        <video v-else-if="isVideoFile(selectedMedia)" :src="mediaPreviewUrl" class="preview-video" controls></video>
+        <button @click="removeMedia" class="remove-media-btn">&times;</button>
+      </div>
+    </div>
+
+    <!-- Add to post options -->
+    <div class="add-to-post">
+      <span class="add-to-post-label">Thêm vào bài viết của bạn</span>
+      <div class="add-options">
+        <label class="add-option">
+          <input type="file" @change="handleMediaSelect" accept="image/*,video/*" style="display: none;">
+          <span class="option-icon"><img src="../assets/media.png"></span>
+          <span>Ảnh/Video</span>
+        </label>
+        <button class="add-option" @click="insertEmoji('😀')">
+          <span class="option-icon"><img src="../assets/emoji.png"></span>
+          <span>Cảm xúc</span>
+        </button>
+        <button class="add-option">
+          <span class="option-icon">📍</span>
+          <span>Check in</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Post button -->
+    <div class="post-actions-footer">
+      <button 
+        @click="submitNewPost" 
+        :disabled="!canPost"
+        class="post-submit-btn"
+        :class="{ disabled: !canPost }"
+      >
+        Đăng
+      </button>
+    </div>
+  </div>
+</div>
+
+<ConfirmDialog
+  v-if="confirmVisible"
+  :message="confirmMessage"
+  @confirm="handleConfirmedDelete"
+  @cancel="confirmVisible = false"
+/>
 
 <!-- Modal chỉnh sửa bài viết -->
 <div v-if="editModalVisible" class="modal-overlay">
@@ -315,6 +429,32 @@ export default {
       selectedPost: null,
       comments: [],
       newComment: '',
+
+      // Emoji picker data
+      showEmojiPicker: false,
+      selectedEmojiCategory: 'smileys',
+      emojiCategories: [
+        { name: 'smileys', icon: '😀' },
+        { name: 'people', icon: '👋' },
+        { name: 'nature', icon: '🌸' },
+        { name: 'food', icon: '🍕' },
+        { name: 'activities', icon: '⚽' },
+        { name: 'travel', icon: '🏠' },
+        { name: 'objects', icon: '💡' },
+        { name: 'symbols', icon: '❤️' }
+      ],
+
+      emojis: {
+        smileys: ['😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇', '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚', '😋', '😛', '😝', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🤩', '🥳'],
+        people: ['👋', '🤚', '🖐️', '✋', '🖖', '👌', '🤏', '✌️', '🤞', '🤟', '🤘', '🤙', '👈', '👉', '👆', '🖕', '👇', '☝️', '👍', '👎', '👊', '✊', '🤛', '🤜', '👏', '🙌', '👐', '🤲', '🤝', '🙏'],
+        nature: ['🌸', '💐', '🌹', '🥀', '🌺', '🌻', '🌼', '🌷', '🌱', '🌲', '🌳', '🌴', '🌵', '🌶️', '🍄', '🌾', '💮', '🏔️', '⛰️', '🌋', '🗻', '🏕️', '🏖️', '🏜️', '🏝️', '🏞️'],
+        food: ['🍕', '🍔', '🍟', '🌭', '🥪', '🌮', '🌯', '🥙', '🧆', '🥚', '🍳', '🥘', '🍲', '🥗', '🍿', '🧈', '🧂', '🥯', '🍞', '🥖', '🥨', '🧀', '🥞', '🧇', '🥓', '🥩', '🍗', '🍖'],
+        activities: ['⚽', '🏀', '🏈', '⚾', '🥎', '🎾', '🏐', '🏉', '🥏', '🎱', '🪀', '🏓', '🏸', '🏒', '🏑', '🥍', '🏏', '🥅', '⛳', '🪁', '🏹', '🎣', '🤿', '🥊', '🥋', '🎽'],
+        travel: ['🏠', '🏡', '🏘️', '🏚️', '🏗️', '🏭', '🏢', '🏬', '🏣', '🏤', '🏥', '🏦', '🏨', '🏪', '🏫', '🏩', '💒', '🏛️', '⛪', '🕌', '🛕', '🕍', '🕋', '⛩️', '🛤️', '🛣️', '🗾'],
+        objects: ['💡', '🔦', '🏮', '🪔', '📱', '💻', '🖥️', '🖨️', '⌨️', '🖱️', '🖲️', '💽', '💾', '💿', '📀', '🧮', '🎥', '🎞️', '📽️', '🎬', '📺', '📻', '🎙️', '🎚️', '🎛️', '🧭', '⏱️'],
+        symbols: ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟', '☮️', '✝️', '☪️', '🕉️', '☸️', '✡️', '🔯', '🕎']
+      }
+      
     };
   },
   computed: {
@@ -327,6 +467,10 @@ export default {
     }
   },
   methods: {
+    getAvatarUrl(author) {
+  if (!author || !author.avatar) return 'http://localhost:3000/uploads/user.png';
+  return `http://localhost:3000/${author.avatar}`;
+},
     formatTime(dateStr) {
     const date = new Date(dateStr);
     return date.toLocaleString();
@@ -348,6 +492,140 @@ export default {
       console.error("Lỗi khi tải bài viết:", err);
     }
   },
+
+  // Create Post Modal methods
+  openCreatePostModal() {
+    this.createPostModalVisible = true;
+    this.newPostContent = '';
+    this.selectedMedia = null;
+    this.mediaPreviewUrl = null;
+    this.showEmojiPicker = false;
+    
+    // Focus vào textarea sau khi modal mở
+    this.$nextTick(() => {
+      if (this.$refs.postTextarea) {
+        this.$refs.postTextarea.focus();
+      }
+    });
+  },
+
+  closeCreatePostModal() {
+    this.createPostModalVisible = false;
+    this.newPostContent = '';
+    this.selectedMedia = null;
+    this.mediaPreviewUrl = null;
+    this.showEmojiPicker = false;
+  },
+
+  adjustTextareaHeight() {
+    this.$nextTick(() => {
+      const textarea = this.$refs.postTextarea;
+      if (textarea) {
+        textarea.style.height = 'auto';
+        textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
+      }
+    });
+  },
+
+  // Emoji picker methods
+  toggleEmojiPicker() {
+    this.showEmojiPicker = !this.showEmojiPicker;
+  },
+
+  getCurrentCategoryEmojis() {
+    return this.emojis[this.selectedEmojiCategory] || [];
+  },
+
+  insertEmoji(emoji) {
+    const textarea = this.$refs.postTextarea;
+    const startPos = textarea.selectionStart;
+    const endPos = textarea.selectionEnd;
+    
+    this.newPostContent = this.newPostContent.substring(0, startPos) + 
+                         emoji + 
+                         this.newPostContent.substring(endPos);
+    
+    // Đặt con trỏ sau emoji vừa chèn
+    this.$nextTick(() => {
+      textarea.focus();
+      textarea.setSelectionRange(startPos + emoji.length, startPos + emoji.length);
+    });
+    
+    this.adjustTextareaHeight();
+  },
+
+  // Media handling methods
+  handleMediaSelect(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    this.selectedMedia = file;
+    this.mediaPreviewUrl = URL.createObjectURL(file);
+  },
+
+  removeMedia() {
+    if (this.mediaPreviewUrl) {
+      URL.revokeObjectURL(this.mediaPreviewUrl);
+    }
+    this.selectedMedia = null;
+    this.mediaPreviewUrl = null;
+  },
+
+  isImageFile(file) {
+    return file && file.type.startsWith('image/');
+  },
+
+  isVideoFile(file) {
+    return file && file.type.startsWith('video/');
+  },
+
+  // Submit new post
+  async submitNewPost() {
+    if (!this.canPost) return;
+
+    const savedUser = JSON.parse(localStorage.getItem("user"));
+    if (!savedUser) return alert("Vui lòng đăng nhập");
+
+    try {
+      const formData = new FormData();
+      formData.append('content', this.newPostContent);
+      formData.append('author', savedUser.username);
+      formData.append('privacy', this.postPrivacy);
+      
+      if (this.selectedMedia) {
+        formData.append('image', this.selectedMedia);
+      }
+
+      // ✅ Sửa: Thêm headers Content-Type
+    const res = await fetch('http://localhost:3000/posts', {
+      method: 'POST',
+      headers: {
+        // Không cần set Content-Type khi dùng FormData, browser sẽ tự set
+      },
+      body: formData
+    });
+
+    // ✅ Sửa: Kiểm tra response status
+    if (!res.ok) {
+      throw new Error(`HTTP error! status: ${res.status}`);
+    }
+
+    const newPost = await res.json();
+    
+    // Thêm bài viết mới vào đầu danh sách
+    newPost.createdAt = new Date(newPost.createdAt || Date.now());
+    await this.fetchPosts();
+
+    
+    // Đóng modal và reset form
+    this.closeCreatePostModal();
+    
+    alert('Đăng bài thành công!');
+  } catch (err) {
+    console.error("Không thể tạo bài viết:", err);
+    alert("Không thể đăng bài viết: " + err.message);
+  }
+},
 
   // Comment modal methods
   async openCommentModal(post) {
@@ -466,15 +744,13 @@ export default {
 </script>
 
 <style scoped>
-* {
-  box-sizing: border-box;
-}
-
+/* Profile Layout */
 .profile-container {
   max-width: 1200px;
   margin: 0 auto;
   background: #f0f2f5;
   min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 
 /* Cover Section */
@@ -483,11 +759,12 @@ export default {
   border-radius: 0 0 8px 8px;
   overflow: hidden;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  margin-bottom: 16px;
 }
 
 .cover-photo {
   position: relative;
-  height: 400px;
+  height: 360px;
 }
 
 .cover-image {
@@ -508,7 +785,6 @@ export default {
   cursor: pointer;
 }
 
-/* Profile Info Bar */
 .profile-info-bar {
   display: flex;
   justify-content: space-between;
@@ -556,7 +832,7 @@ export default {
 }
 
 .user-name {
-  font-size: 32px;
+  font-size: 28px;
   font-weight: bold;
   margin: 0;
   color: #1c1e21;
@@ -568,43 +844,46 @@ export default {
   font-size: 15px;
 }
 
-.mutual-friends {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.mutual-avatars {
-  display: flex;
-  margin-left: -4px;
-}
-
-.mutual-avatar {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  border: 2px solid white;
-  margin-left: -4px;
-}
-
-.mutual-text {
-  color: #65676b;
-  font-size: 15px;
-}
-
 .profile-actions {
   display: flex;
   gap: 8px;
   align-items: center;
 }
 
-/* Navigation */
+.btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-primary {
+  background: #1877f2;
+  color: white;
+}
+
+.btn-secondary {
+  background: #e4e6ea;
+  color: #1c1e21;
+}
+
+.btn-icon {
+  background: #e4e6ea;
+  padding: 8px;
+  width: 36px;
+  height: 36px;
+  justify-content: center;
+}
+
+/* Navigation Tabs */
 .profile-nav {
   background: white;
   border-top: 1px solid #dadde1;
-  position: sticky;
-  top: 0;
-  z-index: 100;
+  border-bottom: 1px solid #dadde1;
 }
 
 .nav-container {
@@ -640,16 +919,7 @@ export default {
   background: #f2f2f2;
 }
 
-.nav-more-btn {
-  background: #e4e6ea;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-/* Main Content */
+/* Main Layout */
 .profile-content {
   display: grid;
   grid-template-columns: 360px 1fr;
@@ -667,45 +937,6 @@ export default {
   margin-bottom: 16px;
 }
 
-.card h3 {
-  font-size: 20px;
-  font-weight: bold;
-  margin-bottom: 16px;
-  color: #1c1e21;
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
-.see-all {
-  color: #1877f2;
-  text-decoration: none;
-  font-weight: 600;
-}
-
-/* Intro Card */
-.intro-items {
-  margin-bottom: 16px;
-}
-
-.intro-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 0;
-  color: #1c1e21;
-}
-
-.intro-item i {
-  color: #65676b;
-  width: 20px;
-}
-
-/* Photos Grid */
 .photos-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -721,7 +952,6 @@ export default {
   cursor: pointer;
 }
 
-/* Friends Grid */
 .friends-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -748,230 +978,24 @@ export default {
   object-fit: cover;
 }
 
-.friend-name {
-  font-weight: 600;
-  color: #1c1e21;
-}
-
-/* Posts Section */
-.create-post {
-  margin-bottom: 16px;
-}
-
-.create-post-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.small-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-}
-
-.post-input {
-  flex: 1;
-  border: none;
-  background: #f0f2f5;
-  padding: 12px 16px;
-  border-radius: 24px;
-  font-size: 16px;
-  cursor: pointer;
-}
-
-.create-post-actions {
-  display: flex;
-  justify-content: space-around;
-  border-top: 1px solid #dadde1;
-  padding-top: 8px;
-}
-
-.post-action {
-  background: none;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 6px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 600;
-  color: #65676b;
-  flex: 1;
-  justify-content: center;
-}
-
-.post-action:hover {
-  background: #f2f2f2;
-}
-
-/* Post Cards */
-.post-card {
-  margin-bottom: 16px;
-}
-
-.post-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.post-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-}
-
-.post-info {
-  flex: 1;
-}
-
-.post-author {
-  font-weight: bold;
-  margin: 0;
-  color: #1c1e21;
-}
-
-.post-time {
-  color: #65676b;
-  font-size: 13px;
-}
-
-.post-menu {
-  background: none;
-  border: none;
-  padding: 8px;
-  border-radius: 50%;
-  cursor: pointer;
-}
-
-.post-content {
-  margin-bottom: 12px;
-}
-
-.post-content p {
-  margin: 0 0 12px 0;
-  color: #1c1e21;
-  line-height: 1.34;
-}
-
-.post-image {
-  width: 100%;
-  border-radius: 8px;
-}
-
-.post-stats {
-  display: flex;
-  justify-content: space-between;
-  color: #65676b;
-  font-size: 15px;
-  padding: 8px 0;
-  border-bottom: 1px solid #dadde1;
-  margin-bottom: 8px;
-}
-
-.post-actions {
-  display: flex;
-  justify-content: space-around;
-}
-
-.action-btn {
-  background: none;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 6px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 600;
-  color: #65676b;
-  flex: 1;
-  justify-content: center;
-}
-
-.action-btn:hover {
-  background: #f2f2f2;
-}
-
-/* Buttons */
-.btn {
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-  border: none;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.btn-primary {
-  background: #1877f2;
-  color: white;
-}
-
-.btn-secondary {
-  background: #e4e6ea;
-  color: #1c1e21;
-}
-
-.btn-icon {
-  background: #e4e6ea;
-  padding: 8px;
-  width: 36px;
-  height: 36px;
-  justify-content: center;
-}
-
-.btn-full {
-  width: 100%;
-  justify-content: center;
-  margin-bottom: 8px;
-}
-
-/* Icons (placeholder - bạn có thể thay thế bằng icon library) */
-.icon-camera::before { content: "📷"; }
-.icon-plus::before { content: "➕"; }
-.icon-edit::before { content: "✏️"; }
-.icon-dots::before { content: "⋯"; }
-.icon-work::before { content: "💼"; }
-.icon-education::before { content: "🎓"; }
-.icon-location::before { content: "📍"; }
-.icon-home::before { content: "🏠"; }
-.icon-heart::before { content: "❤️"; }
-.icon-calendar::before { content: "📅"; }
-.icon-video::before { content: "📹"; }
-.icon-photo::before { content: "🖼️"; }
-.icon-smile::before { content: "😊"; }
-.icon-like::before { content: "👍"; }
-.icon-comment::before { content: "💬"; }
-.icon-share::before { content: "📤"; }
-
 /* Responsive */
 @media (max-width: 768px) {
   .profile-content {
     grid-template-columns: 1fr;
     padding: 16px;
   }
-  
+
   .profile-info-bar {
     flex-direction: column;
     align-items: center;
     text-align: center;
-    gap: 16px;
   }
-  
+
   .profile-main-info {
     flex-direction: column;
     align-items: center;
   }
-  
-  .nav-tabs {
-    overflow-x: auto;
-  }
 }
 </style>
+
+
