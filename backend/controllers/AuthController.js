@@ -203,7 +203,6 @@ exports.getUserById = async (req, res) => {
   }
 };
 
-
 // ===== 7. Cập nhật user (Update User) =====
 exports.updateUser = async (req, res) => {
   const { firstname, lastname, username, email, avatar, role, bio, coverPhoto, gender, location } = req.body;

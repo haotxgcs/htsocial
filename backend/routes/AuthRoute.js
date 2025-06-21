@@ -37,4 +37,22 @@ router.post("/unfriend", AuthController.unFriend);
 // Online status
 router.post("/active-status", AuthController.setActiveStatus);
 
+// View hidden posts
+router.post('/:userId/hide-post/:postId', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    if (!user.hiddenPosts.includes(req.params.postId)) {
+      user.hiddenPosts.push(req.params.postId);
+      await user.save();
+    }
+
+    res.status(200).json({ message: 'Post hidden successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Error hiding post' });
+  }
+});
+
+
 module.exports = router;

@@ -93,7 +93,64 @@ exports.getPostById = async (req, res) => {
   }
 };
 
+exports.getVisiblePosts = async (req, res) => {
+  try {
+    const viewerId = req.params.viewerId;
 
+    const allPosts = await Post.find()
+      .populate('author', 'firstname lastname username avatar friends')
+      .sort({ createdAt: -1 });
+
+    const visiblePosts = allPosts.filter(post => {
+      const isAuthor = post.author._id.toString() === viewerId;
+      const isFriend = post.author.friends.includes(viewerId);
+
+      switch (post.audience) {
+        case 'public':
+          return true;
+        case 'friends':
+          return isFriend || isAuthor;
+        case 'private':
+          return isAuthor;
+        default:
+          return false;
+      }
+    });
+
+    res.status(200).json(visiblePosts);
+  } catch (err) {
+    console.error('Error loading visible posts:', err);
+    res.status(500).json({ msg: 'Server error' });
+  }
+};
+
+exports.getHiddenPosts = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const user = await User.findById(userId).populate({
+      path: "hiddenPosts",
+      populate: {
+        path: "author",
+        select: "firstname lastname username"
+      }
+    });
+
+    if (!user) return res.status(404).json({ msg: "User not found" });
+
+    const hiddenPosts = user.hiddenPosts
+      .map(post => ({
+        ...post.toObject(),
+        likesCount: post.likes.length
+      }))
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    res.status(200).json(hiddenPosts);
+  } catch (err) {
+    console.error("Get hidden posts error:", err);
+    res.status(500).json({ msg: "Error fetching hidden posts" });
+  }
+};
 
 // controllers/PostController.js
 exports.updatePost = async (req, res) => {
@@ -150,6 +207,27 @@ exports.deletePost = async (req, res) => {
   } catch (err) {
     console.error("Delete post error:", err);
     res.status(500).json({ msg: "Error deleting post" });
+  }
+};
+
+// Hide post by user
+exports.hidePost = async (req, res) => {
+  try {
+    const { userId } = req.body;  // người dùng muốn ẩn bài
+    const { postId } = req.params;
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ msg: "User not found" });
+
+    if (!user.hiddenPosts.includes(postId)) {
+      user.hiddenPosts.push(postId);
+      await user.save();
+    }
+
+    res.status(200).json({ msg: "Post hidden successfully" });
+  } catch (err) {
+    console.error("Hide post error:", err);
+    res.status(500).json({ msg: "Server error" });
   }
 };
 

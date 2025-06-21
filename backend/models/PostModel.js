@@ -9,7 +9,7 @@ const postSchema = new mongoose.Schema(
     likes: [{type: mongoose.Schema.Types.ObjectId,ref: "User"}],
     commentCount: { type: Number, default: 0 },
     sharesCount: { type: Number, default: 0 },
-    audience: { type: String, enum: ["public", "friends", "onlyme"], default: "public"}
+    audience: { type: String, enum: ["public", "friends", "private"], default: "public"}
   },
   {
     timestamps: true,

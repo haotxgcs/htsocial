@@ -6,10 +6,10 @@
       <h2 class="profile-name"><img src="../assets/user.png" class="menu-icon-left"/>{{ user?.firstname }} {{ user?.lastname }}</h2>
       <ul>
         <li><img src="../assets/sidebar/ai.png" class="menu-icon-left"/>AI</li>
-        <li><img src="../assets/sidebar/friend.png" class="menu-icon-left"/>Bạn bè</li>
-        <li><img src="../assets/sidebar/group.png" class="menu-icon-left"/>Nhóm</li>
+        <li><img src="../assets/sidebar/friend.png" class="menu-icon-left"/>Friend</li>
+        <li><img src="../assets/sidebar/group.png" class="menu-icon-left"/>Group</li>
         <li><img src="../assets/sidebar/marketplace.png" class="menu-icon-left"/>Marketplace</li>
-        <li><img src="../assets/sidebar/game.png" class="menu-icon-left"/>Chơi game</li>
+        <li><img src="../assets/sidebar/game.png" class="menu-icon-left"/>Game</li>
         
       </ul>
     </aside>
@@ -19,12 +19,6 @@
       <div class="create-post">
         <h3>Create your post</h3>
         <input type="text" @click="openCreatePostModal" :placeholder="`What's is on your mind, ${user?.firstname} ${user?.lastname}?`"/>
-
-        <!-- <div class="post-options">
-          <button @click="openCreatePostModal">🎥 Video</button>
-          <button @click="openCreatePostModal">📷 Ảnh</button>
-          <button @click="openCreatePostModal">🎬 Thước phim</button>
-        </div> -->
       </div>
 
       <div class="post" v-for="post in posts" :key="post._id">
@@ -33,7 +27,13 @@
     <img :src="getAvatarUrl(post.author)" alt="avatar" />
     <div class="author-details">
       <strong>{{ post.author?.firstname }} {{ post.author?.lastname }}</strong>
-      <p class="time">{{ formatTime(post.createdAt) }}</p>
+      <p class="time">
+  {{ formatTime(post.createdAt) }}
+  <span v-if="post.audience === 'public'">🌐</span>
+  <span v-else-if="post.audience === 'friends'">👥</span>
+  <span v-else-if="post.audience === 'private'">🔒</span>
+</p>
+
     </div>
   </div>
 
@@ -41,10 +41,9 @@
   <div class="post-menu-wrapper">
     <img src="../assets/menu.png" class="menu-post-icon" @click="toggleMenu(post._id)" />
     <div v-if="openMenuId === post._id" class="dropdown-menu">
-      <button v-if="isMyPost(post)" @click="editPost(post)"> Chỉnh sửa bài viết</button>
-      <button v-if="isMyPost(post)"> Chỉnh sửa đối tượng</button>
-      <button>Hide this Post</button>
-      <button v-if="isMyPost(post)" @click="deletePost(post._id)" style="color: red">🗑️ Xoá bài viết</button>
+      <button v-if="isMyPost(post)" @click="editPost(post)"> Edit Post</button>
+      <button v-if="!isMyPost(post)" @click="hidePost(post._id)">Hide this Post</button>
+      <button v-if="isMyPost(post)" @click="deletePost(post._id)" style="color: red"> Delete Post</button>
     </div>
   </div>
 </div>
@@ -97,7 +96,7 @@
 
     <!-- Sidebar phải -->
     <aside class="sidebar-right">
-      <h3>Người liên hệ</h3>
+      <h3>Contacts</h3>
       <ul>
         <li><img src="../assets/user.png" class="menu-icon-right"/><span class="status online"></span> Trần Xuân Hào</li>
         <li><img src="../assets/user.png" class="menu-icon-right"/><span class="status online"></span> Tran Hao</li>
@@ -111,7 +110,7 @@
   <div class="create-post-modal-content" @click.stop>
     <!-- Header modal -->
     <div class="create-post-modal-header">
-      <h3>Tạo bài viết</h3>
+      <h3>Create a post</h3>
       <button class="close-btn" @click="closeCreatePostModal">&times;</button>
     </div>
 
@@ -122,9 +121,9 @@
         <strong>{{ user?.firstname }} {{ user?.lastname }}</strong>
         <div class="privacy-selector">
           <select v-model="postPrivacy">
-            <option value="public">🌐 Công khai</option>
-            <option value="friends">👥 Bạn bè</option>
-            <option value="private">🔒 Chỉ mình tôi</option>
+            <option value="public">🌐 Public</option>
+            <option value="friends">👥 Friends</option>
+            <option value="private">🔒 Private</option>
           </select>
         </div>
       </div>
@@ -134,15 +133,28 @@
     <div class="post-content-area">
       <textarea 
         v-model="newPostContent" 
-        :placeholder="`${user?.firstname} ${user?.lastname} ơi, bạn đang nghĩ gì thế?`"
+        :placeholder="`${user?.firstname} ${user?.lastname} , what's on your mind?`"
         class="post-textarea"
         ref="postTextarea"
         @input="adjustTextareaHeight"
       ></textarea>
       
-      <!-- Emoji picker button -->
-      <div class="emoji-toolbar">
-        <button @click="toggleEmojiPicker" class="emoji-btn" type="button"><img src="../assets/emoji.png"></button>
+      <div class="add-options">
+        <button @click="toggleEmojiPicker" class="add-option">
+            <span class="option-icon"><img src="../assets/emoji.png"></span>
+            <span>Icon</span>
+          </button>
+
+        <label class="add-option">
+          <input type="file" @change="handleMediaSelect" accept="image/*,video/*" style="display: none;">
+          <span class="option-icon"><img src="../assets/media.png"></span>
+          <span>Media</span>
+        </label>
+
+          
+       
+      </div>
+          
         <div v-if="showEmojiPicker" class="emoji-picker">
           <div class="emoji-categories">
             <button 
@@ -166,7 +178,6 @@
             </button>
           </div>
         </div>
-      </div>
     </div>
 
     <!-- Media preview -->
@@ -178,26 +189,6 @@
       </div>
     </div>
 
-    <!-- Add to post options -->
-    <div class="add-to-post">
-      <span class="add-to-post-label">Thêm vào bài viết của bạn</span>
-      <div class="add-options">
-        <label class="add-option">
-          <input type="file" @change="handleMediaSelect" accept="image/*,video/*" style="display: none;">
-          <span class="option-icon"><img src="../assets/media.png"></span>
-          <span>Ảnh/Video</span>
-        </label>
-        <button class="add-option" @click="insertEmoji('😀')">
-          <span class="option-icon"><img src="../assets/emoji.png"></span>
-          <span>Cảm xúc</span>
-        </button>
-        <button class="add-option">
-          <span class="option-icon">📍</span>
-          <span>Check in</span>
-        </button>
-      </div>
-    </div>
-
     <!-- Post button -->
     <div class="post-actions-footer">
       <button 
@@ -206,7 +197,7 @@
         class="post-submit-btn"
         :class="{ disabled: !canPost }"
       >
-        Đăng
+        Post
       </button>
     </div>
   </div>
@@ -221,22 +212,72 @@
 
 <!-- Modal chỉnh sửa bài viết -->
 <div v-if="editModalVisible" class="modal-overlay">
-  <div class="modal-content">
-    <h3>Chỉnh sửa bài viết</h3>
-    <textarea v-model="editContent" rows="5" style="width:100%"></textarea>
-    <div style="margin-top:10px; text-align:right;">
-      <button @click="editModalVisible = false">Hủy</button>
-      <button @click="submitEditPost" style="margin-left:10px; background:#1877f2; color:white;">Lưu</button>
+  <div class="modal-content" @click.stop>
+    <div class="modal-header">
+      <h3>Chỉnh sửa bài viết</h3>
+      <button class="close-btn" @click="editModalVisible = false">&times;</button>
+    </div>
+
+    <!-- Người đăng -->
+    <div class="post-creator-info">
+      <img :src="getAvatarUrl(user)" class="creator-avatar" />
+      <div class="creator-details">
+        <strong>{{ user.firstname }} {{ user.lastname }}</strong>
+
+        <div class="privacy-selector">
+      <select v-model="editPrivacy">
+        <option value="public">🌐 Public</option>
+        <option value="friends">👥 Friends</option>
+        <option value="private">🔒 Private</option>
+      </select>
+    </div>
+      </div>
+    </div>
+
+    <!-- Nội dung -->
+    <textarea
+      v-model="editContent"
+      class="post-textarea"
+      placeholder="Bạn đang nghĩ gì?"
+      ref="editTextarea"
+      @input="adjustTextareaHeightEdit"
+    ></textarea>
+
+    <!-- Ảnh/video hiện tại -->
+    <div v-if="editMediaPreview" class="media-preview-container">
+      <img
+        v-if="editMediaType === 'image'"
+        :src="editMediaPreview"
+        class="preview-image"
+      />
+      <video
+        v-else-if="editMediaType === 'video'"
+        controls
+        class="preview-video"
+      >
+        <source :src="editMediaPreview" type="video/mp4" />
+      </video>
+      <button class="remove-media-btn" @click="removeEditMedia">&times;</button>
+    </div>
+
+    <!-- Upload file mới -->
+    <input type="file" @change="handleEditFile" accept="image/*,video/*" />
+
+    <!-- Nút lưu -->
+    <div style="margin-top: 12px; text-align: right;">
+      <button @click="editModalVisible = false" class="btn btn-secondary">Hủy</button>
+      <button @click="submitEditPost" class="btn btn-primary" style="margin-left: 8px;">Lưu</button>
     </div>
   </div>
 </div>
+
 
 <!-- Modal Comment -->
 <div v-if="commentModalVisible" class="comment-modal-overlay" @click="closeCommentModal">
   <div class="comment-modal-content" @click.stop>
     <!-- Header modal -->
     <div class="comment-modal-header">
-      <h3>Bài viết của {{ selectedPost?.author.firstname }} {{ selectedPost?.author.lastname }}</h3>
+      <h3>{{ selectedPost?.author.firstname }} {{ selectedPost?.author.lastname }}'s Post</h3>
       <button class="close-btn" @click="closeCommentModal">&times;</button>
     </div>
 
@@ -270,23 +311,23 @@
 
       <!-- Thống kê like/comment -->
       <div class="post-stats">
-        <span v-if="selectedPost?.likes?.length > 0">{{ selectedPost.likes.length }} lượt thích</span>
-        <span v-if="selectedPost?.comments?.length > 0">{{ selectedPost.comments.length }} bình luận</span>
+        <span v-if="selectedPost?.likes?.length > 0">{{ selectedPost.likes.length }} like</span>
+        <span v-if="selectedPost?.comments?.length > 0">{{ selectedPost.comments.length }} comment</span>
       </div>
 
       <!-- Action buttons -->
       <div class="post-actions-modal">
         <button @click="toggleLike(selectedPost)" class="action-btn">
           <img :src="isLiked(selectedPost) ? require('../assets/like.png') : require('../assets/unlike.png')" class="action-icon" />
-          <span>Thích</span>
+          <span>Like</span>
         </button>
         <button class="action-btn" disabled>
           <img src="../assets/comment.png" alt="Comment" class="action-icon" />
-          <span>Bình luận</span>
+          <span>Comment</span>
         </button>
         <button @click="sharePost(selectedPost)" class="action-btn">
           <img src="../assets/share.png" alt="Share" class="action-icon" />
-          <span>Chia sẻ</span>
+          <span>Share</span>
         </button>
       </div>
     </div>
@@ -358,7 +399,11 @@ export default {
       editModalVisible: false,
       editContent: '',
       editPostId: null,
-      
+      editMediaType: '',
+      editMediaPreview: '',
+      editMediaFile: null,
+      editPrivacy: 'public', 
+
       // Comment modal data
       commentModalVisible: false,
       selectedPost: null,
@@ -394,7 +439,7 @@ export default {
         travel: ['🏠', '🏡', '🏘️', '🏚️', '🏗️', '🏭', '🏢', '🏬', '🏣', '🏤', '🏥', '🏦', '🏨', '🏪', '🏫', '🏩', '💒', '🏛️', '⛪', '🕌', '🛕', '🕍', '🕋', '⛩️', '🛤️', '🛣️', '🗾'],
         objects: ['💡', '🔦', '🏮', '🪔', '📱', '💻', '🖥️', '🖨️', '⌨️', '🖱️', '🖲️', '💽', '💾', '💿', '📀', '🧮', '🎥', '🎞️', '📽️', '🎬', '📺', '📻', '🎙️', '🎚️', '🎛️', '🧭', '⏱️'],
         symbols: ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟', '☮️', '✝️', '☪️', '🕉️', '☸️', '✡️', '🔯', '🕎']
-      }
+      },
     }
   },
 
@@ -418,10 +463,17 @@ export default {
   
   async fetchPosts() {
   try {
-    const res = await fetch("http://localhost:3000/posts");
+    const savedUser = JSON.parse(localStorage.getItem("user"));
+    if (!savedUser) {
+      return alert("Vui lòng đăng nhập");
+    }
+
+    const viewerId = savedUser.id;
+    const res = await fetch(`http://localhost:3000/posts/visible/${viewerId}`);
     if (!res.ok) {
       throw new Error(`HTTP error! status: ${res.status}`);
     }
+
     const data = await res.json();
     this.posts = data;
   } catch (err) {
@@ -527,9 +579,9 @@ export default {
       const formData = new FormData();
       formData.append('content', this.newPostContent);
       formData.append('author', savedUser.username);
-      formData.append('privacy', this.postPrivacy);
+      formData.append('audience', this.postPrivacy);
       
-      if (this.selectedMedia) {
+      if (this.selectedMedia) {formData.append('audience', this.postPrivacy);
         formData.append('image', this.selectedMedia);
       }
 
@@ -563,6 +615,29 @@ export default {
     alert("Không thể đăng bài viết: " + err.message);
   }
 },
+async hidePost(postId) {
+  const savedUser = JSON.parse(localStorage.getItem("user"));
+  if (!savedUser) return alert("Vui lòng đăng nhập");
+
+  try {
+    const res = await fetch(`http://localhost:3000/posts/hide-post/${postId}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ userId: savedUser.id })
+    });
+
+    if (res.ok) {
+      // Ẩn khỏi UI sau khi gọi API
+      this.posts = this.posts.filter(p => p._id !== postId);
+    }
+  } catch (err) {
+    console.error("Không thể ẩn bài viết:", err);
+    alert("Đã xảy ra lỗi khi ẩn bài viết");
+  }
+}
+,
 
   // Comment modal methods
   async openCommentModal(post) {
@@ -593,7 +668,7 @@ export default {
     if (!this.newComment.trim()) return;
     
     const savedUser = JSON.parse(localStorage.getItem("user"));
-    if (!savedUser) return alert("Vui lòng đăng nhập");
+    if (!savedUser) return alert("Please log in to comment");
 
     try {
       const res = await fetch(`http://localhost:3000/comments/posts/${this.selectedPost._id}`, {
@@ -616,10 +691,68 @@ export default {
         this.selectedPost.comments.push(newComment);
       }
     } catch (err) {
-      console.error("Không thể thêm comment:", err);
-      alert("Không thể thêm bình luận");
+      console.error("Cannot add comment:", err);
+      alert("Cannot add comment");
     }
   },
+  editPost(post) {
+  this.editModalVisible = true;
+  this.editPostId = post._id;
+  this.editContent = post.content;
+  this.editMediaType = post.mediaType;
+  this.editMediaPreview = `http://localhost:3000/${post.media}`;
+  this.editMediaFile = null;
+  this.editPrivacy = post.privacy || 'public';
+
+
+  this.$nextTick(() => {
+    if (this.$refs.editTextarea) {
+      this.adjustTextareaHeightEdit();
+      this.$refs.editTextarea.focus();
+    }
+  });
+},
+
+adjustTextareaHeightEdit() {
+  const textarea = this.$refs.editTextarea;
+  if (textarea) {
+    textarea.style.height = 'auto';
+    textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
+  }
+},
+
+handleEditFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  this.editMediaFile = file;
+  this.editMediaType = file.type.startsWith('video') ? 'video' : 'image';
+  this.editMediaPreview = URL.createObjectURL(file);
+},
+
+removeEditMedia() {
+  this.editMediaPreview = '';
+  this.editMediaFile = null;
+  this.editMediaType = '';
+},
+
+async submitEditPost() {
+  try {
+    const formData = new FormData();
+    formData.append('content', this.editContent);
+    formData.append('audience', this.editPrivacy);
+    if (this.editMediaFile) {
+      formData.append('image', this.editMediaFile);
+    }
+
+    await this.$axios.put(`/posts/${this.editPostId}`, formData);
+    alert('Cập nhật thành công!');
+    this.editModalVisible = false;
+    this.fetchPosts(); // reload lại danh sách bài viết
+  } catch (err) {
+    console.error("Lỗi cập nhật bài viết:", err);
+    alert("Không thể cập nhật bài viết!");
+  }
+},
 
   async toggleLike(post) {
     const savedUser = JSON.parse(localStorage.getItem("user"));
@@ -643,11 +776,9 @@ export default {
       alert("Không thể like bài viết");
     }
   },
-  editPost(post) {
-  this.$router.push(`/posts/${post._id}/edit`);
-},
+  
   deletePost(postId) {
-  this.confirmMessage = 'Bạn có chắc chắn muốn xoá bài viết này?';
+  this.confirmMessage = 'Are you sure to delete this post?';
   this.postToDeleteId = postId;
   this.confirmVisible = true;
 },
@@ -662,7 +793,7 @@ export default {
       this.openMenuId = null;
     }
   } catch (err) {
-    console.error("Xoá bài viết thất bại:", err);
+    console.error("Fail to delete post:", err);
   }
   this.confirmVisible = false;
 },
@@ -1163,7 +1294,7 @@ beforeUnmount() {
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.6);
+  background-color: rgba(255, 255, 255, 0.8);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -1858,32 +1989,38 @@ beforeUnmount() {
 .add-options {
   display: flex;
   justify-content: space-between;
-  gap: 8px;
+  gap: 12px;
+  padding: 0 24px;
+  margin-bottom: 16px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .add-option {
+  flex: 1;
+  padding: 10px 12px;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  padding: 8px 12px;
-  background: none;
-  border: none;
-  border-radius: 8px;
+  border-radius: 10px;
+  background: #f0f2f5;
+  border: 1px solid #ccc;
   cursor: pointer;
   transition: background-color 0.2s;
   font-size: 14px;
-  color: #65676b;
-  flex: 1;
-  justify-content: center;
+  white-space: nowrap;
 }
 
 .add-option:hover {
-  background: #f0f2f5;
+  background: #e4e6ea;
 }
 
-.option-icon {
-  font-size: 20px;
+.option-icon img {
+  width: 20px;
+  height: 20px;
 }
+
 
 /* Post Actions Footer */
 .post-actions-footer {
@@ -1958,13 +2095,23 @@ beforeUnmount() {
     font-size: 18px;
   }
   
-  .emoji-picker {
-    width: calc(100vw - 80px);
-    max-width: 320px;
-  }
+ .emoji-picker {
+  position: absolute;
+  bottom: 110%;
+  left: 0;
+  width: 320px;
+  background: white;
+  border-radius: 10px;
+  border: 1px solid #ddd;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+  padding: 8px;
+  z-index: 999;
+  animation: slideDown 0.2s ease-out;
+}
   
   .add-options {
     flex-direction: column;
+    align-items: stretch;
   }
   
   .add-option {
@@ -1995,4 +2142,106 @@ beforeUnmount() {
   background: #8a8d91;
 }
 
+/* Edit post modal */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  max-width: 500px;
+  width: 100%;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #ddd;
+  margin-bottom: 12px;
+}
+
+.creator-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.media-preview-container {
+  position: relative;
+  margin-top: 12px;
+}
+
+.preview-image, .preview-video {
+  max-width: 100%;
+  border-radius: 8px;
+}
+
+.remove-media-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: rgba(0,0,0,0.5);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+}
+
+.btn-primary {
+  background: #1877f2;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.btn-secondary {
+  background: #e4e6eb;
+  color: #050505;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+textarea.post-textarea {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: none;
+  resize: none;
+  background: #f0f2f5;
+  font-size: 15px;
+  min-height: 80px;
+}
+
+.post-textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 12px 16px;
+  margin-top: 12px;
+  font-size: 15px;
+  border-radius: 10px;
+  background: #f0f2f5;
+  border: none;
+  resize: none;
+  box-sizing: border-box;
+}
 </style>

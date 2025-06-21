@@ -32,7 +32,9 @@ const userSchema = new mongoose.Schema(
 
     // Lời mời kết bạn
     requestSent: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
-    requestReceived: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }]
+    requestReceived: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+
+    hiddenPosts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post' }],
   },
   {
     timestamps: true,
