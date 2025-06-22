@@ -10,7 +10,7 @@
         <li><img src="../assets/sidebar/group.png" class="menu-icon-left"/>Group</li>
         <li><img src="../assets/sidebar/marketplace.png" class="menu-icon-left"/>Marketplace</li>
         <li><img src="../assets/sidebar/game.png" class="menu-icon-left"/>Game</li>
-        
+        <li @click="$router.push('/hidden-posts')"><img src="../assets/sidebar/hide-post.png" class="menu-icon-left"/>Hidden Posts</li>
       </ul>
     </aside>
 
@@ -42,7 +42,7 @@
     <img src="../assets/menu.png" class="menu-post-icon" @click="toggleMenu(post._id)" />
     <div v-if="openMenuId === post._id" class="dropdown-menu">
       <button v-if="isMyPost(post)" @click="editPost(post)"> Edit Post</button>
-      <button v-if="!isMyPost(post)" @click="hidePost(post._id)">Hide this Post</button>
+      <button v-if="!isMyPost(post)" @click="hideThisPost(post._id)">Hide this Post</button>
       <button v-if="isMyPost(post)" @click="deletePost(post._id)" style="color: red"> Delete Post</button>
     </div>
   </div>
@@ -69,6 +69,13 @@
     
   </video>
 </div>
+
+  <!-- Thống kê like/comment -->
+  <div class="post-stats">
+    <span v-if="post.likes?.length > 0">{{ post.likes.length }} likes</span>
+    <span v-if="post.commentCount > 0">{{ post.commentCount}} comments</span>
+    <span v-if="post.shares?.length > 0">{{ post.shares.length }} shares</span>
+  </div>
 
 
   <div class="post-actions">
@@ -311,8 +318,9 @@
 
       <!-- Thống kê like/comment -->
       <div class="post-stats">
-        <span v-if="selectedPost?.likes?.length > 0">{{ selectedPost.likes.length }} like</span>
-        <span v-if="selectedPost?.comments?.length > 0">{{ selectedPost.comments.length }} comment</span>
+        <span v-if="selectedPost?.likes?.length > 0">{{ selectedPost.likes.length }} likes</span>
+        <span v-if="selectedPost?.commentCount > 0">{{ selectedPost.commentCount }} comments</span>
+        <span v-if="selectedPost?.shares?.length > 0">{{ selectedPost.shares.length }} shares</span>
       </div>
 
       <!-- Action buttons -->
@@ -337,22 +345,38 @@
       <div class="comments-list">
         <div v-if="comments.length === 0" class="no-comments">
           <div class="no-comments-icon">💬</div>
-          <p>Chưa có bình luận nào</p>
-          <p class="sub-text">Hãy là người đầu tiên bình luận.</p>
+          <p>No comments yet.</p>
+          <p class="sub-text">Be the first to comment.</p>
         </div>
         
         <div v-else>
           <div v-for="comment in comments" :key="comment._id" class="comment-item">
-            <img :src="`http://localhost:3000/${user?.avatar || 'user.png'}`" alt="avatar" class="user-avatar" />
+            <img :src="`http://localhost:3000/${comment.author?.avatar || 'uploads/user.png'}`" alt="avatar" class="user-avatar" />
+
             <div class="comment-content">
               <div class="comment-bubble">
-                <strong class="comment-author">{{ comment.author.firstname }} {{ comment.author.lastname }}</strong>
-                <p class="comment-text">{{ comment.content }}</p>
+                <strong class="comment-author">{{ comment.author?.firstname }} {{ comment.author?.lastname }}</strong>
+
+                <!-- Nếu đang chỉnh sửa comment này -->
+                <div v-if="editingCommentId === comment._id">
+                  <textarea v-model="editedContent" class="edit-textarea"></textarea>
+                  <div class="edit-actions">
+                    <button @click="saveComment(comment._id)">Lưu</button>
+                    <button @click="cancelEdit()">Huỷ</button>
+                  </div>
+                </div>
+
+                <p v-else class="comment-text">{{ comment.content }}</p>
               </div>
+
               <div class="comment-actions">
                 <span class="comment-time">{{ formatTime(comment.createdAt) }}</span>
+
                 <button class="comment-action-btn">Thích</button>
                 <button class="comment-action-btn">Phản hồi</button>
+                <button @click="editComment(comment)" class="comment-action-btn">✏️</button>
+                <button @click="deleteComment(comment._id)" class="comment-action-btn">🗑️</button>
+
               </div>
             </div>
           </div>
@@ -409,6 +433,8 @@ export default {
       selectedPost: null,
       comments: [],
       newComment: '',
+      editingCommentId: null,       // ID của comment đang được chỉnh sửa
+      editedContent: '', 
 
       // Create Post Modal data
       createPostModalVisible: false,
@@ -581,7 +607,7 @@ export default {
       formData.append('author', savedUser.username);
       formData.append('audience', this.postPrivacy);
       
-      if (this.selectedMedia) {formData.append('audience', this.postPrivacy);
+      if (this.selectedMedia) {
         formData.append('image', this.selectedMedia);
       }
 
@@ -615,9 +641,9 @@ export default {
     alert("Không thể đăng bài viết: " + err.message);
   }
 },
-async hidePost(postId) {
+async hideThisPost(postId) {
   const savedUser = JSON.parse(localStorage.getItem("user"));
-  if (!savedUser) return alert("Vui lòng đăng nhập");
+  if (!savedUser) return alert("Please log in");
 
   try {
     const res = await fetch(`http://localhost:3000/posts/hide-post/${postId}`, {
@@ -628,16 +654,16 @@ async hidePost(postId) {
       body: JSON.stringify({ userId: savedUser.id })
     });
 
-    if (res.ok) {
-      // Ẩn khỏi UI sau khi gọi API
-      this.posts = this.posts.filter(p => p._id !== postId);
-    }
+    const data = await res.json();
+    alert(data.msg);
+
+    // Xoá bài khỏi danh sách
+    this.posts = this.posts.filter(p => p._id !== postId);
   } catch (err) {
-    console.error("Không thể ẩn bài viết:", err);
-    alert("Đã xảy ra lỗi khi ẩn bài viết");
+    console.error("Error hiding post:", err);
+    alert("Failed to hide post");
   }
-}
-,
+},
 
   // Comment modal methods
   async openCommentModal(post) {
@@ -654,47 +680,46 @@ async hidePost(postId) {
   },
 
   async fetchComments(postId) {
-    try {
-      const res = await fetch(`http://localhost:3000/comments/posts/${postId}`);
-      const data = await res.json();
-      this.comments = data;
-    } catch (err) {
-      console.error("Lỗi khi tải comments:", err);
-      this.comments = [];
-    }
-  },
+  try {
+    const res = await fetch(`http://localhost:3000/comments/posts/${postId}`);
+    const data = await res.json();
+    console.log(data); // 👈 kiểm tra author có tồn tại không
+    this.comments = data;
+  } catch (err) {
+    console.error("Lỗi khi tải comments:", err);
+    this.comments = [];
+  }
+},
 
   async submitComment() {
-    if (!this.newComment.trim()) return;
-    
-    const savedUser = JSON.parse(localStorage.getItem("user"));
-    if (!savedUser) return alert("Please log in to comment");
+  if (!this.newComment.trim()) return;
 
-    try {
-      const res = await fetch(`http://localhost:3000/comments/posts/${this.selectedPost._id}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          content: this.newComment,
-          author: savedUser.id
-        })
-      });
+  const user = JSON.parse(localStorage.getItem("user"));
+  if (!user || !this.selectedPost) return;
 
-      const newComment = await res.json();
+  try {
+    const res = await fetch(`http://localhost:3000/comments/posts/${this.selectedPost._id}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        content: this.newComment,
+        authorId: user.id   // ✅ Gửi ID thay vì username
+      })
+    });
 
-      this.comments.push(newComment);
-      this.newComment = '';
-      
-      if (this.selectedPost.comments) {
-        this.selectedPost.comments.push(newComment);
-      }
-    } catch (err) {
-      console.error("Cannot add comment:", err);
-      alert("Cannot add comment");
-    }
-  },
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.msg || "Đăng bình luận thất bại");
+
+    this.comments.push(data.comment);  // ✅ Thêm bình luận mới vào danh sách
+    this.newComment = "";              // ✅ Reset input
+  } catch (err) {
+    console.error("Lỗi khi gửi bình luận:", err);
+    alert("Không thể gửi bình luận: " + err.message);
+  }
+},
+
+
+
   editPost(post) {
   this.editModalVisible = true;
   this.editPostId = post._id;
@@ -817,6 +842,7 @@ async submitEditPost() {
   
   commentPost(post) {
     this.openCommentModal(post);
+    this.fetchComments(post._id);
   },
   sharePost(post) {
     alert(`Bạn đã chia sẻ bài viết: ${post.content}`);
@@ -1308,15 +1334,15 @@ beforeUnmount() {
   border-radius: 12px;
   width: 100%;
   max-width: 600px;
-  height: 85vh; /* Đặt chiều cao cố định cho modal */
-  max-height: 800px; /* Giới hạn chiều cao tối đa */
-  min-height: 500px; /* Chiều cao tối thiểu */
-  overflow: hidden;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  height: 85vh;
+  max-height: 800px;
+  min-height: 500px;
   display: flex;
   flex-direction: column;
-  animation: modalSlideIn 0.3s ease-out;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
+
 
 @keyframes modalSlideIn {
   from {
@@ -1356,18 +1382,25 @@ beforeUnmount() {
   border-radius: 50%;
   width: 36px;
   height: 36px;
+  font-size: 20px;
+  color: #606770;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-size: 20px;
-  color: #606770;
   transition: all 0.2s ease;
 }
 
 .close-btn:hover {
   background: #e4e6ea;
   color: #1c1e21;
+}
+
+.comments-section {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+  background-color: #f9f9f9;
 }
 
 /* Post Detail Section - Scrollable */
@@ -1476,22 +1509,7 @@ beforeUnmount() {
   height: 20px;
 }
 
-/* Comments Section - Flexible height */
-.comments-section {
-  flex: 1; /* Chiếm toàn bộ không gian còn lại */
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  min-height: 0; /* Quan trọng để flex hoạt động đúng */
-}
 
-.comments-list {
-  flex: 1; /* Chiếm không gian còn lại */
-  overflow-y: auto; /* Bật thanh cuộn dọc */
-  overflow-x: hidden; /* Ẩn thanh cuộn ngang */
-  padding: 16px 24px;
-  min-height: 200px; /* Đặt chiều cao tối thiểu */
-}
 
 /* No Comments State */
 .no-comments {
@@ -1609,7 +1627,10 @@ beforeUnmount() {
   flex-shrink: 0; /* Không cho phép co lại - luôn hiển thị */
   position: sticky;
   bottom: 0;
-  z-index: 10;
+  z-index: 20;
+  margin-bottom: 8px;
+
+  
 }
 
 .user-avatar {
@@ -2146,7 +2167,7 @@ beforeUnmount() {
 .modal-overlay {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.6);
+  background: rgba(255, 255, 255, 0.8);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2168,8 +2189,16 @@ beforeUnmount() {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding: 12px 16px;
   border-bottom: 1px solid #ddd;
-  margin-bottom: 12px;
+  position: relative;
+}
+
+.modal-header h3 {
+  font-size: 18px;
+  font-weight: bold;
+  margin: 0;
+  flex: 1;
 }
 
 .creator-avatar {
@@ -2193,7 +2222,7 @@ beforeUnmount() {
   position: absolute;
   top: 6px;
   right: 6px;
-  background: rgba(0,0,0,0.5);
+  background: rgba(170, 167, 167, 0.5);
   color: white;
   border: none;
   border-radius: 50%;

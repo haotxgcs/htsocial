@@ -3,8 +3,8 @@
     <div class="dialog">
       <p>{{ message }}</p>
       <div class="buttons">
-        <button @click="confirm">Đồng ý</button>
-        <button @click="cancel">Huỷ</button>
+        <button class="confirm-btn" @click="confirm">Yes</button>
+        <button class="cancel-btn" @click="cancel">Cancel</button>
       </div>
     </div>
   </div>
@@ -39,7 +39,7 @@ export default {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(255, 255, 255, 0.8);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -50,11 +50,30 @@ export default {
   padding: 20px;
   border-radius: 10px;
   width: 300px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 .buttons {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
   margin-top: 20px;
+}
+
+.confirm-btn {
+  background-color: rgb(0, 0, 254);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.cancel-btn {
+  background-color: #f44336;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  cursor: pointer;
 }
 </style>

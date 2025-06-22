@@ -2,17 +2,17 @@ const Comment = require("../models/CommentModel");
 const Post = require("../models/PostModel");
 const User = require("../models/UserModel");
 
-// Tạo comment mới
+// ===== Tạo comment mới =====
 exports.createComment = async (req, res) => {
   try {
-    const { content, author } = req.body;
-    const postId = req.params.postId || req.body.post; // Cho phép lấy từ params hoặc body
+    const { content, authorId } = req.body;
+    const postId = req.params.postId || req.body.post;
 
-    if (!content || !author || !postId) {
-      return res.status(400).json({ msg: "Missing content, author, or post ID" });
+    if (!content || !authorId || !postId) {
+      return res.status(400).json({ msg: "Missing content, authorId, or post ID" });
     }
 
-    const user = await User.findOne({ username: author });
+    const user = await User.findById(authorId);
     if (!user) return res.status(404).json({ msg: "Author not found" });
 
     const comment = new Comment({
@@ -25,7 +25,7 @@ exports.createComment = async (req, res) => {
     await Post.findByIdAndUpdate(postId, { $inc: { commentCount: 1 } });
 
     const populated = await Comment.findById(comment._id)
-      .populate("author", "username firstname lastname");
+      .populate("author", "username firstname lastname avatar");
 
     res.status(201).json({ msg: "Comment added", comment: populated });
   } catch (err) {
@@ -34,13 +34,14 @@ exports.createComment = async (req, res) => {
   }
 };
 
-// Lấy danh sách comment theo postId
+// ===== Lấy danh sách comment theo postId =====
 exports.getCommentsByPost = async (req, res) => {
   try {
     const postId = req.params.postId;
 
     const comments = await Comment.find({ post: postId })
-      .populate("author", "username firstname lastname")
+      .populate("author", "username firstname lastname avatar")
+      .populate("replies.author", "username firstname lastname avatar")
       .sort({ createdAt: 1 });
 
     res.json(comments);
@@ -50,6 +51,7 @@ exports.getCommentsByPost = async (req, res) => {
   }
 };
 
+// ===== Cập nhật comment =====
 exports.updateComment = async (req, res) => {
   try {
     const { content } = req.body;
@@ -61,7 +63,7 @@ exports.updateComment = async (req, res) => {
     await comment.save();
 
     const updated = await Comment.findById(comment._id)
-      .populate("author", "username firstname lastname");
+      .populate("author", "username firstname lastname avatar");
 
     res.status(200).json({ msg: "Comment updated", comment: updated });
   } catch (err) {
@@ -70,7 +72,7 @@ exports.updateComment = async (req, res) => {
   }
 };
 
-// Xoá comment
+// ===== Xoá comment =====
 exports.deleteComment = async (req, res) => {
   try {
     const comment = await Comment.findByIdAndDelete(req.params.id);
@@ -85,7 +87,7 @@ exports.deleteComment = async (req, res) => {
   }
 };
 
-// Toggle like comment
+// ===== Toggle like comment =====
 exports.toggleLikeComment = async (req, res) => {
   try {
     const comment = await Comment.findById(req.params.commentId);
@@ -110,14 +112,14 @@ exports.toggleLikeComment = async (req, res) => {
   }
 };
 
-// Trả lời comment
+// ===== Trả lời comment (reply) =====
 exports.addReply = async (req, res) => {
   try {
-    const { content, author } = req.body;
+    const { content, authorId } = req.body;
     const comment = await Comment.findById(req.params.commentId);
     if (!comment) return res.status(404).json({ msg: "Comment not found" });
 
-    const user = await User.findOne({ username: author });
+    const user = await User.findById(authorId);
     if (!user) return res.status(404).json({ msg: "Author not found" });
 
     comment.replies.push({
@@ -128,7 +130,10 @@ exports.addReply = async (req, res) => {
 
     await comment.save();
 
-    res.status(200).json({ msg: "Reply added", replies: comment.replies });
+    const updated = await Comment.findById(comment._id)
+      .populate("replies.author", "username firstname lastname avatar");
+
+    res.status(200).json({ msg: "Reply added", replies: updated.replies });
   } catch (err) {
     console.error("Reply error:", err);
     res.status(500).json({ msg: "Error adding reply" });

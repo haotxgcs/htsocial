@@ -13,7 +13,7 @@ import NotificationPage from './components/NotificationPage.vue';
 import ProfilePage from './components/ProfilePage.vue';
 import PostPage from '@/components/PostPage.vue';
 import EditPostPage from './components/EditPostPage.vue';
-
+import HiddenPosts from './components/HiddenPosts.vue';
 
 
 const routes = [
@@ -31,6 +31,8 @@ const routes = [
   { path: '/profile', component: ProfilePage },
   { path: '/posts',component: PostPage},
   { path: '/posts/:id/edit', component: EditPostPage },
+  { path: "/hidden-posts", component: HiddenPosts}
+
 ];
 
 const router = createRouter({

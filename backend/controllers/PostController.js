@@ -6,7 +6,7 @@ const Share = require("../models/ShareModel");
 // Tạo post mới hỗ trợ cả ảnh và video
 exports.createPost = async (req, res) => {
   try {
-    const { content, author,audience } = req.body;
+    const { content, author,audience,hiddenBy } = req.body;
     const media = req.file ? `uploads/${req.file.filename}` : null;
     const mediaType = req.file
       ? req.file.mimetype.startsWith("image")
@@ -28,7 +28,8 @@ exports.createPost = async (req, res) => {
       author: existingUser._id,
       media,
       mediaType,
-      audience: audience || "public"
+      audience: audience || "public",
+      hiddenBy: hiddenBy || [],
     });
 
     await newPost.save();
@@ -55,14 +56,23 @@ exports.createPost = async (req, res) => {
 
 exports.getAllPosts = async (req, res) => {
   try {
-    const posts = await Post.find()
+    const { userId } = req.query;
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ msg: "User not found" });
+
+    const hiddenIds = user.hiddenPosts || [];
+
+    const posts = await Post.find({
+      _id: { $nin: hiddenIds }  // 👈 loại bỏ các bài user đã hide
+    })
       .populate("author", "firstname lastname username")
       .sort({ createdAt: -1 });
 
-    // Map lại để thêm trường likesCount
     const postsWithLikeCount = posts.map(post => ({
       ...post.toObject(),
-      likesCount: post.likes.length
+      likesCount: post.likes.length,
+      commentCount: post.commentCount
     }));
 
     res.status(200).json(postsWithLikeCount);
@@ -71,6 +81,7 @@ exports.getAllPosts = async (req, res) => {
     res.status(500).json({ msg: "Error fetching posts" });
   }
 };
+
 
 
 
@@ -98,19 +109,22 @@ exports.getVisiblePosts = async (req, res) => {
     const viewerId = req.params.viewerId;
 
     const allPosts = await Post.find()
-      .populate('author', 'firstname lastname username avatar friends')
+      .populate("author", "firstname lastname username avatar friends")
       .sort({ createdAt: -1 });
 
     const visiblePosts = allPosts.filter(post => {
       const isAuthor = post.author._id.toString() === viewerId;
       const isFriend = post.author.friends.includes(viewerId);
+      const isHidden = post.hiddenBy.includes(viewerId); // loại bỏ bài bị ẩn
+
+      if (isHidden) return false;
 
       switch (post.audience) {
-        case 'public':
+        case "public":
           return true;
-        case 'friends':
+        case "friends":
           return isFriend || isAuthor;
-        case 'private':
+        case "private":
           return isAuthor;
         default:
           return false;
@@ -119,10 +133,11 @@ exports.getVisiblePosts = async (req, res) => {
 
     res.status(200).json(visiblePosts);
   } catch (err) {
-    console.error('Error loading visible posts:', err);
-    res.status(500).json({ msg: 'Server error' });
+    console.error("Error loading visible posts:", err);
+    res.status(500).json({ msg: "Server error" });
   }
 };
+
 
 exports.getHiddenPosts = async (req, res) => {
   try {
@@ -151,6 +166,7 @@ exports.getHiddenPosts = async (req, res) => {
     res.status(500).json({ msg: "Error fetching hidden posts" });
   }
 };
+
 
 // controllers/PostController.js
 exports.updatePost = async (req, res) => {
@@ -210,19 +226,25 @@ exports.deletePost = async (req, res) => {
   }
 };
 
-// Hide post by user
 exports.hidePost = async (req, res) => {
   try {
-    const { userId } = req.body;  // người dùng muốn ẩn bài
+    const { userId } = req.body;
     const { postId } = req.params;
 
     const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ msg: "User not found" });
+    const post = await Post.findById(postId);
 
-    if (!user.hiddenPosts.includes(postId)) {
-      user.hiddenPosts.push(postId);
-      await user.save();
+    if (!user || !post) return res.status(404).json({ msg: "User or post not found" });
+
+    if (post.author.toString() === userId) {
+      return res.status(400).json({ msg: "You cannot hide your own post" });
     }
+
+    if (!user.hiddenPosts.includes(postId)) user.hiddenPosts.push(postId);
+    if (!post.hiddenBy.includes(userId)) post.hiddenBy.push(userId);
+
+    await user.save();
+    await post.save();
 
     res.status(200).json({ msg: "Post hidden successfully" });
   } catch (err) {
@@ -230,6 +252,31 @@ exports.hidePost = async (req, res) => {
     res.status(500).json({ msg: "Server error" });
   }
 };
+
+// Bỏ ẩn bài viết
+exports.unhidePost = async (req, res) => {
+  try {
+    const { userId } = req.body;
+    const { postId } = req.params;
+
+    const user = await User.findById(userId);
+    const post = await Post.findById(postId);
+    if (!user || !post) return res.status(404).json({ msg: "User or post not found" });
+
+    // Gỡ khỏi danh sách
+    user.hiddenPosts = user.hiddenPosts.filter(id => id.toString() !== postId);
+    post.hiddenBy = post.hiddenBy.filter(id => id.toString() !== userId);
+
+    await user.save();
+    await post.save();
+
+    res.status(200).json({ msg: "Post unhidden successfully" });
+  } catch (err) {
+    console.error("Unhide post error:", err);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
+
 
 
 exports.toggleLike = async (req, res) => {
