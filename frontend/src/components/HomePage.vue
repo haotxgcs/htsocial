@@ -341,47 +341,103 @@
     </div>
 
     <!-- Danh sách comments -->
-    <div class="comments-section">
-      <div class="comments-list">
-        <div v-if="comments.length === 0" class="no-comments">
-          <div class="no-comments-icon">💬</div>
-          <p>No comments yet.</p>
-          <p class="sub-text">Be the first to comment.</p>
-        </div>
-        
-        <div v-else>
-          <div v-for="comment in comments" :key="comment._id" class="comment-item">
-            <img :src="`http://localhost:3000/${comment.author?.avatar || 'uploads/user.png'}`" alt="avatar" class="user-avatar" />
+<div class="comments-section">
+  <div class="comments-list">
+    <div v-if="comments.length === 0" class="no-comments">
+      <div class="no-comments-icon">💬</div>
+      <p>No comments yet.</p>
+      <p class="sub-text">Be the first to comment.</p>
+    </div>
+    
+    <div v-else>
+      <div v-for="comment in comments" :key="comment._id" class="comment-item">
+        <img :src="`http://localhost:3000/${comment.author?.avatar || 'uploads/user.png'}`" alt="avatar" class="user-avatar" />
 
-            <div class="comment-content">
-              <div class="comment-bubble">
-                <strong class="comment-author">{{ comment.author?.firstname }} {{ comment.author?.lastname }}</strong>
+        <div class="comment-content">
+          <div class="comment-bubble">
+            <strong class="comment-author">{{ comment.author?.firstname }} {{ comment.author?.lastname }}</strong>
 
-                <!-- Nếu đang chỉnh sửa comment này -->
-                <div v-if="editingCommentId === comment._id">
-                  <textarea v-model="editedContent" class="edit-textarea"></textarea>
-                  <div class="edit-actions">
-                    <button @click="saveComment(comment._id)">Lưu</button>
-                    <button @click="cancelEdit()">Huỷ</button>
+            <!-- Nếu đang chỉnh sửa comment này -->
+            <div v-if="editingCommentId === comment._id">
+              <textarea v-model="editedContent" class="edit-textarea"></textarea>
+              <div class="edit-actions">
+                <button @click="saveComment(comment._id)" class="save-btn">Lưu</button>
+                <button @click="cancelEdit()" class="cancel-btn">Huỷ</button>
+              </div>
+            </div>
+
+            <p v-else class="comment-text">{{ comment.content }}</p>
+          </div>
+
+          <div class="comment-actions">
+            <span class="comment-time">{{ formatTime(comment.createdAt) }}</span>
+            
+            <button @click="toggleCommentLike(comment)" class="comment-action-btn">
+              <img :src="isCommentLiked(comment) ? require('../assets/like.png') : require('../assets/unlike.png')" class="action-icon-small">
+              <span>{{ comment.likes?.length || 0 }}</span>
+            </button>
+            
+            <button @click="toggleReply(comment._id)" class="comment-action-btn">
+              <img src="../assets/reply.png" class="action-icon-small">Reply
+            </button>
+            
+            <button v-if="isMyComment(comment)" @click="editComment(comment)" class="comment-action-btn">
+              <img src="../assets/edit.png" class="action-icon-small">Edit
+            </button>
+            
+            <button v-if="isMyComment(comment)" @click="deleteComment(comment._id)" class="comment-action-btn">
+              <img src="../assets/delete.png" class="action-icon-small">Delete
+            </button>
+          </div>
+
+          <!-- Form reply -->
+          <div v-if="replyInputs[comment._id] !== undefined" class="reply-section">
+            <div class="reply-input-wrapper">
+              <img :src="`http://localhost:3000/${user?.avatar || 'user.png'}`" alt="avatar" class="user-avatar-small" />
+              <input 
+                v-model="replyInputs[comment._id]" 
+                @keypress.enter="submitReply(comment._id)"
+                placeholder="Viết phản hồi..."
+                class="reply-input"
+              />
+              <button @click="submitReply(comment._id)" class="send-reply-btn" :disabled="!replyInputs[comment._id]?.trim()">
+                ➤
+              </button>
+            </div>
+          </div>
+
+          <!-- Hiển thị replies -->
+          <div v-if="comment.replies && comment.replies.length > 0" class="replies-section">
+            <button @click="toggleRepliesVisibility(comment._id)" class="toggle-replies-btn">
+              {{ showReplies[comment._id] ? 'Ẩn' : 'Xem' }} {{ comment.replies.length }} phản hồi
+            </button>
+            
+            <div v-if="showReplies[comment._id]" class="replies-list">
+              <div v-for="reply in comment.replies" :key="reply?._id" class="reply-item">
+                <img :src="`http://localhost:3000/${reply?.author?.avatar || 'uploads/user.png'}`" alt="avatar" class="user-avatar-small" />
+                <div class="reply-content">
+                  <div class="reply-bubble">
+                    <strong>{{ reply?.author?.firstname }} {{ reply?.author?.lastname }}</strong>
+                    <p>{{ reply?.content }}</p>
+                  </div>
+                  <div class="reply-actions">
+                    <span class="reply-time">{{ formatTime(reply?.createdAt) }}</span>
+                    <button @click="toggleReplyLike(reply,comment._id)" class="comment-action-btn">
+                      <img :src="isReplyLiked(reply) ? require('../assets/like.png') : require('../assets/unlike.png')" class="action-icon-small">
+                      <span>{{ reply?.likes.length || 0 }}</span>
+                    </button>
+                    <button v-if="isMyReply(reply)" @click="deleteReply(comment._id, reply?._id)" class="comment-action-btn">
+                      <img src="../assets/delete.png" class="action-icon-small">Delete
+                    </button>
                   </div>
                 </div>
-
-                <p v-else class="comment-text">{{ comment.content }}</p>
-              </div>
-
-              <div class="comment-actions">
-                <span class="comment-time">{{ formatTime(comment.createdAt) }}</span>
-
-                <button class="comment-action-btn">Thích</button>
-                <button class="comment-action-btn">Phản hồi</button>
-                <button @click="editComment(comment)" class="comment-action-btn">✏️</button>
-                <button @click="deleteComment(comment._id)" class="comment-action-btn">🗑️</button>
-
               </div>
             </div>
           </div>
         </div>
       </div>
+    </div>
+  </div>
 
       <!-- Form thêm comment -->
       <div class="add-comment-section">
@@ -433,8 +489,12 @@ export default {
       selectedPost: null,
       comments: [],
       newComment: '',
-      editingCommentId: null,       // ID của comment đang được chỉnh sửa
-      editedContent: '', 
+      
+      commentLikes: {}, // Theo dõi số like của từng comment
+    replyInputs: {},  // Theo dõi nội dung reply cho từng comment
+    editingCommentId: null, // ID của comment đang được sửa
+    editedContent: "", // Nội dung đang chỉnh sửa
+    showReplies: {}, // Theo dõi việc hiển thị replies
 
       // Create Post Modal data
       createPostModalVisible: false,
@@ -718,7 +778,227 @@ async hideThisPost(postId) {
   }
 },
 
+// Like comment
+// Like comment
+async toggleCommentLike(comment) {
+  const savedUser = JSON.parse(localStorage.getItem("user"));
+  if (!savedUser) return alert("Vui lòng đăng nhập");
 
+  try {
+    const res = await fetch(`http://localhost:3000/comments/like/${comment._id}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: savedUser.id })
+    });
+
+    const data = await res.json();
+    if (res.ok && data.comment) {
+      const commentIndex = this.comments.findIndex(c => c._id === comment._id);
+      if (commentIndex !== -1) {
+        this.comments.splice(commentIndex, 1, data.comment); // ✅ update full comment
+      }
+    }
+  } catch (err) {
+    console.error("Lỗi khi like comment:", err);
+  }
+}
+,
+
+// Kiểm tra đã like comment chưa
+isCommentLiked(comment) {
+  const savedUser = JSON.parse(localStorage.getItem("user"));
+  return comment.likes && comment.likes.includes(savedUser.id);
+},
+
+// Edit comment
+editComment(comment) {
+  this.editingCommentId = comment._id;
+  this.editedContent = comment.content;
+},
+
+// Save edited comment
+async saveComment(commentId) {
+  if (!this.editedContent.trim()) return;
+
+  try {
+    const res = await fetch(`http://localhost:3000/comments/${commentId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: this.editedContent })
+    });
+
+    // const data = await res.json();
+    if (res.ok) {
+      // Cập nhật comment trong danh sách
+      const commentIndex = this.comments.findIndex(c => c._id === commentId);
+      if (commentIndex !== -1) {
+        this.comments[commentIndex].content = this.editedContent;
+      }
+      this.cancelEdit();
+    }
+  } catch (err) {
+    console.error("Lỗi khi cập nhật comment:", err);
+    alert("Không thể cập nhật bình luận");
+  }
+},
+
+// Cancel edit
+cancelEdit() {
+  this.editingCommentId = null;
+  this.editedContent = '';
+},
+
+// Delete comment
+async deleteComment(commentId) {
+  if (!confirm("Bạn có chắc muốn xóa bình luận này?")) return;
+
+  try {
+    const res = await fetch(`http://localhost:3000/comments/${commentId}`, {
+      method: 'DELETE'
+    });
+
+    if (res.ok) {
+      this.comments = this.comments.filter(c => c._id !== commentId);
+    }
+  } catch (err) {
+    console.error("Lỗi khi xóa comment:", err);
+    alert("Không thể xóa bình luận");
+  }
+},
+
+// Kiểm tra comment có phải của mình không
+isMyComment(comment) {
+  const savedUser = JSON.parse(localStorage.getItem("user"));
+  return savedUser && comment.author._id === savedUser.id;
+},
+
+// Toggle reply input
+toggleReply(commentId) {
+  if (this.replyInputs[commentId] !== undefined) {
+    // Thay vì this.$delete
+    delete this.replyInputs[commentId];
+    // Hoặc dùng:
+    // this.replyInputs[commentId] = undefined;
+  } else {
+    // Thay vì this.$set
+    this.replyInputs[commentId] = '';
+  }
+},
+
+// Submit reply
+async submitReply(commentId) {
+  const replyContent = this.replyInputs[commentId];
+  if (!replyContent?.trim()) return;
+
+  const savedUser = JSON.parse(localStorage.getItem("user"));
+  if (!savedUser) return alert("Vui lòng đăng nhập");
+
+  try {
+    const res = await fetch(`http://localhost:3000/comments/reply/${commentId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        content: replyContent,
+        authorId: savedUser.id
+      })
+    });
+
+    const data = await res.json();
+    if (res.ok && data.reply) {
+      // Cập nhật comment với reply mới
+      const commentIndex = this.comments.findIndex(c => c._id === commentId);
+      if (commentIndex !== -1) {
+        if (!this.comments[commentIndex].replies) {
+          this.comments[commentIndex].replies = [];
+        }
+        this.comments[commentIndex].replies.push(data.reply);
+        this.showReplies[commentId] = true;
+      }
+      
+      // Reset reply input - thay vì this.$delete
+      delete this.replyInputs[commentId];
+    }
+  } catch (err) {
+    console.error("Lỗi khi reply:", err);
+    alert("Không thể gửi phản hồi");
+  }
+},
+
+// Toggle replies visibility
+toggleRepliesVisibility(commentId) {
+  // Thay vì this.$set
+  this.showReplies[commentId] = !this.showReplies[commentId];
+},
+
+// Like reply
+async toggleReplyLike(reply, commentId) {
+  const savedUser = JSON.parse(localStorage.getItem("user"));
+  if (!savedUser) return alert("Vui lòng đăng nhập");
+
+  try {
+    const res = await fetch(`http://localhost:3000/comments/reply/${commentId}/${reply._id}/like`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: savedUser.id })
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      // Tìm comment chứa reply
+      const comment = this.comments.find(c => c._id === commentId);
+      if (comment) {
+        const replyIndex = comment.replies.findIndex(r => r._id === reply._id);
+        if (replyIndex !== -1) {
+          // Cập nhật reply tại vị trí cũ
+          comment.replies[replyIndex] = data.reply;
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Lỗi khi like reply:", err);
+  }
+}
+
+,
+
+// Kiểm tra đã like reply chưa
+isReplyLiked(reply) {
+  const savedUser = JSON.parse(localStorage.getItem("user"));
+  return reply?.likes?.includes(savedUser.id);
+}
+,
+
+// Kiểm tra reply có phải của mình không
+isMyReply(reply) {
+  const savedUser = JSON.parse(localStorage.getItem("user"));
+  return reply?.author?._id === savedUser?.id;
+},
+
+// Delete reply
+async deleteReply(commentId, replyId) {
+  if (!confirm("Do you want to delete this reply?")) return;
+
+  try {
+    const res = await fetch(`http://localhost:3000/comments/reply/${commentId}/${replyId}`, {
+      method: 'DELETE'
+    });
+
+    if (res.ok) {
+      // Xóa reply khỏi danh sách reply của comment tương ứng
+      const comment = this.comments.find(c => c._id === commentId);
+      if (comment) {
+        comment.replies = comment.replies.filter(r => r._id !== replyId);
+      }
+    } else {
+      const err = await res.json();
+      alert(err.msg || "Xoá phản hồi thất bại");
+    }
+  } catch (err) {
+    console.error("Lỗi khi xóa reply:", err);
+    alert("Không thể xóa phản hồi");
+  }
+}
+,
 
   editPost(post) {
   this.editModalVisible = true;
@@ -2272,5 +2552,183 @@ textarea.post-textarea {
   border: none;
   resize: none;
   box-sizing: border-box;
+}
+
+/* Comment actions styling */
+.comment-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+.comment-action-btn {
+  background: none;
+  border: none;
+  color: #65676b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.comment-action-btn:hover {
+  background-color: #f0f2f5;
+}
+
+.action-icon-small {
+  width: 14px;
+  height: 14px;
+}
+
+/* Edit comment styling */
+.edit-textarea {
+  width: 100%;
+  min-height: 60px;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.save-btn, .cancel-btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.save-btn {
+  background-color: #1877f2;
+  color: white;
+}
+
+.cancel-btn {
+  background-color: #e4e6ea;
+  color: #1c1e21;
+}
+
+/* Reply section styling */
+.reply-section {
+  margin-top: 8px;
+  padding-left: 20px;
+}
+
+.reply-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.user-avatar-small {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.reply-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 20px;
+  outline: none;
+  font-size: 14px;
+}
+
+.send-reply-btn {
+  background-color: #1877f2;
+  color: white;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.send-reply-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+/* Replies section styling */
+.replies-section {
+  margin-top: 12px;
+  padding-left: 20px;
+}
+
+.toggle-replies-btn {
+  background: none;
+  border: none;
+  color: #1877f2;
+  cursor: pointer;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.replies-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.reply-item {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.reply-content {
+  flex: 1;
+}
+
+.reply-bubble {
+  background-color: #f0f2f5;
+  padding: 8px 12px;
+  border-radius: 16px;
+  display: inline-block;
+  max-width: 100%;
+}
+
+.reply-bubble strong {
+  font-size: 13px;
+  color: #050505;
+  margin-bottom: 2px;
+  display: block;
+}
+
+.reply-bubble p {
+  margin: 0;
+  font-size: 13px;
+  color: #050505;
+}
+
+.reply-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 11px;
+}
+
+.reply-time {
+  color: #65676b;
+  font-size: 11px;
 }
 </style>

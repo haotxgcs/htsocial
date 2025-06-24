@@ -19,7 +19,9 @@ const commentSchema = new mongoose.Schema({
     {
       content: String,
       author: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User",default: [] }], // ✅ Like reply
       createdAt: { type: Date, default: Date.now }
+      
     }
   ]
 }, { timestamps: true });

@@ -2,6 +2,7 @@ const Comment = require("../models/CommentModel");
 const Post = require("../models/PostModel");
 const User = require("../models/UserModel");
 
+
 // ===== Tạo comment mới =====
 exports.createComment = async (req, res) => {
   try {
@@ -18,7 +19,8 @@ exports.createComment = async (req, res) => {
     const comment = new Comment({
       content,
       author: user._id,
-      post: postId
+      post: postId,
+      likes: [],
     });
 
     await comment.save();
@@ -64,6 +66,7 @@ exports.updateComment = async (req, res) => {
 
     const updated = await Comment.findById(comment._id)
       .populate("author", "username firstname lastname avatar");
+      
 
     res.status(200).json({ msg: "Comment updated", comment: updated });
   } catch (err) {
@@ -87,7 +90,6 @@ exports.deleteComment = async (req, res) => {
   }
 };
 
-// ===== Toggle like comment =====
 exports.toggleLikeComment = async (req, res) => {
   try {
     const comment = await Comment.findById(req.params.commentId);
@@ -103,14 +105,22 @@ exports.toggleLikeComment = async (req, res) => {
     }
 
     await comment.save();
+
+    // ✅ Populate lại để không mất thông tin author
+    const updatedComment = await Comment.findById(comment._id)
+      .populate("author", "username firstname lastname avatar")
+      .populate("replies.author", "username firstname lastname avatar");
+
     res.status(200).json({
       msg: index > -1 ? "Comment unliked" : "Comment liked",
-      likesCount: comment.likes.length
+      comment: updatedComment
     });
   } catch (err) {
+    console.error("Toggle like comment error:", err);
     res.status(500).json({ msg: "Server error" });
   }
 };
+
 
 // ===== Trả lời comment (reply) =====
 exports.addReply = async (req, res) => {
@@ -125,17 +135,99 @@ exports.addReply = async (req, res) => {
     comment.replies.push({
       content,
       author: user._id,
-      createdAt: new Date()
+      createdAt: new Date(),
+      likes: []
     });
 
     await comment.save();
 
     const updated = await Comment.findById(comment._id)
-      .populate("replies.author", "username firstname lastname avatar");
+      .populate("author", "username firstname lastname avatar")
+      .populate("replies.author", "username firstname lastname avatar ");
+      
 
-    res.status(200).json({ msg: "Reply added", replies: updated.replies });
+    res.status(200).json({ msg: "Reply added", reply: updated.replies.at(-1) });
+
   } catch (err) {
     console.error("Reply error:", err);
     res.status(500).json({ msg: "Error adding reply" });
   }
 };
+
+exports.updateReply = async (req, res) => {
+  try {
+    const { content } = req.body;
+    const { commentId, replyId } = req.params;
+
+    const comment = await Comment.findById(commentId);
+    if (!comment) return res.status(404).json({ msg: "Comment not found" });
+    const reply = comment.replies.id(replyId);
+    if (!reply) return res.status(404).json({ msg: "Reply not found" });
+    if (content) reply.content = content;
+    await comment.save();
+    const updated = await Comment.findById(comment._id)
+      .populate("author", "username firstname lastname avatar")
+      .populate("replies.author", "username firstname lastname avatar");
+    res.status(200).json({ msg: "Reply updated", replies: updated.replies });
+  } catch (err) { 
+    console.error("Update reply error:", err);
+    res.status(500).json({ msg: "Server error" });
+  }
+}
+
+exports.deleteReply = async (req, res) => {
+  try {
+    const { commentId, replyId } = req.params;
+
+    const comment = await Comment.findById(commentId);
+    if (!comment) return res.status(404).json({ msg: "Comment not found" });
+    const reply = comment.replies.id(replyId);
+    if (!reply) return res.status(404).json({ msg: "Reply not found" });
+    comment.replies.pull(replyId);
+    await comment.save(); 
+    res.status(200).json({ msg: "Reply deleted", replies: comment.replies });
+  } catch (err) {
+    console.error("Delete reply error:", err);
+    res.status(500).json({ msg: "Server error" });
+  }
+}
+
+
+exports.toggleLikeReply = async (req, res) => {
+  try {
+    const { commentId, replyId } = req.params;
+    const { userId } = req.body;
+
+    const comment = await Comment.findById(commentId).populate("replies.author", "firstname lastname avatar username");
+    if (!comment) return res.status(404).json({ msg: "Comment not found" });
+
+    const reply = comment.replies.id(replyId);
+    if (!reply) return res.status(404).json({ msg: "Reply not found" });
+
+    const index = reply.likes.indexOf(userId);
+    if (index > -1) {
+      reply.likes.splice(index, 1);
+    } else {
+      reply.likes.push(userId);
+    }
+
+    await comment.save();
+
+    // Re-populate lại để lấy đầy đủ thông tin tác giả
+    const updated = await Comment.findById(commentId).populate("replies.author", "firstname lastname avatar username");
+
+    const updatedReply = updated.replies.id(replyId);
+
+    res.status(200).json({
+      msg: index > -1 ? "Reply unliked" : "Reply liked",
+      reply: updatedReply // 👍 Trả về reply đầy đủ author
+    });
+
+  } catch (err) {
+    console.error("Toggle like reply error:", err);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
+
+
+
