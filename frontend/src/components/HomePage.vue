@@ -361,8 +361,8 @@
             <div v-if="editingCommentId === comment._id">
               <textarea v-model="editedContent" class="edit-textarea"></textarea>
               <div class="edit-actions">
-                <button @click="saveComment(comment._id)" class="save-btn">Lưu</button>
-                <button @click="cancelEdit()" class="cancel-btn">Huỷ</button>
+                <button @click="saveComment(comment._id)" class="save-btn">Save</button>
+                <button @click="cancelEdit()" class="cancel-btn">Cancel</button>
               </div>
             </div>
 
@@ -377,7 +377,7 @@
               <span>{{ comment.likes?.length || 0 }}</span>
             </button>
             
-            <button @click="toggleReply(comment._id)" class="comment-action-btn">
+            <button @click="toggleReply(comment._id, comment.author)" class="comment-action-btn">
               <img src="../assets/reply.png" class="action-icon-small">Reply
             </button>
             
@@ -397,19 +397,20 @@
               <input 
                 v-model="replyInputs[comment._id]" 
                 @keypress.enter="submitReply(comment._id)"
-                placeholder="Viết phản hồi..."
+                placeholder="Write a reply..."
                 class="reply-input"
               />
               <button @click="submitReply(comment._id)" class="send-reply-btn" :disabled="!replyInputs[comment._id]?.trim()">
                 ➤
               </button>
+              
             </div>
           </div>
 
           <!-- Hiển thị replies -->
           <div v-if="comment.replies && comment.replies.length > 0" class="replies-section">
             <button @click="toggleRepliesVisibility(comment._id)" class="toggle-replies-btn">
-              {{ showReplies[comment._id] ? 'Ẩn' : 'Xem' }} {{ comment.replies.length }} phản hồi
+              {{ showReplies[comment._id] ? 'Hide' : 'View' }} {{ comment.replies.length }} replies
             </button>
             
             <div v-if="showReplies[comment._id]" class="replies-list">
@@ -418,14 +419,36 @@
                 <div class="reply-content">
                   <div class="reply-bubble">
                     <strong>{{ reply?.author?.firstname }} {{ reply?.author?.lastname }}</strong>
-                    <p>{{ reply?.content }}</p>
+                    
+                    <div v-if="editingReplyId === reply._id">
+                    <input 
+                      v-model="editedReplyContent" 
+                      class="edit-reply-input"
+                      @keypress.enter="startEditReply(comment._id, reply._id)"
+                    />
+                    <div class="edit-actions">
+                      <button @click="startEditReply(comment._id, reply._id)">Save</button>
+                      <button @click="cancelEditReply()">Cancel</button>
+                    </div>
+                  </div>
+
+                  <div v-else>
+                    <p class="reply-content">
+                      <span v-if="reply?.replyTo?.firstname" class="reply-to-name">
+                        @{{ reply?.replyTo?.firstname }} {{ reply?.replyTo?.lastname }}
+                      </span>
+                      <span v-if="reply?.replyTo?.firstname">&nbsp;</span>{{ reply.content }}
+                    </p>
+                  </div>
+
                   </div>
                   <div class="reply-actions">
                     <span class="reply-time">{{ formatTime(reply?.createdAt) }}</span>
-                    <button @click="toggleReplyLike(reply,comment._id)" class="comment-action-btn">
-                      <img :src="isReplyLiked(reply) ? require('../assets/like.png') : require('../assets/unlike.png')" class="action-icon-small">
-                      <span>{{ reply?.likes.length || 0 }}</span>
-                    </button>
+                    <button @click="toggleReplyLike(reply, comment._id)" class="comment-action-btn">
+                    <img :src="isReplyLiked(reply) ? require('../assets/like.png') : require('../assets/unlike.png')" class="action-icon-small">
+                    <span>{{ reply?.likes.length || 0 }}</span>
+                  </button>
+                  <button v-if="isMyReply(reply)" @click="startEditReply(reply)" class="comment-action-btn"><img src="../assets/edit.png" class="action-icon-small">Edit</button>
                     <button v-if="isMyReply(reply)" @click="deleteReply(comment._id, reply?._id)" class="comment-action-btn">
                       <img src="../assets/delete.png" class="action-icon-small">Delete
                     </button>
@@ -446,7 +469,7 @@
           <input 
             v-model="newComment" 
             @keypress.enter="submitComment"
-            placeholder="Viết bình luận..."
+            placeholder="Write a comment..."
             class="comment-input"
           />
           <button @click="submitComment" class="send-comment-btn" :disabled="!newComment.trim()">
@@ -495,6 +518,9 @@ export default {
     editingCommentId: null, // ID của comment đang được sửa
     editedContent: "", // Nội dung đang chỉnh sửa
     showReplies: {}, // Theo dõi việc hiển thị replies
+    replyingTo: {},
+    editingReplyId: null,
+    editedReplyContent: '',
 
       // Create Post Modal data
       createPostModalVisible: false,
@@ -877,52 +903,49 @@ toggleReply(commentId) {
   if (this.replyInputs[commentId] !== undefined) {
     // Thay vì this.$delete
     delete this.replyInputs[commentId];
+    delete this.replyingTo[commentId];
     // Hoặc dùng:
     // this.replyInputs[commentId] = undefined;
   } else {
     // Thay vì this.$set
+    const comment = this.comments.find(c => c._id === commentId);
     this.replyInputs[commentId] = '';
+    this.replyingTo[commentId] = comment.author;
   }
 },
 
 // Submit reply
 async submitReply(commentId) {
-  const replyContent = this.replyInputs[commentId];
-  if (!replyContent?.trim()) return;
+    const replyContent = this.replyInputs[commentId];
+    const savedUser = JSON.parse(localStorage.getItem("user"));
+    const replyTo = this.replyingTo[commentId];
 
-  const savedUser = JSON.parse(localStorage.getItem("user"));
-  if (!savedUser) return alert("Vui lòng đăng nhập");
+    if (!replyContent?.trim()) return;
 
-  try {
-    const res = await fetch(`http://localhost:3000/comments/reply/${commentId}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        content: replyContent,
-        authorId: savedUser.id
-      })
-    });
+    try {
+      const res = await fetch(`http://localhost:3000/comments/reply/${commentId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: replyContent,
+          authorId: savedUser.id,
+          replyToUserId: replyTo?._id || null
+        })
+      });
 
-    const data = await res.json();
-    if (res.ok && data.reply) {
-      // Cập nhật comment với reply mới
-      const commentIndex = this.comments.findIndex(c => c._id === commentId);
-      if (commentIndex !== -1) {
-        if (!this.comments[commentIndex].replies) {
-          this.comments[commentIndex].replies = [];
+      const data = await res.json();
+      if (res.ok && data.reply) {
+        const comment = this.comments.find(c => c._id === commentId);
+        if (comment) {
+          comment.replies.push(data.reply);
         }
-        this.comments[commentIndex].replies.push(data.reply);
-        this.showReplies[commentId] = true;
+        delete this.replyInputs[commentId];
+        delete this.replyingTo[commentId];
       }
-      
-      // Reset reply input - thay vì this.$delete
-      delete this.replyInputs[commentId];
+    } catch (err) {
+      console.error("Lỗi khi reply:", err);
     }
-  } catch (err) {
-    console.error("Lỗi khi reply:", err);
-    alert("Không thể gửi phản hồi");
-  }
-},
+  },
 
 // Toggle replies visibility
 toggleRepliesVisibility(commentId) {
@@ -999,6 +1022,45 @@ async deleteReply(commentId, replyId) {
   }
 }
 ,
+startReplyingTo(commentId, user) {
+  this.replyInputs[commentId] = '';
+  this.replyingTo[commentId] = user; // user chính là reply.author
+  this.showReplies[commentId] = true;
+},
+
+startEditReply(reply) {
+  this.editingReplyId = reply._id;
+  this.editedReplyContent = reply.content;
+},
+
+cancelEditReply() {
+  this.editingReplyId = null;
+  this.editedReplyContent = '';
+}
+,
+async saveReply(commentId, replyId) {
+  try {
+    const res = await fetch(`http://localhost:3000/comments/reply/${commentId}/${replyId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: this.editedReplyContent })
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      const comment = this.comments.find(c => c._id === commentId);
+      if (comment) {
+        const idx = comment.replies.findIndex(r => r._id === replyId);
+        if (idx !== -1) {
+          comment.replies[idx] = data.reply;
+        }
+      }
+      this.cancelEditReply();
+    }
+  } catch (err) {
+    console.error("Lỗi khi cập nhật reply:", err);
+  }
+},
 
   editPost(post) {
   this.editModalVisible = true;
@@ -2730,5 +2792,12 @@ textarea.post-textarea {
 .reply-time {
   color: #65676b;
   font-size: 11px;
+}
+
+/* reply to name */
+.reply-to-name {
+  color: #1876f2;
+  font-weight: 500;
+  margin-right: 4px;
 }
 </style>

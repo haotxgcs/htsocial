@@ -44,6 +44,7 @@ exports.getCommentsByPost = async (req, res) => {
     const comments = await Comment.find({ post: postId })
       .populate("author", "username firstname lastname avatar")
       .populate("replies.author", "username firstname lastname avatar")
+      .populate("replies.replyTo", "username firstname lastname avatar")
       .sort({ createdAt: 1 });
 
     res.json(comments);
@@ -125,34 +126,37 @@ exports.toggleLikeComment = async (req, res) => {
 // ===== Trả lời comment (reply) =====
 exports.addReply = async (req, res) => {
   try {
-    const { content, authorId } = req.body;
+    const { content, authorId, replyToUserId } = req.body;
     const comment = await Comment.findById(req.params.commentId);
     if (!comment) return res.status(404).json({ msg: "Comment not found" });
 
     const user = await User.findById(authorId);
     if (!user) return res.status(404).json({ msg: "Author not found" });
 
+    // Push reply với replyTo
     comment.replies.push({
       content,
       author: user._id,
+      replyTo: replyToUserId,
       createdAt: new Date(),
       likes: []
     });
 
     await comment.save();
 
+    // Populate lại full reply để gửi về
     const updated = await Comment.findById(comment._id)
-      .populate("author", "username firstname lastname avatar")
-      .populate("replies.author", "username firstname lastname avatar ");
-      
+      .populate("replies.author", "firstname lastname avatar")
+      .populate("replies.replyTo", "firstname lastname avatar");
 
+    // Gửi reply mới nhất
     res.status(200).json({ msg: "Reply added", reply: updated.replies.at(-1) });
-
   } catch (err) {
     console.error("Reply error:", err);
     res.status(500).json({ msg: "Error adding reply" });
   }
 };
+
 
 exports.updateReply = async (req, res) => {
   try {
@@ -161,19 +165,28 @@ exports.updateReply = async (req, res) => {
 
     const comment = await Comment.findById(commentId);
     if (!comment) return res.status(404).json({ msg: "Comment not found" });
+
     const reply = comment.replies.id(replyId);
     if (!reply) return res.status(404).json({ msg: "Reply not found" });
-    if (content) reply.content = content;
+
+    reply.content = content || reply.content;
+
     await comment.save();
-    const updated = await Comment.findById(comment._id)
-      .populate("author", "username firstname lastname avatar")
-      .populate("replies.author", "username firstname lastname avatar");
-    res.status(200).json({ msg: "Reply updated", replies: updated.replies });
-  } catch (err) { 
+
+    // Populate lại
+    const updated = await Comment.findById(commentId)
+      .populate("replies.author", "firstname lastname avatar")
+      .populate("replies.replyTo", "firstname lastname avatar");
+
+    const updatedReply = updated.replies.id(replyId);
+
+    res.status(200).json({ msg: "Reply updated", reply: updatedReply });
+  } catch (err) {
     console.error("Update reply error:", err);
     res.status(500).json({ msg: "Server error" });
   }
-}
+};
+
 
 exports.deleteReply = async (req, res) => {
   try {
@@ -198,7 +211,7 @@ exports.toggleLikeReply = async (req, res) => {
     const { commentId, replyId } = req.params;
     const { userId } = req.body;
 
-    const comment = await Comment.findById(commentId).populate("replies.author", "firstname lastname avatar username");
+    const comment = await Comment.findById(commentId);
     if (!comment) return res.status(404).json({ msg: "Comment not found" });
 
     const reply = comment.replies.id(replyId);
@@ -213,14 +226,16 @@ exports.toggleLikeReply = async (req, res) => {
 
     await comment.save();
 
-    // Re-populate lại để lấy đầy đủ thông tin tác giả
-    const updated = await Comment.findById(commentId).populate("replies.author", "firstname lastname avatar username");
+    // ✅ Populate đầy đủ cả author và replyTo
+    const updated = await Comment.findById(commentId)
+      .populate("replies.author", "firstname lastname avatar")
+      .populate("replies.replyTo", "firstname lastname avatar");
 
     const updatedReply = updated.replies.id(replyId);
 
     res.status(200).json({
       msg: index > -1 ? "Reply unliked" : "Reply liked",
-      reply: updatedReply // 👍 Trả về reply đầy đủ author
+      reply: updatedReply
     });
 
   } catch (err) {
@@ -228,6 +243,7 @@ exports.toggleLikeReply = async (req, res) => {
     res.status(500).json({ msg: "Server error" });
   }
 };
+
 
 
 
