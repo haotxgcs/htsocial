@@ -41,9 +41,9 @@
   <div class="post-menu-wrapper">
     <img src="../assets/menu.png" class="menu-post-icon" @click="toggleMenu(post._id)" />
     <div v-if="openMenuId === post._id" class="dropdown-menu">
-      <button v-if="isMyPost(post)" @click="editPost(post)"> Edit Post</button>
-      <button v-if="!isMyPost(post)" @click="hideThisPost(post._id)">Hide this Post</button>
-      <button v-if="isMyPost(post)" @click="deletePost(post._id)" style="color: red"> Delete Post</button>
+      <button v-if="isMyPost(post)" @click="editPost(post)"><img src="../assets/edit.png" class="menu-icon-left"/> Edit Post</button>
+      <button v-if="!isMyPost(post)" @click="hideThisPost(post._id)"><img src="../assets/hide.png" class="menu-icon-left"/>Hide this Post</button>
+      <button v-if="isMyPost(post)" @click="deletePost(post._id)" style="color: red"><img src="../assets/delete.png" class="menu-icon-left"/> Delete Post</button>
     </div>
   </div>
 </div>
@@ -377,7 +377,7 @@
               <span>{{ comment.likes?.length || 0 }}</span>
             </button>
             
-            <button @click="toggleReply(comment._id, comment.author)" class="comment-action-btn">
+            <button v-if="!isMyComment(comment)" @click="toggleReply(comment._id, comment.author)" class="comment-action-btn">
               <img src="../assets/reply.png" class="action-icon-small">Reply
             </button>
             
@@ -427,7 +427,7 @@
                       @keypress.enter="startEditReply(comment._id, reply._id)"
                     />
                     <div class="edit-actions">
-                      <button @click="startEditReply(comment._id, reply._id)">Save</button>
+                      <button @click="saveReply(comment._id, reply._id)">Save</button>
                       <button @click="cancelEditReply()">Cancel</button>
                     </div>
                   </div>
@@ -449,7 +449,8 @@
                     <span>{{ reply?.likes.length || 0 }}</span>
                   </button>
                   <button v-if="isMyReply(reply)" @click="startEditReply(reply)" class="comment-action-btn"><img src="../assets/edit.png" class="action-icon-small">Edit</button>
-                    <button v-if="isMyReply(reply)" @click="deleteReply(comment._id, reply?._id)" class="comment-action-btn">
+                    
+                  <button v-if="isMyReply(reply)" @click="deleteReply(comment._id, reply?._id)" class="comment-action-btn">
                       <img src="../assets/delete.png" class="action-icon-small">Delete
                     </button>
                   </div>
