@@ -126,18 +126,19 @@ exports.toggleLikeComment = async (req, res) => {
 // ===== Trả lời comment (reply) =====
 exports.addReply = async (req, res) => {
   try {
-    const { content, authorId, replyToUserId } = req.body;
+    const { content, authorId, replyToUserId, replyToReplyId } = req.body;
     const comment = await Comment.findById(req.params.commentId);
     if (!comment) return res.status(404).json({ msg: "Comment not found" });
 
-    const user = await User.findById(authorId);
+    const user = await User.findById(authorId,replyToUserId,replyToReplyId);
     if (!user) return res.status(404).json({ msg: "Author not found" });
 
     // Push reply với replyTo
     comment.replies.push({
       content,
       author: user._id,
-      replyTo: replyToUserId,
+      replyTo: replyToUserId || null, 
+      replyToReplyId: replyToReplyId || null, 
       createdAt: new Date(),
       likes: []
     });
@@ -148,7 +149,7 @@ exports.addReply = async (req, res) => {
     const updated = await Comment.findById(comment._id)
       .populate("replies.author", "firstname lastname avatar")
       .populate("replies.replyTo", "firstname lastname avatar");
-
+      
     // Gửi reply mới nhất
     res.status(200).json({ msg: "Reply added", reply: updated.replies.at(-1) });
   } catch (err) {

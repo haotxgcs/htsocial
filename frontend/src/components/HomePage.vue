@@ -73,7 +73,9 @@
   <!-- Thống kê like/comment -->
   <div class="post-stats">
     <span v-if="post.likes?.length > 0">{{ post.likes.length }} likes</span>
-    <span v-if="post.commentCount > 0">{{ post.commentCount}} comments</span>
+    <span v-if="post.commentCount> 0">
+  {{ post.commentCount}} comments 
+</span>
     <span v-if="post.shares?.length > 0">{{ post.shares.length }} shares</span>
   </div>
 
@@ -319,7 +321,7 @@
       <!-- Thống kê like/comment -->
       <div class="post-stats">
         <span v-if="selectedPost?.likes?.length > 0">{{ selectedPost.likes.length }} likes</span>
-        <span v-if="selectedPost?.commentCount > 0">{{ selectedPost.commentCount }} comments</span>
+        <span v-if="postCommentCounts[selectedPost._id]">{{ postCommentCounts[selectedPost._id] }} comments</span>
         <span v-if="selectedPost?.shares?.length > 0">{{ selectedPost.shares.length }} shares</span>
       </div>
 
@@ -355,7 +357,10 @@
 
         <div class="comment-content">
           <div class="comment-bubble">
-            <strong class="comment-author">{{ comment.author?.firstname }} {{ comment.author?.lastname }}</strong>
+            <strong class="comment-author">
+            {{ comment.author?.firstname }} {{ comment.author?.lastname }}
+            <span v-if="comment.author._id === selectedPost.author._id" class="author-label">Author</span>
+            </strong>
 
             <!-- Nếu đang chỉnh sửa comment này -->
             <div v-if="editingCommentId === comment._id">
@@ -418,7 +423,10 @@
                 <img :src="`http://localhost:3000/${reply?.author?.avatar || 'uploads/user.png'}`" alt="avatar" class="user-avatar-small" />
                 <div class="reply-content">
                   <div class="reply-bubble">
-                    <strong>{{ reply?.author?.firstname }} {{ reply?.author?.lastname }}</strong>
+                    <strong>
+                      {{ reply?.author?.firstname }} {{ reply?.author?.lastname }}
+                      <span v-if="reply.author._id === selectedPost.author._id" class="author-label">Author</span>
+                    </strong>
                     
                     <div v-if="editingReplyId === reply._id">
                     <input 
@@ -448,12 +456,37 @@
                     <img :src="isReplyLiked(reply) ? require('../assets/like.png') : require('../assets/unlike.png')" class="action-icon-small">
                     <span>{{ reply?.likes.length || 0 }}</span>
                   </button>
-                  <button v-if="isMyReply(reply)" @click="startEditReply(reply)" class="comment-action-btn"><img src="../assets/edit.png" class="action-icon-small">Edit</button>
-                    
+                  <button v-if="isMyReply(reply)" @click="startEditReply(reply)" class="comment-action-btn">
+                    <img src="../assets/edit.png" class="action-icon-small">Edit
+                  </button>
+
+                  <button v-if="!isMyReply(reply)" @click="startReplyingToReply(comment._id, reply,reply.author)" class="comment-action-btn">
+                  <img src="../assets/reply.png" class="action-icon-small">Reply
+                </button>
+
                   <button v-if="isMyReply(reply)" @click="deleteReply(comment._id, reply?._id)" class="comment-action-btn">
                       <img src="../assets/delete.png" class="action-icon-small">Delete
                     </button>
                   </div>
+
+                  <!-- Reply to a reply form -->
+                  <div v-if="replyInputsReply[reply._id] !== undefined" class="reply-to-reply-input-wrapper">
+                    <img :src="`http://localhost:3000/${user?.avatar || 'user.png'}`" class="user-avatar-small" />
+                    <input
+                      v-model="replyInputsReply[reply._id]"
+                      placeholder="Write a reply..."
+                      class="reply-input"
+                      @keypress.enter="submitReplyToReply(comment._id, reply._id)"
+                    />
+                    <button
+                      @click="submitReplyToReply(comment._id, reply._id)"
+                      class="send-reply-btn"
+                      :disabled="!replyInputsReply[reply._id]?.trim()"
+                    >
+                      ➤
+                    </button>
+                  </div>
+
                 </div>
               </div>
             </div>
@@ -522,6 +555,8 @@ export default {
     replyingTo: {},
     editingReplyId: null,
     editedReplyContent: '',
+    replyingToReply: {},   // { replyId: userObject }
+    replyInputsReply: {},
 
       // Create Post Modal data
       createPostModalVisible: false,
@@ -559,7 +594,17 @@ export default {
   computed: {
     canPost() {
       return this.newPostContent.trim().length > 0 || this.selectedMedia;
+    },
+    postCommentCounts() {
+    const counts = {};
+    for (const comment of this.comments) {
+      if (!counts[comment.post]) {
+        counts[comment.post] = 0;
+      }
+      counts[comment.post] += 1 + (comment.replies?.length || 0);
     }
+    return counts;
+  }
   },
 
   methods: {
@@ -589,11 +634,18 @@ export default {
 
     const data = await res.json();
     this.posts = data;
+
+    // ✅ Sau khi có danh sách post => gọi fetchComments cho từng post
+    for (const post of data) {
+      await this.fetchComments(post._id);
+    }
+
   } catch (err) {
     console.error("Lỗi khi tải bài viết:", err);
     alert("Không thể tải bài viết");
   }
-},
+}
+,
 
   // Create Post Modal methods
   openCreatePostModal() {
@@ -917,36 +969,41 @@ toggleReply(commentId) {
 
 // Submit reply
 async submitReply(commentId) {
-    const replyContent = this.replyInputs[commentId];
-    const savedUser = JSON.parse(localStorage.getItem("user"));
-    const replyTo = this.replyingTo[commentId];
+  const replyContent = this.replyInputs[commentId];
+  const savedUser = JSON.parse(localStorage.getItem("user"));
+  const replyTo = this.replyingTo[commentId];
+  const replyToReply = this.replyingToReply[commentId];
 
-    if (!replyContent?.trim()) return;
+  if (!replyContent?.trim()) return;
 
-    try {
-      const res = await fetch(`http://localhost:3000/comments/reply/${commentId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          content: replyContent,
-          authorId: savedUser.id,
-          replyToUserId: replyTo?._id || null
-        })
-      });
+  try {
+    const res = await fetch(`http://localhost:3000/comments/reply/${commentId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        content: replyContent,
+        authorId: savedUser.id,
+        replyToUserId: replyTo?._id || null,
+        replyToReplyId: replyToReply?._id || null // ✅
+      })
+    });
 
-      const data = await res.json();
-      if (res.ok && data.reply) {
-        const comment = this.comments.find(c => c._id === commentId);
-        if (comment) {
-          comment.replies.push(data.reply);
-        }
-        delete this.replyInputs[commentId];
-        delete this.replyingTo[commentId];
+    const data = await res.json();
+    if (res.ok && data.reply) {
+      const comment = this.comments.find(c => c._id === commentId);
+      if (comment) {
+        comment.replies.push(data.reply);
+        this.showReplies[commentId] = true;
       }
-    } catch (err) {
-      console.error("Lỗi khi reply:", err);
+      delete this.replyInputs[commentId];
+      delete this.replyingTo[commentId];
+      delete this.replyingToReply[commentId];
     }
-  },
+  } catch (err) {
+    console.error("Lỗi khi reply:", err);
+  }
+}
+,
 
 // Toggle replies visibility
 toggleRepliesVisibility(commentId) {
@@ -1023,9 +1080,10 @@ async deleteReply(commentId, replyId) {
   }
 }
 ,
-startReplyingTo(commentId, user) {
+startReplyingTo(commentId, user,reply) {
   this.replyInputs[commentId] = '';
   this.replyingTo[commentId] = user; // user chính là reply.author
+  this.replyingToReply[commentId] = reply;
   this.showReplies[commentId] = true;
 },
 
@@ -1060,6 +1118,42 @@ async saveReply(commentId, replyId) {
     }
   } catch (err) {
     console.error("Lỗi khi cập nhật reply:", err);
+  }
+},
+startReplyingToReply(commentId, reply) {
+  this.replyInputsReply[reply._id] = '';
+  this.replyingToReply[reply._id] = reply.author;
+  this.showReplies[commentId] = true;
+},
+async submitReplyToReply(commentId, replyId) {
+  const content = this.replyInputsReply[replyId];
+  const savedUser = JSON.parse(localStorage.getItem("user"));
+  const replyTo = this.replyingToReply[replyId];
+
+  if (!content?.trim()) return;
+
+  try {
+    const res = await fetch(`http://localhost:3000/comments/reply/${commentId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        content,
+        authorId: savedUser.id,
+        replyToUserId: replyTo?._id || null
+      })
+    });
+
+    const data = await res.json();
+    if (res.ok && data.reply) {
+      const comment = this.comments.find(c => c._id === commentId);
+      if (comment) {
+        comment.replies.push(data.reply);
+      }
+      delete this.replyInputsReply[replyId];
+      delete this.replyingToReply[replyId];
+    }
+  } catch (err) {
+    console.error("Lỗi khi reply trong reply:", err);
   }
 },
 
@@ -2801,4 +2895,17 @@ textarea.post-textarea {
   font-weight: 500;
   margin-right: 4px;
 }
+
+/* author label */
+.author-label {
+  background-color: #1876f2;
+  color: white;
+  font-size: 11px;
+  font-weight: bold;
+  padding: 2px 6px;
+  margin-left: 6px;
+  border-radius: 4px;
+  
+}
+
 </style>
