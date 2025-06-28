@@ -20,7 +20,7 @@ router.post("/", upload.single("image") , createPost);
 router.get("/", getAllPosts);
 router.get('/visible/:viewerId', getVisiblePosts);
 router.get("/:id", getPostById);
-router.put("/:id",upload.single("file"), updatePost);
+router.put("/:id",upload.single("image"), updatePost);
 router.delete("/:id", deletePost);
 
 router.post("/hide-post/:postId", hidePost);

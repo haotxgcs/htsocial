@@ -73,9 +73,7 @@
   <!-- Thống kê like/comment -->
   <div class="post-stats">
     <span v-if="post.likes?.length > 0">{{ post.likes.length }} likes</span>
-    <span v-if="post.commentCount> 0">
-  {{ post.commentCount}} comments 
-</span>
+    <span v-if="post.commentCount + post.replyCommentCount> 0">{{post.commentCount + post.replyCommentCount}} comments </span>
     <span v-if="post.shares?.length > 0">{{ post.shares.length }} shares</span>
   </div>
 
@@ -234,12 +232,12 @@
         <strong>{{ user.firstname }} {{ user.lastname }}</strong>
 
         <div class="privacy-selector">
-      <select v-model="editPrivacy">
-        <option value="public">🌐 Public</option>
-        <option value="friends">👥 Friends</option>
-        <option value="private">🔒 Private</option>
-      </select>
-    </div>
+          <select v-model="editPrivacy">
+            <option value="public">🌐 Public</option>
+            <option value="friends">👥 Friends</option>
+            <option value="private">🔒 Private</option>
+          </select>
+        </div>
       </div>
     </div>
 
@@ -252,7 +250,7 @@
       @input="adjustTextareaHeightEdit"
     ></textarea>
 
-    <!-- Ảnh/video hiện tại -->
+    <!-- Media hiện tại -->
     <div v-if="editMediaPreview" class="media-preview-container">
       <img
         v-if="editMediaType === 'image'"
@@ -269,16 +267,53 @@
       <button class="remove-media-btn" @click="removeEditMedia">&times;</button>
     </div>
 
-    <!-- Upload file mới -->
-    <input type="file" @change="handleEditFile" accept="image/*,video/*" />
+    <!-- Thêm Emoji và Media -->
+    <div class="add-options">
+      <button @click="toggleEditEmojiPicker" class="add-option">
+        <span class="option-icon"><img src="../assets/emoji.png"></span>
+        <span>Icon</span>
+      </button>
+
+      <label class="add-option">
+        <input type="file" @change="handleEditFile" accept="image/*,video/*" style="display: none;">
+        <span class="option-icon"><img src="../assets/media.png"></span>
+        <span>Media</span>
+      </label>
+    </div>
+
+    <!-- Emoji Picker -->
+    <div v-if="showEditEmojiPicker" class="emoji-picker edit-emoji-picker">
+      <div class="emoji-categories">
+        <button 
+          v-for="category in emojiCategories" 
+          :key="category.name"
+          @click="selectedEditEmojiCategory = category.name"
+          :class="{ active: selectedEditEmojiCategory === category.name }"
+          class="emoji-category-btn"
+        >
+          {{ category.icon }}
+        </button>
+      </div>
+      <div class="emoji-grid">
+        <button 
+          v-for="emoji in getCurrentEditCategoryEmojis()" 
+          :key="emoji"
+          @click="insertEditEmoji(emoji)"
+          class="emoji-item"
+        >
+          {{ emoji }}
+        </button>
+      </div>
+    </div>
 
     <!-- Nút lưu -->
     <div style="margin-top: 12px; text-align: right;">
-      <button @click="editModalVisible = false" class="btn btn-secondary">Hủy</button>
-      <button @click="submitEditPost" class="btn btn-primary" style="margin-left: 8px;">Lưu</button>
+      <button @click="editModalVisible = false" class="btn btn-secondary">Cancel</button>
+      <button @click="submitEditPost" class="btn btn-primary" style="margin-left: 8px;">Save</button>
     </div>
   </div>
 </div>
+
 
 
 <!-- Modal Comment -->
@@ -482,8 +517,7 @@
                       @click="submitReplyToReply(comment._id, reply._id)"
                       class="send-reply-btn"
                       :disabled="!replyInputsReply[reply._id]?.trim()"
-                    >
-                      ➤
+                    >➤
                     </button>
                   </div>
 
@@ -568,6 +602,8 @@ export default {
       // Emoji picker data
       showEmojiPicker: false,
       selectedEmojiCategory: 'smileys',
+      showEditEmojiPicker: false,
+selectedEditEmojiCategory: 'smileys',
       emojiCategories: [
         { name: 'smileys', icon: '😀' },
         { name: 'people', icon: '👋' },
@@ -707,6 +743,33 @@ export default {
     
     this.adjustTextareaHeight();
   },
+
+  // toggle edit emoji picker
+  toggleEditEmojiPicker() {
+  this.showEditEmojiPicker = !this.showEditEmojiPicker;
+},
+
+getCurrentEditCategoryEmojis() {
+  return this.emojis[this.selectedEditEmojiCategory] || [];
+},
+
+insertEditEmoji(emoji) {
+  const textarea = this.$refs.editTextarea;
+  const startPos = textarea.selectionStart;
+  const endPos = textarea.selectionEnd;
+
+  this.editContent = this.editContent.substring(0, startPos) +
+                     emoji +
+                     this.editContent.substring(endPos);
+
+  this.$nextTick(() => {
+    textarea.focus();
+    textarea.setSelectionRange(startPos + emoji.length, startPos + emoji.length);
+  });
+
+  this.adjustTextareaHeightEdit();
+},
+
 
   // Media handling methods
   handleMediaSelect(event) {
@@ -2906,6 +2969,62 @@ textarea.post-textarea {
   margin-left: 6px;
   border-radius: 4px;
   
+}
+
+/* emoji picker for edit post */
+.edit-emoji-picker {
+  position: relative;
+  margin-top: 12px;
+  background-color: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  padding: 10px;
+  z-index: 1000;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.edit-emoji-picker .emoji-categories {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.edit-emoji-picker .emoji-category-btn {
+  background-color: #fff;
+  border: 1px solid #ccc;
+  padding: 4px 8px;
+  font-size: 18px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.edit-emoji-picker .emoji-category-btn.active {
+  background-color: #007bff;
+  color: #fff;
+  border-color: #007bff;
+}
+
+.edit-emoji-picker .emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(30px, 1fr));
+  gap: 6px;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.edit-emoji-picker .emoji-item {
+  background: none;
+  border: none;
+  font-size: 22px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+
+.edit-emoji-picker .emoji-item:hover {
+  background-color: #eee;
 }
 
 </style>

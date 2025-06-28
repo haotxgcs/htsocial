@@ -81,8 +81,14 @@ exports.deleteComment = async (req, res) => {
   try {
     const comment = await Comment.findByIdAndDelete(req.params.id);
     if (!comment) return res.status(404).json({ msg: "Comment not found" });
+    const numReplies = comment.replies?.length || 0;
 
-    await Post.findByIdAndUpdate(comment.post, { $inc: { commentCount: -1 } });
+    await Post.findByIdAndUpdate(comment.post, {
+      $inc: {
+        commentCount: -1,
+        replyCommentCount: -numReplies
+      }
+    });
 
     res.json({ msg: "Comment deleted" });
   } catch (err) {
@@ -144,6 +150,7 @@ exports.addReply = async (req, res) => {
     });
 
     await comment.save();
+    await Post.findByIdAndUpdate(comment.post, {$inc: { replyCommentCount: 1 }});
 
     // Populate lại full reply để gửi về
     const updated = await Comment.findById(comment._id)
@@ -198,7 +205,8 @@ exports.deleteReply = async (req, res) => {
     const reply = comment.replies.id(replyId);
     if (!reply) return res.status(404).json({ msg: "Reply not found" });
     comment.replies.pull(replyId);
-    await comment.save(); 
+    await comment.save();
+    await Post.findByIdAndUpdate(comment.post, {$inc: { replyCommentCount: -1 }}); 
     res.status(200).json({ msg: "Reply deleted", replies: comment.replies });
   } catch (err) {
     console.error("Delete reply error:", err);
