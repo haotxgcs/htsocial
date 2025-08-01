@@ -22,80 +22,180 @@
       </div>
 
       <div class="post" v-for="post in posts" :key="post._id">
-  <div class="post-header">
-  <div class="post-author-info">
-    <img :src="getAvatarUrl(post.author)" alt="avatar" />
-    <div class="author-details">
-      <strong>{{ post.author?.firstname }} {{ post.author?.lastname }}</strong>
-      <p class="time">
-  {{ formatTime(post.createdAt) }}
-  <span v-if="post.audience === 'public'">🌐</span>
-  <span v-else-if="post.audience === 'friends'">👥</span>
-  <span v-else-if="post.audience === 'private'">🔒</span>
-</p>
-
-    </div>
-  </div>
-
-  <!-- menu icon góc phải -->
-  <div class="post-menu-wrapper">
-    <img src="../assets/menu.png" class="menu-post-icon" @click="toggleMenu(post._id)" />
-    <div v-if="openMenuId === post._id" class="dropdown-menu">
-      <button v-if="isMyPost(post)" @click="editPost(post)"><img src="../assets/edit.png" class="menu-icon-left"/> Edit Post</button>
-      <button v-if="!isMyPost(post)" @click="hideThisPost(post._id)"><img src="../assets/hide.png" class="menu-icon-left"/>Hide this Post</button>
-      <button v-if="isMyPost(post)" @click="deletePost(post._id)" style="color: red"><img src="../assets/delete.png" class="menu-icon-left"/> Delete Post</button>
-    </div>
-  </div>
-</div>
-
-
-
-  <p class="post-text">{{ post.content }}</p>
-
   
-  <!-- Media (ảnh hoặc video) -->
- <div v-if="post.media" class="post-media">
-  <img
-    v-if="post.mediaType === 'image'"
-    :src="`http://localhost:3000/${post.media}`"
-    class="post-image"
-  />
-  <video
-    v-else-if="post.mediaType === 'video'"
-    controls
-    class="post-video"
-  >
-    <source :src="`http://localhost:3000/${post.media}`" type="video/mp4" />
-    
-  </video>
-</div>
+  <!-- ======= BÀI VIẾT GỐC ======= -->
+  <div v-if="post.type === 'post'">
+    <div class="post-header">
+      <div class="post-author-info">
+        <img :src="getAvatarUrl(post.author)" alt="avatar" />
+        <div class="author-details">
+          <strong>{{ post.author?.firstname }} {{ post.author?.lastname }}</strong>
+          <p class="time">
+            {{ formatTime(post.createdAt) }}
+            <span v-if="post.audience === 'public'">🌐</span>
+            <span v-else-if="post.audience === 'friends'">👥</span>
+            <span v-else-if="post.audience === 'private'">🔒</span>
+          </p>
+        </div>
+      </div>
 
-  <!-- Thống kê like/comment -->
-  <div class="post-stats">
-    <span v-if="post.likes?.length > 0">{{ post.likes.length }} likes</span>
-    <span v-if="post.commentCount + post.replyCommentCount> 0">{{post.commentCount + post.replyCommentCount}} comments </span>
-    <span v-if="post.shares?.length > 0">{{ post.shares.length }} shares</span>
+      <!-- menu icon -->
+      <div class="post-menu-wrapper">
+        <img src="../assets/menu.png" class="menu-post-icon" @click="toggleMenu(post._id)" />
+        <div v-if="openMenuId === post._id" class="dropdown-menu">
+          <button v-if="isMyPost(post)" @click="editPost(post)">
+            <img src="../assets/edit.png" class="menu-icon-left"/> Edit Post
+          </button>
+          <button v-if="!isMyPost(post)" @click="hideThisPost(post._id)">
+            <img src="../assets/hide.png" class="menu-icon-left"/> Hide this Post
+          </button>
+          <button v-if="isMyPost(post)" @click="deletePost(post._id)" style="color: red">
+            <img src="../assets/delete.png" class="menu-icon-left"/> Delete Post
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <p class="post-text">{{ post.content }}</p>
+
+    <!-- Media -->
+    <div v-if="post.media" class="post-media">
+      <img v-if="post.mediaType === 'image'" :src="`http://localhost:3000/${post.media}`" class="post-image" />
+      <video v-else-if="post.mediaType === 'video'" controls class="post-video">
+        <source :src="`http://localhost:3000/${post.media}`" type="video/mp4" />
+      </video>
+    </div>
+
+    <!-- Like/Comment/Share count -->
+    <div class="post-stats">
+      <span v-if="post.likes?.length > 0">{{ post.likes.length }} likes</span>
+      <span v-if="post.commentCount + post.replyCommentCount > 0">
+        {{ post.commentCount + post.replyCommentCount }} comments
+      </span>
+      <span v-if="post.shares?.length > 0">{{ post.shares.length }} shares</span>
+    </div>
+
+    <!-- Actions -->
+    <div class="post-actions">
+      <button @click="toggleLike(post)">
+        <img :src="isLiked(post) ? require('../assets/like.png') : require('../assets/unlike.png')" class="action-icon" />
+        <span>Like</span>
+      </button>
+      <button @click="openCommentModal(post)">
+        <img src="../assets/comment.png" class="action-icon" />
+        <span>Comment</span>
+      </button>
+      <button @click="openShareModal(post)">
+        <img src="../assets/share.png" class="action-icon" />
+        <span>Share</span>
+      </button>
+    </div>
   </div>
 
+  <!-- ======= BÀI CHIA SẺ ======= -->
+<!-- ======= BÀI CHIA SẺ ======= -->
+<div v-else-if="post.type === 'share'" class="shared-post">
 
-  <div class="post-actions">
-  <button @click="toggleLike(post)">
-      <img :src="isLiked(post) ? require('../assets/like.png') : require('../assets/unlike.png')" class="action-icon" />
-      <span>Like</span>
+  <!-- Người chia sẻ -->
+  <div class="post-header">
+    <div class="post-author-info">
+      <img :src="getAvatarUrl(post.username)" alt="avatar" />
+      <div class="author-details">
+        <strong>{{ post.username?.firstname }} {{ post.username?.lastname }}</strong>
+        <p class="time">
+        {{ formatTime(post.createdAt) }} • Shared a post
+        <span v-if="post.audience === 'public'" title="Public">🌐</span>
+        <span v-else-if="post.audience === 'friends'" title="Friends">👥</span>
+        <span v-else-if="post.audience === 'private'" title="Only Me">🔒</span>
+        </p>
+      </div>
+    </div>
+
+    <!-- menu share -->
+    <div class="post-menu-wrapper">
+      <img src="../assets/menu.png" class="menu-post-icon" @click="toggleMenu(post._id)" />
+      <div v-if="openMenuId === post._id" class="dropdown-menu">
+        <button v-if="isMyShare(post)" @click="editShare(post)">
+          <img src="../assets/edit.png" class="menu-icon-left"/> Edit Share
+        </button>
+        <button v-if="!isMyShare(post)" @click="hideThisShare(post._id)">
+          <img src="../assets/hide.png" class="menu-icon-left"/> Hide Share
+        </button>
+        <button v-if="isMyShare(post)" @click="deleteShare(post._id)" style="color: red">
+          <img src="../assets/delete.png" class="menu-icon-left"/> Delete Share
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <p class="post-text" v-if="post.content"><i>{{ post.content }}</i></p>
+
+  <!-- ======= BÀI GỐC (bên trong share) ======= -->
+  <!-- Shared post content box -->
+<div class="shared-box">
+  <template v-if="post.post">
+    <!-- Nếu viewer không được xem -->
+    <template v-if="!canViewSharedPost(post.post)">
+      <div class="restricted-post-warning">
+        <img :src="getAvatarUrl(post.post.author)" class="avatar-small" />
+        <div class="restricted-content">
+          <strong>{{ post.post.author.firstname }} {{ post.post.author.lastname }}</strong>
+          <p class="time">
+            {{ formatTime(post.post.createdAt) }}
+            <span v-if="post.post.audience === 'public'">🌐</span>
+            <span v-else-if="post.post.audience === 'friends'">👥</span>
+            <span v-else-if="post.post.audience === 'private'">🔒</span>
+          </p>
+          <p class="notice-message">{{ getPostAccessMessage(post.post) }}</p>
+        </div>
+      </div>
+    </template>
+
+    <!-- Nếu được phép xem -->
+    <template v-else>
+      <div class="post-header">
+        <img :src="getAvatarUrl(post.post.author)" class="avatar-small" />
+        <div class="author-details">
+          <strong>{{ post.post.author.firstname }} {{ post.post.author.lastname }}</strong>
+          <p class="time">
+            {{ formatTime(post.post.createdAt) }}
+            <span v-if="post.post.audience === 'public'">🌐</span>
+            <span v-else-if="post.post.audience === 'friends'">👥</span>
+            <span v-else-if="post.post.audience === 'private'">🔒</span>
+          </p>
+        </div>
+      </div>
+      <p>{{ post.post.content }}</p>
+      <div v-if="post.post.media">
+        <img v-if="post.post.mediaType === 'image'" :src="`http://localhost:3000/${post.post.media}`" class="post-image" />
+        <video v-else controls class="post-video">
+          <source :src="`http://localhost:3000/${post.post.media}`" type="video/mp4" />
+        </video>
+      </div>
+    </template>
+  </template>
+
+  <!-- Nếu bài gốc đã xoá -->
+  <template v-else>
+    <div class="restricted-post-warning">
+      <p class="notice-message">This post is deleted</p>
+    </div>
+  </template>
+</div>
+
+
+  <!-- Actions -->
+  <!-- <div class="post-actions">
+    <button @click="sharePost(post.post)">
+      <img src="../assets/share.png" class="action-icon" />
+      <span>Share</span>
     </button>
-  <button @click="openCommentModal(post)">
-    <img src="../assets/comment.png" alt="Comment" class="action-icon" />
-    <span>Comment</span>
-  </button>
-  <button @click="sharePost(post)">
-    <img src="../assets/share.png" alt="Share" class="action-icon" />
-    <span>Share</span>
-  </button>
+  </div> -->
 </div>
 
 
-
 </div>
+
 
     </main>
 
@@ -216,6 +316,22 @@
   @confirm="handleConfirmedDelete"
   @cancel="confirmVisible = false"
 />
+
+<EditShareModal
+  v-if="showEditShareModal"
+  :share="editedShare"
+  @close="showEditShareModal = false"
+  @updated="fetchPosts"
+/>
+
+<ShareModal
+  v-if="showShareModal"
+  :post="postToShare"
+  :user="user"
+  @close="showShareModal = false"
+  @shared="fetchPosts"
+/>
+
 
 <!-- Modal chỉnh sửa bài viết -->
 <div v-if="editModalVisible" class="modal-overlay">
@@ -545,6 +661,78 @@
           </button>
         </div>
       </div>
+
+      <!-- Modal Share Post -->
+<div v-if="shareModalVisible" class="share-modal-overlay" @click="closeShareModal">
+  <div class="share-modal-content" @click.stop>
+    <!-- Header -->
+    <div class="share-modal-header">
+      <h3>Share Post</h3>
+      <button class="close-btn" @click="closeShareModal">&times;</button>
+    </div>
+
+    <!-- Người chia sẻ -->
+    <div class="post-creator-info">
+      <img :src="getAvatarUrl(user)" alt="avatar" class="creator-avatar" />
+      <div class="creator-details">
+        <strong>{{ user.firstname }} {{ user.lastname }}</strong>
+        <div class="privacy-selector">
+          <select v-model="shareAudience">
+            <option value="public">🌐 Public</option>
+            <option value="friends">👥 Friends</option>
+            <option value="private">🔒 Private</option>
+          </select>
+      </div>
+    </div>
+  </div>
+
+    <!-- Nội dung người chia sẻ viết -->
+    <textarea
+      v-model="shareContent"
+      class="post-textarea"
+      placeholder="Say something about this post..."
+      ref="shareTextarea"
+      @input="adjustTextareaHeightShare"
+    ></textarea>
+
+    <!-- Xem trước bài gốc -->
+    <div class="shared-post-preview">
+      <div class="shared-post-header">
+        <img :src="getAvatarUrl(sharedPost?.author)" alt="avatar" class="creator-avatar-small" />
+        <div class="creator-details-small">
+          <strong>{{ sharedPost?.author.firstname }} {{ sharedPost?.author.lastname }}</strong>
+          <p class="time">{{ formatTime(sharedPost?.createdAt) }}</p>
+        </div>
+      </div>
+      <p class="shared-post-content">{{ sharedPost?.content }}</p>
+      <div v-if="sharedPost?.media" class="shared-post-media">
+        <img
+          v-if="sharedPost.mediaType === 'image'"
+          :src="`http://localhost:3000/${sharedPost.media}`"
+          class="preview-image"
+        />
+        <video
+          v-else-if="sharedPost.mediaType === 'video'"
+          controls
+          class="preview-video"
+        >
+          <source :src="`http://localhost:3000/${sharedPost.media}`" type="video/mp4" />
+        </video>
+      </div>
+    </div>
+
+    <!-- Nút chia sẻ -->
+    <div class="post-actions-footer">
+      <button @click="closeShareModal" class="btn btn-secondary">Cancel</button>
+      <button @click="submitSharePost" class="btn btn-primary" style="margin-left: 8px;">Share</button>
+    </div>
+  </div>
+</div>
+
+
+
+
+
     </div>
   </div>
 </div>
@@ -553,11 +741,16 @@
 
 <script>
 import ConfirmDialog from './ConfirmDialog.vue';
+import EditShareModal from './EditShareModal.vue';
+import ShareModal from './ShareModal.vue';
+
 
 export default {
   name: "HomePage",
   components: {
-  ConfirmDialog
+  ConfirmDialog,
+  EditShareModal,
+  ShareModal
   },
   data() {
     return {
@@ -582,15 +775,15 @@ export default {
       newComment: '',
       
       commentLikes: {}, // Theo dõi số like của từng comment
-    replyInputs: {},  // Theo dõi nội dung reply cho từng comment
-    editingCommentId: null, // ID của comment đang được sửa
-    editedContent: "", // Nội dung đang chỉnh sửa
-    showReplies: {}, // Theo dõi việc hiển thị replies
-    replyingTo: {},
-    editingReplyId: null,
-    editedReplyContent: '',
-    replyingToReply: {},   // { replyId: userObject }
-    replyInputsReply: {},
+      replyInputs: {},  // Theo dõi nội dung reply cho từng comment
+      editingCommentId: null, // ID của comment đang được sửa
+      editedContent: "", // Nội dung đang chỉnh sửa
+      showReplies: {}, // Theo dõi việc hiển thị replies
+      replyingTo: {},
+      editingReplyId: null,
+      editedReplyContent: '',
+      replyingToReply: {},   // { replyId: userObject }
+      replyInputsReply: {},
 
       // Create Post Modal data
       createPostModalVisible: false,
@@ -598,12 +791,23 @@ export default {
       postPrivacy: 'public',
       selectedMedia: null,
       mediaPreviewUrl: null,
+
+      // Create share modal data  
+      shareModalVisible: false,
+      sharedPost: null,
+      shareContent: '',
+      shareAudience: 'public', 
+      showEditShareModal: false,
+      editedShare: null,
+      showShareModal: false,
+      postToShare: null,
+      
       
       // Emoji picker data
       showEmojiPicker: false,
       selectedEmojiCategory: 'smileys',
       showEditEmojiPicker: false,
-selectedEditEmojiCategory: 'smileys',
+      selectedEditEmojiCategory: 'smileys',
       emojiCategories: [
         { name: 'smileys', icon: '😀' },
         { name: 'people', icon: '👋' },
@@ -663,7 +867,7 @@ selectedEditEmojiCategory: 'smileys',
     }
 
     const viewerId = savedUser.id;
-    const res = await fetch(`http://localhost:3000/posts/visible/${viewerId}`);
+    const res = await fetch(`http://localhost:3000/feeds/${viewerId}`);
     if (!res.ok) {
       throw new Error(`HTTP error! status: ${res.status}`);
     }
@@ -920,7 +1124,7 @@ async hideThisPost(postId) {
   }
 },
 
-// Like comment
+
 // Like comment
 async toggleCommentLike(comment) {
   const savedUser = JSON.parse(localStorage.getItem("user"));
@@ -1344,9 +1548,122 @@ async submitEditPost() {
     this.openCommentModal(post);
     this.fetchComments(post._id);
   },
+  
+  // Mở modal chia sẻ
   sharePost(post) {
-    alert(`Bạn đã chia sẻ bài viết: ${post.content}`);
+    this.sharedPost = post;
+    this.shareContent = '';
+    this.shareModalVisible = true;
+    this.$nextTick(() => this.adjustTextareaHeightShare());
+  },
+
+  // Đóng modal chia sẻ
+  closeShareModal() {
+    this.shareModalVisible = false;
+    this.sharedPost = null;
+    this.shareContent = '';
+  },
+
+  // Tự động giãn chiều cao textarea khi người dùng nhập
+  adjustTextareaHeightShare() {
+    this.$nextTick(() => {
+      if (this.$refs.shareTextarea) {
+        this.$refs.shareTextarea.style.height = 'auto';
+        this.$refs.shareTextarea.style.height = this.$refs.shareTextarea.scrollHeight + 'px';
+      }
+    });
+  },
+
+  // Gửi bài viết chia sẻ
+async submitSharePost() {
+  if (!this.shareContent.trim()) return;
+
+  try {
+    const res = await fetch(`http://localhost:3000/shares/${this.sharedPost._id}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        username: this.user.username, // Đảm bảo rằng `this.user` đã được định nghĩa và có `username`
+        content: this.shareContent,
+        audience: this.shareAudience,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+      this.$toast?.success("Post shared successfully!");
+      this.shareModalVisible = false;
+      this.shareContent = '';
+      this.postToShare = null; 
+      
+      await this.fetchPosts(); 
+
+    } else {
+      this.$toast?.error(data.msg || "Failed to share post");
+    }
+  } catch (err) {
+    console.error("Error sharing post:", err);
+    this.$toast?.error("Server error while sharing");
   }
+},
+
+isMyShare(share) {
+  const savedUser = JSON.parse(localStorage.getItem("user"));
+  return savedUser && share.username._id === savedUser.id;
+  },
+
+  async deleteShare(shareId) {
+    if (confirm("Are you sure you want to delete this shared post?")) {
+      await this.$axios.delete(`/shares/${shareId}`);
+      this.fetchPosts();
+    }
+  },
+
+  async hideThisShare() {
+    // bạn có thể tạo API riêng cho hide share nếu muốn, hoặc lưu riêng vào user.hiddenShares
+    alert("Chức năng hide share chưa được tích hợp backend.");
+  },
+
+  editShare(share) {
+    this.editedShare = share;
+    this.showEditShareModal = true;
+  },
+
+  openShareModal(post) {
+    this.postToShare = post;
+    this.showShareModal = true;
+  },
+
+   canViewSharedPost(post) {
+    const viewerId = this.user._id;
+    const isAuthor = post.author._id === viewerId;
+    const isFriend = post.author.friends?.includes(viewerId);
+
+    switch (post.audience) {
+      case 'public':
+        return true;
+      case 'friends':
+        return isAuthor || isFriend;
+      case 'private':
+        return isAuthor;
+      default:
+        return false;
+    }
+  },
+  getPostAccessMessage(post) {
+    if (post.audience === 'private') {
+      return 'This post is private';
+    } else if (post.audience === 'friends') {
+      return 'Only friends of this user can see';
+    } else {
+      return '';
+    }
+  },
+  
+
 },
 
 mounted() {
@@ -1374,7 +1691,14 @@ beforeUnmount() {
   if (this.mediaPreviewUrl) {
     URL.revokeObjectURL(this.mediaPreviewUrl);
   }
-}
+},
+
+  editShare(share) {
+    this.editedShare = share;
+    this.showEditShareModal = true;
+  },
+
+  
 
 };
 
@@ -3009,7 +3333,7 @@ textarea.post-textarea {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(30px, 1fr));
   gap: 6px;
-  max-height: 150px;
+  max-height: 200px;
   overflow-y: auto;
 }
 
@@ -3025,6 +3349,231 @@ textarea.post-textarea {
 
 .edit-emoji-picker .emoji-item:hover {
   background-color: #eee;
+}
+
+/* share modal  */
+.share-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.share-modal-content {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.share-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.shared-post-preview {
+  background-color: #f4f4f4;
+  border-left: 4px solid #007bff;
+  padding: 10px;
+  border-radius: 10px;
+  margin-top: 10px;
+}
+
+.shared-post-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.creator-avatar-small {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-right: 10px;
+}
+
+.creator-details-small {
+  display: flex;
+  flex-direction: column;
+}
+
+.shared-post-content {
+  margin-bottom: 10px;
+}
+
+.shared-post-media img,
+.shared-post-media video {
+  max-width: 100%;
+  border-radius: 10px;
+}
+
+.post-textarea {
+  width: 100%;
+  min-height: 60px;
+  resize: none;
+  padding: 10px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  border: 1px solid #ccc;
+}
+
+/* shared post  */
+.shared-post {
+  background-color: #f5f5f5;
+  border: 1px solid #ddd;
+  margin-bottom: 1rem;
+  padding: 10px;
+  border-radius: 10px;
+}
+
+.shared-box {
+  background: white;
+  padding: 10px;
+  border-left: 3px solid #ccc;
+  margin-top: 10px;
+  border-radius: 6px;
+}
+
+
+.restricted-post-warning {
+  display: flex;
+  align-items: flex-start;
+  padding: 12px;
+  background-color: #f2f2f2;
+  border-radius: 10px;
+  border: 1px solid #ddd;
+  margin-top: 10px;
+}
+
+.restricted-post-warning .avatar-small {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  margin-right: 12px;
+}
+
+.restricted-content {
+  flex: 1;
+}
+
+.restricted-content .time {
+  font-size: 12px;
+  color: #888;
+  margin: 2px 0 8px 0;
+}
+
+.notice-message {
+  color: #555;
+  font-style: italic;
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+/* Fix cho shared box - Avatar và tên gần nhau */
+.shared-box .post-header {
+  display: flex;
+  align-items: center;
+  gap: 8px; /* Khoảng cách nhỏ giữa avatar và thông tin */
+  margin-bottom: 12px;
+  justify-content: flex-start; /* Đảm bảo align về bên trái */
+}
+
+.shared-box .avatar-small {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0; /* Không cho phép avatar co lại */
+  margin-right: 0; /* Remove margin-right vì đã dùng gap */
+}
+
+.shared-box .author-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  justify-content: center;
+  min-width: 0; /* Cho phép text wrap */
+}
+
+.shared-box .author-details strong {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1c1e21;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.shared-box .author-details .time {
+  font-size: 12px;
+  color: #65676b;
+  margin: 0;
+  line-height: 1.2;
+}
+
+/* Fix cho restricted post warning cũng vậy */
+.restricted-post-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px; /* Thay vì margin-right */
+  padding: 16px;
+  background: linear-gradient(145deg, #fff3cd, #ffeaa7);
+  border-radius: 12px;
+  border: 1px solid #ffeaa7;
+  margin-top: 16px;
+  box-shadow: 0 2px 6px rgba(255, 193, 7, 0.1);
+}
+
+.restricted-post-warning .avatar-small {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  margin-right: 0; /* Remove margin-right */
+  border: 2px solid #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.restricted-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.restricted-content strong {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1c1e21;
+  margin: 0 0 4px 0;
+  display: block;
+}
+
+.restricted-content .time {
+  font-size: 12px;
+  color: #6c757d;
+  margin: 0 0 8px 0;
+  font-weight: 500;
+}
+
+/* Override any existing styles that might interfere */
+.shared-box img.avatar-small {
+  margin-right: 0 !important;
+}
+
+.shared-box .post-header img {
+  margin-right: 0 !important;
 }
 
 </style>

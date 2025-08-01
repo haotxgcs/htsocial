@@ -110,6 +110,7 @@ exports.getVisiblePosts = async (req, res) => {
 
     const allPosts = await Post.find()
       .populate("author", "firstname lastname username avatar friends")
+       .populate("post")
       .sort({ createdAt: -1 });
 
     const visiblePosts = allPosts.filter(post => {
@@ -217,14 +218,14 @@ exports.deletePost = async (req, res) => {
     );
 
     await Comment.deleteMany({ post: deleted._id });
-    await Share.deleteMany({ post: deleted._id });
+    // await Share.deleteMany({ post: deleted._id });
 
     res.json({ msg: "Post deleted" });
   } catch (err) {
     console.error("Delete post error:", err);
     res.status(500).json({ msg: "Error deleting post" });
   }
-};
+};  
 
 exports.hidePost = async (req, res) => {
   try {

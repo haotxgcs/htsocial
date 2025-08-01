@@ -5,7 +5,7 @@ const User = require("../models/UserModel");
 // Tạo chia sẻ bài viết
 exports.sharePost = async (req, res) => {
   try {
-    const { username, content } = req.body;
+    const { username, content,audience } = req.body;
     const postId = req.params.id;
 
     const user = await User.findOne({ username });
@@ -18,6 +18,7 @@ exports.sharePost = async (req, res) => {
       username: user._id,
       post: post._id,
       content,
+      audience: audience || 'public',
     });
 
     await newShare.save();
@@ -39,8 +40,15 @@ exports.sharePost = async (req, res) => {
 exports.getAllShares = async (req, res) => {
   try {
     const shares = await Share.find()
-      .populate("username", "firstname lastname username avatar")
-      .populate("post", "content image");
+      .populate("username", "firstname lastname username avatar") // Thông tin người chia sẻ
+      .populate({
+         path: "post",
+         select: "content image createdAt", // Chọn các trường cần thiết của bài viết gốc
+         populate: {
+            path: "userId", // Populate thông tin người dùng của bài viết gốc
+            select: "firstname lastname username avatar" // Các trường cần thiết của người đăng bài gốc
+         }
+      });
 
     res.status(200).json(shares);
   } catch (err) {
@@ -52,10 +60,10 @@ exports.getAllShares = async (req, res) => {
 // Cập nhật nội dung chia sẻ
 exports.updateShare = async (req, res) => {
   try {
-    const { content } = req.body;
+    const { content,audience } = req.body;
     const share = await Share.findByIdAndUpdate(
       req.params.id,
-      { content },
+      { content,audience },
       { new: true }
     );
 
