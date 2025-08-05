@@ -13,7 +13,7 @@ const {
   getVisiblePosts,
   hidePost,
   unhidePost,
-  getHiddenPosts
+  getHiddenPosts,
 } = require("../controllers/PostController");
 
 router.post("/", upload.single("image") , createPost);
@@ -26,7 +26,6 @@ router.delete("/:id", deletePost);
 router.post("/hide-post/:postId", hidePost);
 router.post("/unhide-post/:postId", unhidePost);
 router.get("/hide-post/user/:userId", getHiddenPosts);
-
 
 
 router.post("/:id/like", toggleLike); // ← POST vì thay đổi trạng thái

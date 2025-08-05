@@ -10,7 +10,8 @@
         <li><img src="../assets/sidebar/group.png" class="menu-icon-left"/>Group</li>
         <li><img src="../assets/sidebar/marketplace.png" class="menu-icon-left"/>Marketplace</li>
         <li><img src="../assets/sidebar/game.png" class="menu-icon-left"/>Game</li>
-        <li @click="$router.push('/hidden-posts')"><img src="../assets/sidebar/hide-post.png" class="menu-icon-left"/>Hidden Posts</li>
+        <li @click="$router.push('/hidden')"><img src="../assets/sidebar/hide-post.png" class="menu-icon-left"/>Hidden Posts</li>
+        <li @click="$router.push('/hidden-shares')"><img src="../assets/sidebar/hide-post.png" class="menu-icon-left"/>Hidden Shared Posts</li>
       </ul>
     </aside>
 
@@ -92,7 +93,6 @@
     </div>
   </div>
 
-  <!-- ======= BÀI CHIA SẺ ======= -->
 <!-- ======= BÀI CHIA SẺ ======= -->
 <div v-else-if="post.type === 'share'" class="shared-post">
 
@@ -106,7 +106,7 @@
         {{ formatTime(post.createdAt) }} • Shared a post
         <span v-if="post.audience === 'public'" title="Public">🌐</span>
         <span v-else-if="post.audience === 'friends'" title="Friends">👥</span>
-        <span v-else-if="post.audience === 'private'" title="Only Me">🔒</span>
+        <span v-else-if="post.audience === 'private'" title="Private">🔒</span>
         </p>
       </div>
     </div>
@@ -486,7 +486,7 @@
           <img src="../assets/comment.png" alt="Comment" class="action-icon" />
           <span>Comment</span>
         </button>
-        <button @click="sharePost(selectedPost)" class="action-btn">
+        <button @click="openShareModal(selectedPost)" class="action-btn">
           <img src="../assets/share.png" alt="Share" class="action-icon" />
           <span>Share</span>
         </button>
@@ -1622,11 +1622,6 @@ isMyShare(share) {
     }
   },
 
-  async hideThisShare() {
-    // bạn có thể tạo API riêng cho hide share nếu muốn, hoặc lưu riêng vào user.hiddenShares
-    alert("Chức năng hide share chưa được tích hợp backend.");
-  },
-
   editShare(share) {
     this.editedShare = share;
     this.showEditShareModal = true;
@@ -1663,6 +1658,75 @@ isMyShare(share) {
     }
   },
   
+ async hideShare(shareId) {
+  try {
+    const userId = this.user?._id || JSON.parse(localStorage.getItem("user"))?._id;
+
+    if (!userId) {
+      this.$toast?.error("Bạn chưa đăng nhập");
+      return;
+    }
+
+    await this.$axios.post(`http://localhost:3000/shares/hide-share/${shareId}`, {
+      userId: userId
+    });
+
+    this.$toast?.success("Đã ẩn bài chia sẻ");
+    await this.fetchPosts(); // cập nhật lại feed
+  } catch (err) {
+    console.error("❌ Hide share failed:", err);
+    this.$toast?.error("Ẩn bài chia sẻ thất bại");
+  }
+}
+,
+
+  async unhideShare(shareId) {
+    try {
+      await this.$axios.post(`/shares/unhide-share/${shareId}`, {
+        userId: this.user._id,
+      });
+      this.$toast?.success("Shared post unhidden.");
+      await this.fetchPosts(); // reload feed
+    } catch (err) {
+      console.error("Unhide share failed:", err);
+      this.$toast?.error("Failed to unhide share.");
+    }
+  },
+
+async hideThisShare(shareId) {
+  const savedUser = JSON.parse(localStorage.getItem("user"));
+  if (!savedUser) return alert("Vui lòng đăng nhập");
+
+  try {
+    const res = await fetch(`http://localhost:3000/shares/hide-share/${shareId}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ userId: savedUser.id })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.msg || "Ẩn bài chia sẻ thất bại");
+    }
+
+    alert(data.msg || "Đã ẩn bài chia sẻ");
+
+    // ✅ GỌI LẠI FETCH ĐỂ CẬP NHẬT GIAO DIỆN
+    await this.fetchPosts();
+
+  } catch (err) {
+    console.error("Lỗi khi ẩn bài share:", err);
+    alert(err.message || "Ẩn bài chia sẻ thất bại");
+  }
+}
+
+
+
+
+
 
 },
 
@@ -1693,10 +1757,7 @@ beforeUnmount() {
   }
 },
 
-  editShare(share) {
-    this.editedShare = share;
-    this.showEditShareModal = true;
-  },
+  
 
   
 

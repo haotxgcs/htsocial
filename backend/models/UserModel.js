@@ -35,6 +35,7 @@ const userSchema = new mongoose.Schema(
     requestReceived: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
 
     hiddenPosts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post' }],
+    hiddenShares: [{ type: mongoose.Schema.Types.ObjectId, ref: "Share" }]
   },
   {
     timestamps: true,

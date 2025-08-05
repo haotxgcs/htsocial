@@ -91,3 +91,50 @@ exports.deleteShare = async (req, res) => {
     res.status(500).json({ msg: "Server error" });
   }
 };
+
+// Ẩn bài chia sẻ
+exports.hideShare = async (req, res) => {
+  const { userId } = req.body;
+  const shareId = req.params.id;
+
+  try {
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ msg: "User not found" });
+
+    const share = await Share.findById(shareId);
+    if (!share) return res.status(404).json({ msg: "Share not found" });
+
+    if (share.username.toString() === userId) {
+      return res.status(400).json({ msg: "You cannot hide your own share" });
+    }
+
+    if (!user.hiddenShares.includes(shareId)) {
+      user.hiddenShares.push(shareId);
+      await user.save();
+    }
+
+    return res.status(200).json({ msg: "Share hidden successfully" });
+  } catch (err) {
+    console.error("Hide share error:", err);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
+
+// Bỏ ẩn bài chia sẻ
+exports.unhideShare = async (req, res) => {
+  const { userId } = req.body;
+  const shareId = req.params.id;
+
+  try {
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ msg: "User not found" });
+
+    user.hiddenShares = user.hiddenShares.filter(id => id.toString() !== shareId);
+    await user.save();
+
+    return res.status(200).json({ msg: "Share unhidden successfully" });
+  } catch (err) {
+    console.error("Unhide share error:", err);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
