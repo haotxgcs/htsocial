@@ -11,7 +11,6 @@
         <li><img src="../assets/sidebar/marketplace.png" class="menu-icon-left"/>Marketplace</li>
         <li><img src="../assets/sidebar/game.png" class="menu-icon-left"/>Game</li>
         <li @click="$router.push('/hidden')"><img src="../assets/sidebar/hide-post.png" class="menu-icon-left"/>Hidden Posts</li>
-        <li @click="$router.push('/hidden-shares')"><img src="../assets/sidebar/hide-post.png" class="menu-icon-left"/>Hidden Shared Posts</li>
       </ul>
     </aside>
 
@@ -73,7 +72,7 @@
       <span v-if="post.commentCount + post.replyCommentCount > 0">
         {{ post.commentCount + post.replyCommentCount }} comments
       </span>
-      <span v-if="post.shares?.length > 0">{{ post.shares.length }} shares</span>
+      <span v-if="post.sharesCount > 0">{{ post.sharesCount }} shares</span>
     </div>
 
     <!-- Actions -->
@@ -333,15 +332,15 @@
 />
 
 
-<!-- Modal chỉnh sửa bài viết -->
+<!-- Edit Post Modal -->
 <div v-if="editModalVisible" class="modal-overlay">
   <div class="modal-content" @click.stop>
     <div class="modal-header">
-      <h3>Chỉnh sửa bài viết</h3>
+      <h3>Edit Post</h3>
       <button class="close-btn" @click="editModalVisible = false">&times;</button>
     </div>
 
-    <!-- Người đăng -->
+    <!-- Post author -->
     <div class="post-creator-info">
       <img :src="getAvatarUrl(user)" class="creator-avatar" />
       <div class="creator-details">
@@ -357,16 +356,16 @@
       </div>
     </div>
 
-    <!-- Nội dung -->
+    <!-- Content -->
     <textarea
       v-model="editContent"
       class="post-textarea"
-      placeholder="Bạn đang nghĩ gì?"
+      placeholder="What are you thinking?"
       ref="editTextarea"
       @input="adjustTextareaHeightEdit"
     ></textarea>
 
-    <!-- Media hiện tại -->
+    <!-- Existing media -->
     <div v-if="editMediaPreview" class="media-preview-container">
       <img
         v-if="editMediaType === 'image'"
@@ -383,11 +382,11 @@
       <button class="remove-media-btn" @click="removeEditMedia">&times;</button>
     </div>
 
-    <!-- Thêm Emoji và Media -->
+    <!-- Add emoji and media -->
     <div class="add-options">
       <button @click="toggleEditEmojiPicker" class="add-option">
         <span class="option-icon"><img src="../assets/emoji.png"></span>
-        <span>Icon</span>
+        <span>Emoji</span>
       </button>
 
       <label class="add-option">
@@ -422,13 +421,14 @@
       </div>
     </div>
 
-    <!-- Nút lưu -->
+    <!-- Save buttons -->
     <div style="margin-top: 12px; text-align: right;">
       <button @click="editModalVisible = false" class="btn btn-secondary">Cancel</button>
       <button @click="submitEditPost" class="btn btn-primary" style="margin-left: 8px;">Save</button>
     </div>
   </div>
 </div>
+
 
 
 
@@ -473,7 +473,7 @@
       <div class="post-stats">
         <span v-if="selectedPost?.likes?.length > 0">{{ selectedPost.likes.length }} likes</span>
         <span v-if="postCommentCounts[selectedPost._id]">{{ postCommentCounts[selectedPost._id] }} comments</span>
-        <span v-if="selectedPost?.shares?.length > 0">{{ selectedPost.shares.length }} shares</span>
+        <span v-if="selectedPost?.sharesCount > 0">{{ selectedPost.sharesCount }} shares</span>
       </div>
 
       <!-- Action buttons -->
@@ -774,11 +774,11 @@ export default {
       comments: [],
       newComment: '',
       
-      commentLikes: {}, // Theo dõi số like của từng comment
-      replyInputs: {},  // Theo dõi nội dung reply cho từng comment
-      editingCommentId: null, // ID của comment đang được sửa
-      editedContent: "", // Nội dung đang chỉnh sửa
-      showReplies: {}, // Theo dõi việc hiển thị replies
+      commentLikes: {}, // Track number of likes per comment
+      replyInputs: {},  // Track reply content per comment
+      editingCommentId: null, // ID of comment being edited
+      editedContent: "", // Edited content of comment
+      showReplies: {}, // Track reply visibility per comment
       replyingTo: {},
       editingReplyId: null,
       editedReplyContent: '',
@@ -863,7 +863,7 @@ export default {
   try {
     const savedUser = JSON.parse(localStorage.getItem("user"));
     if (!savedUser) {
-      return alert("Vui lòng đăng nhập");
+      return alert("Please login to view posts");
     }
 
     const viewerId = savedUser.id;
@@ -875,14 +875,14 @@ export default {
     const data = await res.json();
     this.posts = data;
 
-    // ✅ Sau khi có danh sách post => gọi fetchComments cho từng post
+    
     for (const post of data) {
       await this.fetchComments(post._id);
     }
 
   } catch (err) {
-    console.error("Lỗi khi tải bài viết:", err);
-    alert("Không thể tải bài viết");
+    console.error("Error in fetch posts:", err);
+    alert("Unable to fetch posts");
   }
 }
 ,
@@ -895,7 +895,6 @@ export default {
     this.mediaPreviewUrl = null;
     this.showEmojiPicker = false;
     
-    // Focus vào textarea sau khi modal mở
     this.$nextTick(() => {
       if (this.$refs.postTextarea) {
         this.$refs.postTextarea.focus();
@@ -939,7 +938,7 @@ export default {
                          emoji + 
                          this.newPostContent.substring(endPos);
     
-    // Đặt con trỏ sau emoji vừa chèn
+    
     this.$nextTick(() => {
       textarea.focus();
       textarea.setSelectionRange(startPos + emoji.length, startPos + emoji.length);
@@ -1063,7 +1062,6 @@ async hideThisPost(postId) {
     const data = await res.json();
     alert(data.msg);
 
-    // Xoá bài khỏi danh sách
     this.posts = this.posts.filter(p => p._id !== postId);
   } catch (err) {
     console.error("Error hiding post:", err);
@@ -1092,7 +1090,7 @@ async hideThisPost(postId) {
     console.log(data); // 👈 kiểm tra author có tồn tại không
     this.comments = data;
   } catch (err) {
-    console.error("Lỗi khi tải comments:", err);
+    console.error("Error to fetch comments:", err);
     this.comments = [];
   }
 },
@@ -1109,18 +1107,18 @@ async hideThisPost(postId) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         content: this.newComment,
-        authorId: user.id   // ✅ Gửi ID thay vì username
+        authorId: user.id   
       })
     });
 
     const data = await res.json();
-    if (!res.ok) throw new Error(data.msg || "Đăng bình luận thất bại");
+    if (!res.ok) throw new Error(data.msg || "Submit comment fail");
 
-    this.comments.push(data.comment);  // ✅ Thêm bình luận mới vào danh sách
-    this.newComment = "";              // ✅ Reset input
+    this.comments.push(data.comment);  // add new comment to the list
+    this.newComment = "";              // Reset input
   } catch (err) {
-    console.error("Lỗi khi gửi bình luận:", err);
-    alert("Không thể gửi bình luận: " + err.message);
+    console.error("Error to send comment:", err);
+    alert("Unable to send comment: " + err.message);
   }
 },
 
@@ -1128,7 +1126,7 @@ async hideThisPost(postId) {
 // Like comment
 async toggleCommentLike(comment) {
   const savedUser = JSON.parse(localStorage.getItem("user"));
-  if (!savedUser) return alert("Vui lòng đăng nhập");
+  if (!savedUser) return alert("Please log in to like comments");
 
   try {
     const res = await fetch(`http://localhost:3000/comments/like/${comment._id}`, {
@@ -1141,16 +1139,16 @@ async toggleCommentLike(comment) {
     if (res.ok && data.comment) {
       const commentIndex = this.comments.findIndex(c => c._id === comment._id);
       if (commentIndex !== -1) {
-        this.comments.splice(commentIndex, 1, data.comment); // ✅ update full comment
+        this.comments.splice(commentIndex, 1, data.comment); // update full comment
       }
     }
   } catch (err) {
-    console.error("Lỗi khi like comment:", err);
+    console.error("Error to like comment:", err);
   }
 }
 ,
 
-// Kiểm tra đã like comment chưa
+// Check if comment is liked by user
 isCommentLiked(comment) {
   const savedUser = JSON.parse(localStorage.getItem("user"));
   return comment.likes && comment.likes.includes(savedUser.id);
@@ -1173,9 +1171,7 @@ async saveComment(commentId) {
       body: JSON.stringify({ content: this.editedContent })
     });
 
-    // const data = await res.json();
     if (res.ok) {
-      // Cập nhật comment trong danh sách
       const commentIndex = this.comments.findIndex(c => c._id === commentId);
       if (commentIndex !== -1) {
         this.comments[commentIndex].content = this.editedContent;
@@ -1183,8 +1179,8 @@ async saveComment(commentId) {
       this.cancelEdit();
     }
   } catch (err) {
-    console.error("Lỗi khi cập nhật comment:", err);
-    alert("Không thể cập nhật bình luận");
+    console.error("Error to update comment:", err);
+    alert("Unable to update comment");
   }
 },
 
@@ -1196,7 +1192,7 @@ cancelEdit() {
 
 // Delete comment
 async deleteComment(commentId) {
-  if (!confirm("Bạn có chắc muốn xóa bình luận này?")) return;
+  if (!confirm("Are you sure to delete this comment")) return;
 
   try {
     const res = await fetch(`http://localhost:3000/comments/${commentId}`, {
@@ -1207,12 +1203,12 @@ async deleteComment(commentId) {
       this.comments = this.comments.filter(c => c._id !== commentId);
     }
   } catch (err) {
-    console.error("Lỗi khi xóa comment:", err);
-    alert("Không thể xóa bình luận");
+    console.error("Error to delete comment:", err);
+    alert("Unable to delete comment");
   }
 },
 
-// Kiểm tra comment có phải của mình không
+// Check if comment is authored by user
 isMyComment(comment) {
   const savedUser = JSON.parse(localStorage.getItem("user"));
   return savedUser && comment.author._id === savedUser.id;
@@ -1221,13 +1217,9 @@ isMyComment(comment) {
 // Toggle reply input
 toggleReply(commentId) {
   if (this.replyInputs[commentId] !== undefined) {
-    // Thay vì this.$delete
     delete this.replyInputs[commentId];
     delete this.replyingTo[commentId];
-    // Hoặc dùng:
-    // this.replyInputs[commentId] = undefined;
   } else {
-    // Thay vì this.$set
     const comment = this.comments.find(c => c._id === commentId);
     this.replyInputs[commentId] = '';
     this.replyingTo[commentId] = comment.author;
@@ -1274,14 +1266,13 @@ async submitReply(commentId) {
 
 // Toggle replies visibility
 toggleRepliesVisibility(commentId) {
-  // Thay vì this.$set
   this.showReplies[commentId] = !this.showReplies[commentId];
 },
 
 // Like reply
 async toggleReplyLike(reply, commentId) {
   const savedUser = JSON.parse(localStorage.getItem("user"));
-  if (!savedUser) return alert("Vui lòng đăng nhập");
+  if (!savedUser) return alert("Please log in to like replies");
 
   try {
     const res = await fetch(`http://localhost:3000/comments/reply/${commentId}/${reply._id}/like`, {
@@ -1292,31 +1283,29 @@ async toggleReplyLike(reply, commentId) {
 
     const data = await res.json();
     if (res.ok) {
-      // Tìm comment chứa reply
       const comment = this.comments.find(c => c._id === commentId);
       if (comment) {
         const replyIndex = comment.replies.findIndex(r => r._id === reply._id);
         if (replyIndex !== -1) {
-          // Cập nhật reply tại vị trí cũ
           comment.replies[replyIndex] = data.reply;
         }
       }
     }
   } catch (err) {
-    console.error("Lỗi khi like reply:", err);
+    console.error("Error to like reply:", err);
   }
 }
 
 ,
 
-// Kiểm tra đã like reply chưa
+// Check if reply is liked by user
 isReplyLiked(reply) {
   const savedUser = JSON.parse(localStorage.getItem("user"));
   return reply?.likes?.includes(savedUser.id);
 }
 ,
 
-// Kiểm tra reply có phải của mình không
+// Check if reply is authored by user
 isMyReply(reply) {
   const savedUser = JSON.parse(localStorage.getItem("user"));
   return reply?.author?._id === savedUser?.id;
@@ -1332,24 +1321,24 @@ async deleteReply(commentId, replyId) {
     });
 
     if (res.ok) {
-      // Xóa reply khỏi danh sách reply của comment tương ứng
+      // Remove reply from the reply list of the corresponding comment
       const comment = this.comments.find(c => c._id === commentId);
       if (comment) {
         comment.replies = comment.replies.filter(r => r._id !== replyId);
       }
     } else {
       const err = await res.json();
-      alert(err.msg || "Xoá phản hồi thất bại");
+      alert(err.msg || "Fail to delete reply");
     }
   } catch (err) {
-    console.error("Lỗi khi xóa reply:", err);
-    alert("Không thể xóa phản hồi");
+    console.error("Error to delete reply:", err);
+    alert("Unable to delete reply");
   }
 }
 ,
 startReplyingTo(commentId, user,reply) {
   this.replyInputs[commentId] = '';
-  this.replyingTo[commentId] = user; // user chính là reply.author
+  this.replyingTo[commentId] = user; 
   this.replyingToReply[commentId] = reply;
   this.showReplies[commentId] = true;
 },
@@ -1384,7 +1373,7 @@ async saveReply(commentId, replyId) {
       this.cancelEditReply();
     }
   } catch (err) {
-    console.error("Lỗi khi cập nhật reply:", err);
+    console.error("Error to update reply:", err);
   }
 },
 startReplyingToReply(commentId, reply) {
@@ -1474,18 +1463,18 @@ async submitEditPost() {
     }
 
     await this.$axios.put(`/posts/${this.editPostId}`, formData);
-    alert('Cập nhật thành công!');
+    alert('Update successfully!');
     this.editModalVisible = false;
     this.fetchPosts(); // reload lại danh sách bài viết
   } catch (err) {
-    console.error("Lỗi cập nhật bài viết:", err);
-    alert("Không thể cập nhật bài viết!");
+    console.error("Error to update post:", err);
+    alert("Unable to update post!");
   }
 },
 
   async toggleLike(post) {
     const savedUser = JSON.parse(localStorage.getItem("user"));
-    if (!savedUser) return alert("Vui lòng đăng nhập");
+    if (!savedUser) return alert("Please login");
 
     try {
       const res = await fetch(`http://localhost:3000/posts/${post._id}/like`, {
@@ -1501,8 +1490,8 @@ async submitEditPost() {
       const data = await res.json();
       post.likes = data.likes;
     } catch (err) {
-      console.error("Không thể like:", err);
-      alert("Không thể like bài viết");
+      console.error("Cannot like this post:", err);
+      alert("Unable to like this post");
     }
   },
   
@@ -1549,7 +1538,7 @@ async submitEditPost() {
     this.fetchComments(post._id);
   },
   
-  // Mở modal chia sẻ
+  // Open share model
   sharePost(post) {
     this.sharedPost = post;
     this.shareContent = '';
@@ -1557,14 +1546,14 @@ async submitEditPost() {
     this.$nextTick(() => this.adjustTextareaHeightShare());
   },
 
-  // Đóng modal chia sẻ
+  // Close share modal
   closeShareModal() {
     this.shareModalVisible = false;
     this.sharedPost = null;
     this.shareContent = '';
   },
 
-  // Tự động giãn chiều cao textarea khi người dùng nhập
+  // Automatically expand textarea height as user types
   adjustTextareaHeightShare() {
     this.$nextTick(() => {
       if (this.$refs.shareTextarea) {
@@ -1574,7 +1563,7 @@ async submitEditPost() {
     });
   },
 
-  // Gửi bài viết chia sẻ
+  // Submit shared post
 async submitSharePost() {
   if (!this.shareContent.trim()) return;
 
@@ -1585,7 +1574,7 @@ async submitSharePost() {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        username: this.user.username, // Đảm bảo rằng `this.user` đã được định nghĩa và có `username`
+        username: this.user.username, 
         content: this.shareContent,
         audience: this.shareAudience,
       }),
@@ -1633,21 +1622,26 @@ isMyShare(share) {
   },
 
    canViewSharedPost(post) {
-    const viewerId = this.user._id;
-    const isAuthor = post.author._id === viewerId;
-    const isFriend = post.author.friends?.includes(viewerId);
+  if (!post || !post.author || !this.user) return false;
 
-    switch (post.audience) {
-      case 'public':
-        return true;
-      case 'friends':
-        return isAuthor || isFriend;
-      case 'private':
-        return isAuthor;
-      default:
-        return false;
-    }
-  },
+  const authorId = post.author._id || post.author.id;
+  const viewerId = this.user._id || this.user.id;
+
+  const isAuthor = authorId === viewerId;
+  const isFriend = post.author.friends?.includes(viewerId);
+
+  switch (post.audience) {
+    case 'public':
+      return true;
+    case 'friends':
+      return isAuthor || isFriend;
+    case 'private':
+      return isAuthor;
+    default:
+      return false;
+  }
+}
+,
   getPostAccessMessage(post) {
     if (post.audience === 'private') {
       return 'This post is private';
@@ -1663,7 +1657,7 @@ isMyShare(share) {
     const userId = this.user?._id || JSON.parse(localStorage.getItem("user"))?._id;
 
     if (!userId) {
-      this.$toast?.error("Bạn chưa đăng nhập");
+      this.$toast?.error("You need to log in to hide shares");
       return;
     }
 
@@ -1671,11 +1665,11 @@ isMyShare(share) {
       userId: userId
     });
 
-    this.$toast?.success("Đã ẩn bài chia sẻ");
-    await this.fetchPosts(); // cập nhật lại feed
+    this.$toast?.success("Hide share successfully!");
+    await this.fetchPosts(); 
   } catch (err) {
-    console.error("❌ Hide share failed:", err);
-    this.$toast?.error("Ẩn bài chia sẻ thất bại");
+    console.error("Hide share failed:", err);
+    this.$toast?.error("Unable to hide share");
   }
 }
 ,
@@ -1695,7 +1689,7 @@ isMyShare(share) {
 
 async hideThisShare(shareId) {
   const savedUser = JSON.parse(localStorage.getItem("user"));
-  if (!savedUser) return alert("Vui lòng đăng nhập");
+  if (!savedUser) return alert("Please log in to hide shares");
 
   try {
     const res = await fetch(`http://localhost:3000/shares/hide-share/${shareId}`, {
@@ -1709,17 +1703,16 @@ async hideThisShare(shareId) {
     const data = await res.json();
 
     if (!res.ok) {
-      throw new Error(data.msg || "Ẩn bài chia sẻ thất bại");
+      throw new Error(data.msg || "Hide share failed");
     }
 
-    alert(data.msg || "Đã ẩn bài chia sẻ");
+    alert(data.msg || "Hide share successfully!");
 
-    // ✅ GỌI LẠI FETCH ĐỂ CẬP NHẬT GIAO DIỆN
     await this.fetchPosts();
 
   } catch (err) {
-    console.error("Lỗi khi ẩn bài share:", err);
-    alert(err.message || "Ẩn bài chia sẻ thất bại");
+    console.error("Error to hide share:", err);
+    alert(err.message || "Unable to hide share");
   }
 }
 
@@ -1739,7 +1732,7 @@ mounted() {
     this.$router.push("/login");
   }
   
-  // Đóng emoji picker khi click ra ngoài
+  // Close emoji picker when clicking out
   document.addEventListener('click', (e) => {
     if (!e.target.closest('.emoji-toolbar')) {
       this.showEmojiPicker = false;
@@ -1756,9 +1749,6 @@ beforeUnmount() {
     URL.revokeObjectURL(this.mediaPreviewUrl);
   }
 },
-
-  
-
   
 
 };
@@ -1776,11 +1766,10 @@ beforeUnmount() {
 
 .sidebar-left {
   position: fixed;
-  top: 56px; /* chiều cao header */
+  top: 56px; 
   left: 0;
   width: 250px;
   height: calc(100vh - 56px);
-  /* background: white; */
   padding: 20px;
   border-right: 1px solid #ddd;
   overflow-y: auto;
@@ -1809,7 +1798,6 @@ beforeUnmount() {
   margin: 0 auto;
   padding: 20px;
   margin-left: 500px;  
-  /* margin-right: 230px; */
 }
 
 .create-post {
@@ -1886,7 +1874,6 @@ beforeUnmount() {
   right: 0;
   width: 220px;
   height: calc(100vh - 56px);
-  /* background: white; */
   padding: 20px;
   border-left: 1px solid #ddd;
   overflow-y: auto;
@@ -2130,7 +2117,6 @@ beforeUnmount() {
 }
 
 /* post menu dropdown  */
-
 .menu-post-icon {
   width: 15px;
   height: 15px;
@@ -2248,7 +2234,7 @@ beforeUnmount() {
   padding: 20px 24px;
   border-bottom: 1px solid #e4e6eb;
   background: white;
-  flex-shrink: 0; /* Không cho phép co lại */
+  flex-shrink: 0; 
   position: sticky;
   top: 0;
   z-index: 10;
@@ -2292,9 +2278,9 @@ beforeUnmount() {
 .post-detail {
   padding: 20px 24px;
   border-bottom: 1px solid #e4e6eb;
-  flex-shrink: 0; /* Không cho phép co lại */
-  overflow-y: auto; /* Thêm cuộn nếu nội dung quá dài */
-  max-height: 300px; /* Giới hạn chiều cao để không chiếm hết không gian */
+  flex-shrink: 0; 
+  overflow-y: auto; 
+  max-height: 300px;
 }
 
 .post-author-info {
@@ -2342,8 +2328,8 @@ beforeUnmount() {
 .post-video-modal {
   width: 100%;
   max-width: 100%;
-  max-height: 200px; /* Giới hạn chiều cao hình ảnh */
-  object-fit: contain; /* Thay đổi từ cover thành contain để không bị cắt */
+  max-height: 200px; 
+  object-fit: contain; 
   border-radius: 8px;
   display: block;
 }
@@ -2445,7 +2431,7 @@ beforeUnmount() {
 
 .comment-content {
   flex: 1;
-  min-width: 0; /* Ngăn overflow */
+  min-width: 0; 
 }
 
 .comment-bubble {
@@ -2509,7 +2495,7 @@ beforeUnmount() {
   border-top: 1px solid #e4e6eb;
   background: white;
   gap: 8px;
-  flex-shrink: 0; /* Không cho phép co lại - luôn hiển thị */
+  flex-shrink: 0; 
   position: sticky;
   bottom: 0;
   z-index: 20;
@@ -2601,12 +2587,12 @@ beforeUnmount() {
   }
   
   .comment-modal-content {
-    height: 90vh; /* Chiều cao lớn hơn trên mobile */
+    height: 90vh; 
     max-height: none;
   }
   
   .post-detail {
-    max-height: 250px; /* Giảm chiều cao post detail trên mobile */
+    max-height: 250px; 
   }
   
   .comments-list {
@@ -3543,13 +3529,12 @@ textarea.post-textarea {
   margin-top: 4px;
 }
 
-/* Fix cho shared box - Avatar và tên gần nhau */
 .shared-box .post-header {
   display: flex;
   align-items: center;
-  gap: 8px; /* Khoảng cách nhỏ giữa avatar và thông tin */
+  gap: 8px; 
   margin-bottom: 12px;
-  justify-content: flex-start; /* Đảm bảo align về bên trái */
+  justify-content: flex-start; 
 }
 
 .shared-box .avatar-small {
@@ -3557,8 +3542,8 @@ textarea.post-textarea {
   height: 36px;
   border-radius: 50%;
   object-fit: cover;
-  flex-shrink: 0; /* Không cho phép avatar co lại */
-  margin-right: 0; /* Remove margin-right vì đã dùng gap */
+  flex-shrink: 0; 
+  margin-right: 0; 
 }
 
 .shared-box .author-details {
@@ -3566,7 +3551,7 @@ textarea.post-textarea {
   flex-direction: column;
   gap: 2px;
   justify-content: center;
-  min-width: 0; /* Cho phép text wrap */
+  min-width: 0;
 }
 
 .shared-box .author-details strong {
@@ -3584,15 +3569,14 @@ textarea.post-textarea {
   line-height: 1.2;
 }
 
-/* Fix cho restricted post warning cũng vậy */
 .restricted-post-warning {
   display: flex;
   align-items: flex-start;
-  gap: 8px; /* Thay vì margin-right */
+  gap: 8px;
   padding: 16px;
-  background: linear-gradient(145deg, #fff3cd, #ffeaa7);
+  background: #fef2f2;
   border-radius: 12px;
-  border: 1px solid #ffeaa7;
+  border: 1px solid #fef2f2;
   margin-top: 16px;
   box-shadow: 0 2px 6px rgba(255, 193, 7, 0.1);
 }
@@ -3603,7 +3587,7 @@ textarea.post-textarea {
   border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;
-  margin-right: 0; /* Remove margin-right */
+  margin-right: 0; 
   border: 2px solid #fff;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 }

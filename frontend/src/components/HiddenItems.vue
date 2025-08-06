@@ -54,7 +54,7 @@
       </div>
 
       <!-- Hidden Shared Post -->
-      <div v-else class="shared-post">
+      <div v-else class="shared-post-container">
         <div class="share-header">
           <img :src="getAvatarUrl(item.username)" class="avatar" />
           <div>
@@ -69,7 +69,13 @@
         <div class="share-body">
           <p>{{ item.content }}</p>
 
-          <div v-if="item.post" class="original-post">
+          <!-- Nếu post bị xóa -->
+          <div v-if="!item.post">
+            <div class="deleted-post"> This post has been deleted.</div>
+          </div>
+
+          <!-- Nếu còn post gốc -->
+          <div v-else class="original-post">
             <div class="post-header">
               <img :src="getAvatarUrl(item.post.author)" class="avatar small" />
               <div>
@@ -81,7 +87,8 @@
               </div>
             </div>
 
-            <div class="post-body">
+            <!-- Logic audience -->
+            <div class="post-body" v-if="canViewOriginalPost(item.post)">
               <p>{{ item.post.content }}</p>
               <template v-if="item.post.media">
                 <img
@@ -97,6 +104,10 @@
                   <source :src="getMediaUrl(item.post.media)" type="video/mp4" />
                 </video>
               </template>
+            </div>
+            <div v-else class="restricted-post">
+              <p v-if="item.post.audience === 'friends'">👥 Only friends of this user can see this post.</p>
+              <p v-else-if="item.post.audience === 'private'">🔒 This post is private.</p>
             </div>
           </div>
         </div>
@@ -189,8 +200,18 @@ export default {
         case "public": return "🌐";
         case "friends": return "👥";
         case "private": return "🔒";
-        default: return "❓";
       }
+    },
+    canViewOriginalPost(post) {
+      if (!post) return false;
+      if (post.audience === "public") return true;
+      if (post.audience === "friends") {
+        return post.author.friends?.includes(this.userId) || post.author._id === this.userId;
+      }
+      if (post.audience === "private") {
+        return post.author._id === this.userId;
+      }
+      return false;
     }
   },
   mounted() {
@@ -212,7 +233,36 @@ export default {
   border-radius: 8px;
   background-color: #f9f9f9;
 }
-.avatar {
+.shared-post-container {
+  background-color:#f5f5f5;
+  padding: 16px;
+  border: 1px solid #d0d0d0;
+  border-radius: 8px;
+}
+.original-post {
+  background-color: #ffffff;
+  padding: 12px;
+  margin-top: 12px;
+  border-radius: 6px;
+  border: 1px solid #e0e0e0;
+}
+.restricted-post, .deleted-post {
+  padding: 12px;
+  margin-top: 12px;
+  border-radius: 6px;
+  font-style: italic;
+  color: #555;
+  background-color: #fef2f2;
+  border: 1px solid #e0cfcf;
+}
+.post-header,
+.share-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.post-header .avatar,
+.share-header .avatar {
   width: 40px;
   height: 40px;
   border-radius: 50%;
@@ -221,6 +271,9 @@ export default {
 .avatar.small {
   width: 30px;
   height: 30px;
+}
+.post-body {
+  margin-top: 8px;
 }
 .post-media {
   width: 100%;
@@ -247,12 +300,6 @@ button:hover {
 }
 button:active {
   transform: scale(0.98);
-}
-.share-header,
-.post-header {
-  display: flex;
-  align-items: center;
-  margin-bottom: 8px;
 }
 .filter-buttons {
   display: flex;

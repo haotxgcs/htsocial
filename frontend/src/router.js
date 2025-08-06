@@ -11,11 +11,7 @@ import GamePage from './components/GamePage.vue';
 import MessagePage from './components/MessagePage.vue';
 import NotificationPage from './components/NotificationPage.vue';
 import ProfilePage from './components/ProfilePage.vue';
-import EditPostPage from './components/EditPostPage.vue';
-import HiddenPosts from './components/HiddenPosts.vue';
-import HiddenSharedPosts from './components/HiddenSharedPosts.vue';
-import HiddenItems from './components/HiddenItems.vue'; // đường dẫn tuỳ bạn đặt
-
+import HiddenItems from './components/HiddenItems.vue';
 
 
 const routes = [
@@ -31,9 +27,6 @@ const routes = [
   { path: '/message', component: MessagePage },
   { path: '/notification', component: NotificationPage },
   { path: '/profile', component: ProfilePage },
-  { path: '/posts/:id/edit', component: EditPostPage },
-  { path: "/hidden-posts", component: HiddenPosts},
-  {path: '/hidden-shares', component: HiddenSharedPosts},
   { path: '/hidden', component: HiddenItems}
 ];
 

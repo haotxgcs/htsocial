@@ -108,10 +108,13 @@ export default {
 .modal-box {
   background: white;
   padding: 20px;
-  width: 450px;
+  width: 100%;
+  max-width: 500px;             /* ✅ Tăng max width nếu cần */
   border-radius: 12px;
   max-height: 90vh;
   overflow-y: auto;
+  overflow-x: hidden;           /* ✅ XÓA scroll ngang */
+  box-sizing: border-box;       /* ✅ Ngăn lỗi layout do padding */
 }
 .user-info {
   display: flex;
@@ -138,12 +141,14 @@ export default {
 }
 textarea {
   width: 100%;
-  height: 100px;
-  resize: none;
+  min-height: 80px;
+  resize: vertical;             /* ✅ Cho resize chiều dọc */
   padding: 10px;
   border: 1.5px solid #ccc;
   border-radius: 8px;
   margin-bottom: 15px;
+  box-sizing: border-box;       /* ✅ Không để vượt khung */
+  overflow-x: hidden;           /* ✅ Ngăn kéo ngang */
 }
 .shared-box {
   border: 1px solid #ddd;
@@ -188,4 +193,6 @@ textarea {
 .btn.cancel {
   background-color: #e0e0e0;
 }
+
+
 </style>
