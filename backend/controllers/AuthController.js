@@ -381,3 +381,18 @@ exports.setActiveStatus = async (req, res) => {
     res.status(500).json({ msg: "Server error" });
   }
 };
+
+// Lấy danh sách bạn bè của user
+exports.getFriends = async (req, res) => {
+  const userId = req.params.userId;
+
+  try {
+    const user = await User.findById(userId).populate("friends", "firstname lastname username avatar active");
+    if (!user) return res.status(404).json({ msg: "User not found" });
+
+    res.status(200).json(user.friends);
+  } catch (err) {
+    console.error("Get friends error:", err);
+    res.status(500).json({ msg: "Server error" });
+  }
+}

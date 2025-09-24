@@ -3,7 +3,6 @@ const User = require("../models/UserModel");
 const Comment = require("../models/CommentModel");
 const Share = require("../models/ShareModel");
 
-// Tạo post mới hỗ trợ cả ảnh và video
 exports.createPost = async (req, res) => {
   try {
     const { content, author,audience,hiddenBy } = req.body;
@@ -82,9 +81,6 @@ exports.getAllPosts = async (req, res) => {
   }
 };
 
-
-
-
 exports.getPostById = async (req, res) => {
   try {
     const post = await Post.findById(req.params.id)
@@ -103,6 +99,48 @@ exports.getPostById = async (req, res) => {
     res.status(500).json({ msg: "Error fetching post" });
   }
 };
+
+// get post and share by user
+exports.getPostsByUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Lấy post gốc
+    const posts = await Post.find({ author: userId })
+      .populate("author", "firstname lastname username avatar")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Lấy bài share
+    const shares = await Share.find({ username: userId })
+      .populate("username", "firstname lastname username avatar")
+      .populate({
+        path: "post",
+        populate: {
+          path: "author",
+          select: "firstname lastname username avatar"
+        }
+      })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Gắn type cho từng loại
+    const postsWithType = posts.map(p => ({ ...p, type: "original" }));
+    const sharesWithType = shares.map(s => ({ ...s, type: "share" }));
+
+    // Merge + sort lại theo thời gian
+    const merged = [...postsWithType, ...sharesWithType].sort((a, b) => {
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+
+    res.status(200).json(merged);
+  } catch (err) {
+    console.error("Get posts+shares by user error:", err);
+    res.status(500).json({ msg: "Error fetching user's posts" });
+  }
+};
+
+
 
 exports.getVisiblePosts = async (req, res) => {
   try {
@@ -169,7 +207,6 @@ exports.getHiddenPosts = async (req, res) => {
 };
 
 
-// controllers/PostController.js
 exports.updatePost = async (req, res) => {
   try {
     const { content,audience } = req.body;
@@ -200,7 +237,6 @@ exports.updatePost = async (req, res) => {
 };
 
 
-// Xóa post
 exports.deletePost = async (req, res) => {
   try {
     const deleted = await Post.findByIdAndDelete(req.params.id);
@@ -254,7 +290,6 @@ exports.hidePost = async (req, res) => {
   }
 };
 
-// Bỏ ẩn bài viết
 exports.unhidePost = async (req, res) => {
   try {
     const { userId } = req.body;
@@ -277,7 +312,6 @@ exports.unhidePost = async (req, res) => {
     res.status(500).json({ msg: "Server error" });
   }
 };
-
 
 exports.toggleLike = async (req, res) => {
   try {

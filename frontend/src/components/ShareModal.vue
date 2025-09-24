@@ -103,18 +103,26 @@ export default {
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 999;
+  z-index: 99999;
 }
 .modal-box {
   background: white;
   padding: 20px;
   width: 100%;
-  max-width: 500px;             /* ✅ Tăng max width nếu cần */
+  max-width: 500px;            
   border-radius: 12px;
   max-height: 90vh;
   overflow-y: auto;
-  overflow-x: hidden;           /* ✅ XÓA scroll ngang */
-  box-sizing: border-box;       /* ✅ Ngăn lỗi layout do padding */
+  overflow-x: hidden;           
+  box-sizing: border-box;      
+
+  /* hide scrollbar  */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE, Edge */
+
+}
+ .modal-box::-webkit-scrollbar {
+  display: none; /* Chrome, Safari */
 }
 .user-info {
   display: flex;
@@ -172,6 +180,8 @@ textarea {
   max-width: 100%;
   border-radius: 6px;
   margin-top: 8px;
+  aspect-ratio: 1 / 1; /* Luôn giữ hình vuông */
+  object-fit: cover;   /* Cắt để lấp đầy khung */
 }
 .modal-actions {
   display: flex;

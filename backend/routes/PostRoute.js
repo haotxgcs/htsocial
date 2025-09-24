@@ -7,6 +7,7 @@ const {
   createPost,
   getAllPosts,
   getPostById,
+  getPostsByUser,
   updatePost,
   deletePost,
   toggleLike, 
@@ -20,6 +21,7 @@ router.post("/", upload.single("image") , createPost);
 router.get("/", getAllPosts);
 router.get('/visible/:viewerId', getVisiblePosts);
 router.get("/:id", getPostById);
+router.get("/user/:userId", getPostsByUser);
 router.put("/:id",upload.single("image"), updatePost);
 router.delete("/:id", deletePost);
 
@@ -28,6 +30,6 @@ router.post("/unhide-post/:postId", unhidePost);
 router.get("/hide-post/user/:userId", getHiddenPosts);
 
 
-router.post("/:id/like", toggleLike); // ← POST vì thay đổi trạng thái
+router.post("/:id/like", toggleLike); 
 
 module.exports = router;

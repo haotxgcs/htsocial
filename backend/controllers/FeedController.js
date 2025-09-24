@@ -107,6 +107,53 @@ exports.getUnifiedFeed = async (req, res) => {
   }
 };
 
+// controllers/FeedController.js
+exports.getUserFeed = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Lấy bài viết gốc
+    const posts = await Post.find({ author: userId })
+      .populate("author", "firstname lastname username avatar friends")
+      .lean();
+
+    // Lấy share
+    const shares = await Share.find({ username: userId })
+      .populate("username", "firstname lastname username avatar friends")
+      .populate({
+        path: "post",
+        populate: {
+          path: "author",
+          select: "firstname lastname username avatar friends",
+        },
+      })
+      .lean();
+
+    // Format giống homepage
+    const formattedPosts = posts.map((p) => ({
+      ...p,
+      type: "original", // Đổi thành 'original' để khớp với v-if trong template
+    }));
+
+    const formattedShares = shares.map((s) => ({
+      ...s,
+      type: "share",
+    }));
+
+    // Gộp + sort theo thời gian
+    const allFeed = [...formattedPosts, ...formattedShares].sort(
+      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+    );
+
+    res.status(200).json(allFeed);
+  } catch (err) {
+    console.error("User feed error:", err);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
+
+
+
 exports.getHiddenShares = async (req, res) => {
   try {
     const { viewerId } = req.params;
@@ -139,8 +186,6 @@ exports.getHiddenShares = async (req, res) => {
   }
 };
 
-
-// GET /feeds/hidden-posts/:viewerId
 exports.getHiddenPosts = async (req, res) => {
   try {
     const { viewerId } = req.params;

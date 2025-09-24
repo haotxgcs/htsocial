@@ -3,9 +3,6 @@ const router = express.Router();
 const AuthController = require("../controllers/AuthController");
 const multer = require("multer");
 
-// Optional: middleware xác thực
-// const verifyToken = require("../middlewares/verifyToken");
-
 // Cấu hình multer
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, "uploads/"),
@@ -36,6 +33,9 @@ router.post("/unfriend", AuthController.unFriend);
 
 // Online status
 router.post("/active-status", AuthController.setActiveStatus);
+
+// Get friends
+router.get("/:userId/friends", AuthController.getFriends);
 
 // View hidden posts
 router.post('/:userId/hide-post/:postId', async (req, res) => {
