@@ -12,6 +12,7 @@ import MessagePage from './components/MessagePage.vue';
 import NotificationPage from './components/NotificationPage.vue';
 import ProfilePage from './components/ProfilePage.vue';
 import HiddenItems from './components/HiddenItems.vue';
+import SavedPosts from './components/SavedPosts.vue';
 
 
 const routes = [
@@ -27,9 +28,10 @@ const routes = [
   { path: '/message', component: MessagePage },
   { path: '/notification', component: NotificationPage },
   { path: '/profile', component: ProfilePage },
-  { path: '/hidden', component: HiddenItems}
+  { path: '/hidden', component: HiddenItems},
+  {path: '/saved', component: SavedPosts}
 ];
-
+ 
 const router = createRouter({
   history: createWebHistory(),
   routes

@@ -34,8 +34,12 @@ const userSchema = new mongoose.Schema(
     requestSent: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     requestReceived: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
 
+    // Hidden posts and shares
     hiddenPosts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post' }],
-    hiddenShares: [{ type: mongoose.Schema.Types.ObjectId, ref: "Share" }]
+    hiddenShares: [{ type: mongoose.Schema.Types.ObjectId, ref: "Share" }],
+
+    // Saved posts
+    savedPosts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post'}]
   },
   {
     timestamps: true,

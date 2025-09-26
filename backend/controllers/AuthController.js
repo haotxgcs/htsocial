@@ -33,7 +33,8 @@ exports.register = async (req, res) => {
       likedPosts: [],
       active: false,
       requestSent: [],
-      requestReceived: []
+      requestReceived: [],
+      savedPosts: []
     });
 
     await newUser.save();
