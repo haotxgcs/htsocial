@@ -68,9 +68,10 @@
 
           <!-- Like/Comment/Share count -->
           <div class="post-stats">
-            <span v-if="post.likes?.length > 0">{{ post.likes.length }} likes</span>
-            <span v-if="getPostCommentCount(post) > 0">{{ getPostCommentCount(post) }} comments</span>
-            <span v-if="post.sharesCount > 0">{{ post.sharesCount }} shares</span>
+            <span v-if="post.likes?.length > 0">{{ post.likes.length }} liked</span>
+            <span v-if="getPostCommentCount(post) > 0">{{ getPostCommentCount(post) }} commented</span>
+            <span v-if="post.sharesCount > 0">{{ post.sharesCount }} shared</span>
+            <span v-if="getPostSaveCount(post) > 0">{{ getPostSaveCount(post) }} saved</span>
           </div>
 
           <!-- Actions -->
@@ -136,7 +137,7 @@
           <div class="shared-box">
             <template v-if="post.post">
               <!-- Nếu viewer không được xem -->
-              <template v-if="!canViewSharedPost(post.post)">
+              <template v-if="post.canViewPost === false">
                 <div class="restricted-post-warning">
                   <img :src="getAvatarUrl(post.post.author)" class="avatar-small" />
                   <div class="restricted-content">
@@ -175,9 +176,10 @@
                 </div>
                 <!-- Like/Comment/Share count -->
                 <div class="post-stats">
-                  <span v-if="post.post.likes?.length > 0">{{ post.post.likes.length }} likes</span>
-                  <span v-if="getPostCommentCount(post) > 0">{{ getPostCommentCount(post) }} comments</span>
-                  <span v-if="post.post.sharesCount > 0">{{ post.post.sharesCount }} shares</span>
+                  <span v-if="post.post.likes?.length > 0">{{ post.post.likes.length }} liked</span>
+                  <span v-if="getPostCommentCount(post) > 0">{{ getPostCommentCount(post) }} commented</span>
+                  <span v-if="post.post.sharesCount > 0">{{ post.post.sharesCount }} shared</span>
+                   <span v-if="getPostSaveCount(post.post) > 0">{{ getPostSaveCount(post.post) }} saved</span>
                 </div>
 
                 <!-- Actions -->
@@ -315,7 +317,8 @@ export default {
       confirmVisible: false,
       confirmMessage: '',
       postToDeleteId: null,
-      savedPosts: [],
+      savedPosts: [], // Array of saved item IDs
+      postSaveCounts: {},
 
       // Edit post
        editModalVisible: false,
@@ -338,12 +341,8 @@ export default {
       editedShare: null,
       showShareModal: false,
       postToShare: null,
-    
-      
     }
   },
-
- 
 
   methods: {
     getAvatarUrl(author) {
@@ -360,25 +359,112 @@ export default {
     },
     
     async fetchPosts() {
-      try {
-        const savedUser = JSON.parse(localStorage.getItem("user"));
-        if (!savedUser) {
-          return alert("Please login to view posts");
-        }
-
-        const viewerId = savedUser.id;
-        const res = await fetch(`http://localhost:3000/feeds/${viewerId}`);
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
-
-        const data = await res.json();
-        this.posts = data;
-      } catch (err) {
-        console.error("Error in fetch posts:", err);
-        alert("Unable to fetch posts");
+    try {
+      const savedUser = JSON.parse(localStorage.getItem("user"));
+      if (!savedUser) {
+        return alert("Please login to view posts");
       }
-    },
+
+      const viewerId = savedUser.id;
+      const res = await fetch(`http://localhost:3000/feeds/${viewerId}`);
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+
+      const data = await res.json();
+      this.posts = data;
+      
+      // Fetch save counts sau khi load posts
+      this.fetchAllSaveCounts();
+    } catch (err) {
+      console.error("Error in fetch posts:", err);
+      alert("Unable to fetch posts");
+    }
+  },
+
+    // NEW: Fetch save count cho một post
+  async fetchPostSaveCount(postId) {
+    if (this.postSaveCounts[postId] !== undefined) {
+      return this.postSaveCounts[postId];
+    }
+
+    try {
+      const res = await fetch(`http://localhost:3000/posts/${postId}/saves-count`);
+      if (res.ok) {
+        const data = await res.json();
+        this.postSaveCounts[postId] = data.savesCount || 0;
+        return this.postSaveCounts[postId];
+      }
+    } catch (err) {
+      console.error("Cannot fetch save count:", err);
+    }
+    
+    this.postSaveCounts[postId] = 0;
+    return 0;
+  },
+
+  // NEW: Get save count với cache
+  getPostSaveCount(post) {
+    if (!post || !post._id) return 0;
+    
+    // Nếu có sẵn từ API response
+    if (post.savesCount !== undefined) {
+      return post.savesCount;
+    }
+    
+    // Nếu có trong cache
+    if (this.postSaveCounts[post._id] !== undefined) {
+      return this.postSaveCounts[post._id];
+    }
+    
+    // Fetch và cache
+    this.fetchPostSaveCount(post._id);
+    return 0;
+  },
+
+  // NEW: Update save count khi save/unsave
+  updatePostSaveCount(postId, increment = false) {
+    if (this.postSaveCounts[postId] === undefined) {
+      this.postSaveCounts[postId] = 0;
+    }
+    
+    if (increment) {
+      this.postSaveCounts[postId]++;
+    } else {
+      this.postSaveCounts[postId] = Math.max(0, this.postSaveCounts[postId] - 1);
+    }
+
+    // Cập nhật trong posts list
+    const postIndex = this.posts.findIndex(p => p._id === postId || (p.post && p.post._id === postId));
+    if (postIndex !== -1) {
+      const post = this.posts[postIndex];
+      if (post.post) {
+        post.post.savesCount = this.postSaveCounts[postId];
+      } else {
+        post.savesCount = this.postSaveCounts[postId];
+      }
+    }
+  },
+
+  // NEW: Fetch all save counts cho posts hiện tại
+  async fetchAllSaveCounts() {
+    const postIds = [];
+    
+    this.posts.forEach(post => {
+      if (post.type === 'post') {
+        postIds.push(post._id);
+      } else if (post.type === 'share' && post.post) {
+        postIds.push(post.post._id);
+      }
+    });
+
+    // Fetch save counts
+    for (const postId of postIds) {
+      if (this.postSaveCounts[postId] === undefined) {
+        this.fetchPostSaveCount(postId);
+      }
+    }
+  },
 
     async toggleSavePost(post) {
     const savedUser = JSON.parse(localStorage.getItem("user"));
@@ -388,7 +474,7 @@ export default {
       const postId = post._id;
       const isSaved = this.savedPosts.includes(postId);
       
-      const res = await fetch(`http://localhost:3000/posts/${postId}/save`, {
+      const res = await fetch(`http://localhost:3000/feeds/save/${postId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -405,46 +491,47 @@ export default {
         if (isSaved) {
           // Remove from saved posts
           this.savedPosts = this.savedPosts.filter(id => id !== postId);
-          alert('Post unsaved successfully');
+          this.updatePostSaveCount(postId, false); // Decrease count
+          alert(data.msg || 'Item unsaved successfully');
         } else {
           // Add to saved posts
           this.savedPosts.push(postId);
-          alert('Post saved successfully');
+          this.updatePostSaveCount(postId, true); // Increase count
+          alert(data.msg || 'Item saved successfully');
         }
       } else {
-        alert(data.msg || 'Failed to save/unsave post');
+        alert(data.msg || 'Failed to save/unsave item');
       }
     } catch (err) {
-      console.error("Cannot save/unsave post:", err);
-      alert("Unable to save/unsave post");
+      console.error("Cannot save/unsave item:", err);
+      alert("Unable to save/unsave item");
     }
   },
 
-  isSaved(post) {
-    return this.savedPosts.includes(post._id);
-  },
+    isSaved(post) {
+      return this.savedPosts.includes(post._id);
+    },
 
-  async loadSavedPosts() {
-    try {
-      const savedUser = JSON.parse(localStorage.getItem("user"));
-      if (!savedUser) return;
+    async loadSavedPosts() {
+      try {
+        const savedUser = JSON.parse(localStorage.getItem("user"));
+        if (!savedUser) return;
 
-      const res = await fetch(`http://localhost:3000/posts/users/${savedUser.id}/saved-posts`);
-      if (res.ok) {
-        const data = await res.json();
-        this.savedPosts = data.savedPosts || [];
+        // ✅ NEW: Use feed endpoint for getting saved item IDs
+        const res = await fetch(`http://localhost:3000/feeds/users/${savedUser.id}/saved-items`);
+        if (res.ok) {
+          const data = await res.json();
+          this.savedPosts = data.savedItems || [];
+        }
+      } catch (err) {
+        console.error("Failed to load saved posts:", err);
       }
-    } catch (err) {
-      console.error("Failed to load saved posts:", err);
-    }
-  }, 
+    },
 
-        // Thay đổi method openCreatePostModal():
     openCreatePostModal() {
       this.createPostModalVisible = true;
     },
 
-    // Thêm method mới:
     handlePostCreated() {
       this.fetchPosts();
     },
@@ -483,39 +570,30 @@ export default {
     },
 
     handleCommentAdded(comment) {
-      // Handle comment added event if needed
       console.log('Comment added:', comment);
     },
 
-     onCommentCountUpdated(data) {
-    // Update local comment count
-     this.postCommentCounts[data.postId] = data.count;
-    
-    // Cập nhật trong posts array nếu cần
-    const postIndex = this.posts.findIndex(p => p._id === data.postId);
-    if (postIndex !== -1) {
-      // Có thể update tổng count trong post object
-      this.posts[postIndex].totalComments = data.count;
-    }
-  },
+    onCommentCountUpdated(data) {
+      this.postCommentCounts[data.postId] = data.count;
+      
+      const postIndex = this.posts.findIndex(p => p._id === data.postId);
+      if (postIndex !== -1) {
+        this.posts[postIndex].totalComments = data.count;
+      }
+    },
 
-  getPostCommentCount(post) {
-    // Ưu tiên dùng realtime count nếu có
-    if (this.postCommentCounts[post._id] !== undefined) {
-      return this.postCommentCounts[post._id];
-    }
-    // Fallback về backend data
-    return (post?.commentCount || 0) + (post?.replyCommentCount || 0);
-  },
-
+    getPostCommentCount(post) {
+      if (this.postCommentCounts[post._id] !== undefined) {
+        return this.postCommentCounts[post._id];
+      }
+      return (post?.commentCount || 0) + (post?.replyCommentCount || 0);
+    },
 
     handleCommentDeleted(commentId) {
-      // Handle comment deleted event if needed
       console.log('Comment deleted:', commentId);
     },
 
     handlePostLiked(data) {
-      // Update post likes in the feed
       const post = this.posts.find(p => p._id === data.postId || (p.post && p.post._id === data.postId));
       if (post) {
         if (post.post) {
@@ -532,20 +610,19 @@ export default {
 
     // Edit post methods
     editPost(post) {
-    this.editedPost = post;
-    this.editModalVisible = true;
-    this.openMenuId = null; // Close dropdown menu
-  },
+      this.editedPost = post;
+      this.editModalVisible = true;
+      this.openMenuId = null;
+    },
 
-  closeEditModal() {
-    this.editModalVisible = false;
-    this.editedPost = null;
-  },
-  
-  handlePostUpdated() {
-    // Refresh posts after edit
-    this.fetchPosts();
-  },
+    closeEditModal() {
+      this.editModalVisible = false;
+      this.editedPost = null;
+    },
+    
+    handlePostUpdated() {
+      this.fetchPosts();
+    },
 
     async toggleLike(post) {
       const savedUser = JSON.parse(localStorage.getItem("user"));
@@ -638,34 +715,17 @@ export default {
       this.showShareModal = true;
     },
 
-    canViewSharedPost(post) {
-      if (!post || !post.author || !this.user) return false;
+    // ✅ REMOVED: canViewSharedPost method - now handled by backend
+    // Backend provides canViewPost property directly
 
-      const authorId = post.author._id || post.author.id;
-      const viewerId = this.user._id || this.user.id;
-
-      const isAuthor = authorId === viewerId;
-      const isFriend = post.author.friends?.includes(viewerId);
-
-      switch (post.audience) {
-        case 'public':
-          return true;
-        case 'friends':
-          return isAuthor || isFriend;
-        case 'private':
-          return isAuthor;
-        default:
-          return false;
-      }
-    },
-    
     getPostAccessMessage(post) {
+      if (!post) return 'Content not available';
       if (post.audience === 'private') {
         return 'This post is private';
       } else if (post.audience === 'friends') {
         return 'Only friends of this user can see';
       } else {
-        return '';
+        return 'Content not available';
       }
     },
 
@@ -724,7 +784,7 @@ export default {
   },
 
   beforeUnmount() {
-    
+    // Cleanup if needed
   }
 };
 </script>
