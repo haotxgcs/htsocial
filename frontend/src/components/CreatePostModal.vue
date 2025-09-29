@@ -247,12 +247,12 @@ export default {
         
         // Tạo nội dung post dạng text với format đẹp
         const recipeContent = 
-        `🍳 Recipe Name: ${this.recipeName}
+        `Recipe Name: ${this.recipeName}
 
-        📋 Ingredients:
+        Ingredients:
         ${this.ingredients}
 
-        👩‍🍳 Instructions:
+        Instructions:
         ${this.instructions}`;
         
         formData.append('content', recipeContent);
@@ -337,7 +337,6 @@ export default {
   width: 100%;
   height: 100%;
   background-color: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(5px);
   display: flex;
   justify-content: center;
   align-items: center;

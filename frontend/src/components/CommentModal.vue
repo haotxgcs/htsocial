@@ -23,7 +23,22 @@
           </div>
         </div>
 
-        <div class="post-content">{{ post?.content }}</div>
+        <!-- Post Content with Recipe Support -->
+        <div class="post-content">
+          {{ post?.content }}
+          <!-- Recipe content with proper formatting -->
+          <div v-if="post?.recipeName" class="recipe-content">
+            <h4 class="recipe-title">{{ post.recipeName }}</h4>
+            <div v-if="post?.ingredients" class="recipe-section">
+              <strong>Ingredients:</strong>
+              <p class="recipe-text">{{ post.ingredients }}</p>
+            </div>
+            <div v-if="post?.instructions" class="recipe-section">
+              <strong>Instructions:</strong>
+              <p class="recipe-text">{{ post.instructions }}</p>
+            </div>
+          </div>
+        </div>
 
         <!-- Media in Modal -->
         <div v-if="post?.media" class="post-media-modal">
@@ -35,9 +50,10 @@
 
         <!-- Post Stats -->
         <div class="post-stats">
-          <span v-if="post?.likes?.length > 0">{{ post.likes.length }} likes</span>
-          <span v-if="totalCommentCount > 0">{{ totalCommentCount }} comments</span>
-          <span v-if="post?.sharesCount > 0">{{ post.sharesCount }} shares</span>
+          <span v-if="post?.likes?.length > 0">{{ post.likes.length }} liked</span>
+          <span v-if="totalCommentCount > 0">{{ totalCommentCount }} commented</span>
+          <span v-if="post?.sharesCount > 0">{{ post.sharesCount }} shared</span>
+          <span v-if="postSaveCount > 0" :class="{ updated: saveCountUpdated }">{{ postSaveCount }} saved</span>
         </div>
 
         <!-- Action Buttons in Modal -->
@@ -53,6 +69,10 @@
           <button @click="sharePost" class="action-btn">
             <img src="../assets/share.png" class="action-icon" />
             <span>Share</span>
+          </button>
+          <button @click="toggleSavePost" class="action-btn">
+            <img :src="isSaved ? require('../assets/saved.png') : require('../assets/save.png')" class="action-icon" />
+            <span>{{ isSaved ? 'Saved' : 'Save' }}</span>
           </button>
         </div>
       </div>
@@ -86,7 +106,6 @@
 
                  <!-- View mode -->
                 <p v-else class="comment-text">
-                  <!-- Debug: Hiển thị tên người được reply cho mọi trường hợp reply comment -->
                   <span v-if="comment.replyToUser" class="reply-to-name">
                     @{{ comment.replyToUser.firstname }} {{ comment.replyToUser.lastname }}
                   </span>
@@ -107,9 +126,9 @@
                 <button v-if="!isMyComment(comment)" @click="toggleReply(comment._id)" class="comment-action-btn">
                   <img src="../assets/reply.png" class="action-icon-small">Reply</button>
 
-                <button v-if="isMyComment(comment)" @click="editComment(comment)" img src="../assets/edit.png" class="comment-action-btn">
+                <button v-if="isMyComment(comment)" @click="editComment(comment)" class="comment-action-btn">
                   <img src="../assets/edit.png" class="action-icon-small">Edit</button>
-                <button v-if="isMyComment(comment)" @click="deleteComment(comment._id)" img src="../assets/delete.png" class="comment-action-btn" style="color: red;">
+                <button v-if="isMyComment(comment)" @click="deleteComment(comment._id)" class="comment-action-btn" style="color: red;">
                   <img src="../assets/delete.png" class="action-icon-small">Delete</button>
               </div>
 
@@ -185,27 +204,25 @@
                       </div>
 
                       <!-- Reply to a reply form -->
-                  <div v-if="replyInputsReply[reply._id] !== undefined" class="reply-to-reply-input-wrapper">
-                    <img :src="`http://localhost:3000/${user?.avatar || 'user.png'}`" class="user-avatar-small" />
-                    <input
-                      v-model="replyInputsReply[reply._id]"
-                      :placeholder="`Reply to ${replyingToReply[reply._id]?.firstname} ${replyingToReply[reply._id]?.lastname}...`"
-                      class="reply-input"
-                      @keypress.enter="submitReplyToReply(comment._id, reply._id)"
-                    />
-                    <button
-                      @click="submitReplyToReply(comment._id, reply._id)"
-                      class="send-reply-btn"
-                      :disabled="!replyInputsReply[reply._id]?.trim()"
-                    >➤
-                    </button>
-                  </div>
+                      <div v-if="replyInputsReply[reply._id] !== undefined" class="reply-to-reply-input-wrapper">
+                        <img :src="`http://localhost:3000/${user?.avatar || 'user.png'}`" class="user-avatar-small" />
+                        <input
+                          v-model="replyInputsReply[reply._id]"
+                          :placeholder="`Reply to ${replyingToReply[reply._id]?.firstname} ${replyingToReply[reply._id]?.lastname}...`"
+                          class="reply-input"
+                          @keypress.enter="submitReplyToReply(comment._id, reply._id)"
+                        />
+                        <button
+                          @click="submitReplyToReply(comment._id, reply._id)"
+                          class="send-reply-btn"
+                          :disabled="!replyInputsReply[reply._id]?.trim()"
+                        >➤
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-
-              
             </div>
           </div>
         </div>
@@ -249,7 +266,11 @@ export default {
     isVisible: {
       type: Boolean,
       default: false
-    }
+    },
+    initialSaveCount: {  // NEW PROP
+    type: Number,
+    default: 0
+  }
   },
   data() {
     return {
@@ -259,12 +280,17 @@ export default {
       replyInputs: {},
       editingCommentId: null,
       editedContent: "",
+
       showReplies: {},
       replyingTo: {},
       editingReplyId: null,
       editedReplyContent: '',
       replyingToReply: {},
       replyInputsReply: {},
+
+      savedPosts: [], // Track saved post IDs
+      postSaveCount: 0, 
+      saveCountUpdated: false,
     }
   },
   computed: {
@@ -273,30 +299,44 @@ export default {
       return this.post?.likes && this.post.likes.includes(savedUser?.id);
     },
 
+    isSaved() {
+      return this.savedPosts.includes(this.post?._id);
+    },
+
     totalCommentCount() {
-    let total = this.comments.length; // Số comment chính
-    this.comments.forEach(comment => {
-      if (comment.replies && comment.replies.length > 0) {
-        total += comment.replies.length; // Cộng thêm số reply
-      }
-    });
-    return total;
-  }
+      let total = this.comments.length;
+      this.comments.forEach(comment => {
+        if (comment.replies && comment.replies.length > 0) {
+          total += comment.replies.length;
+        }
+      });
+      return total;
+    }
   },
   watch: {
     post: {
       handler(newPost) {
         if (newPost) {
           this.fetchComments(newPost._id);
+           this.fetchPostSaveCount(); // NEW
         }
       },
       immediate: true
     },
+
     isVisible(newVal) {
       if (newVal && this.post) {
         this.fetchComments(this.post._id);
+        this.loadSavedPosts();
+         this.fetchPostSaveCount(); // NEW
       }
+    },
+
+    initialSaveCount(newCount) {
+    if (newCount !== undefined && newCount !== this.postSaveCount) {
+      this.postSaveCount = newCount;
     }
+  }
   },
   methods: {
     closeModal() {
@@ -329,6 +369,87 @@ export default {
     isPostAuthor(author) {
       return this.post?.author?._id === author?._id;
     },
+
+    async loadSavedPosts() {
+      try {
+        const savedUser = JSON.parse(localStorage.getItem("user"));
+        if (!savedUser) return;
+
+        const res = await fetch(`http://localhost:3000/feeds/users/${savedUser.id}/saved-items`);
+        if (res.ok) {
+          const data = await res.json();
+          this.savedPosts = data.savedItems || [];
+        }
+      } catch (err) {
+        console.error("Failed to load saved posts:", err);
+      }
+    },
+
+    async fetchPostSaveCount() {
+      if (!this.post || !this.post._id) return;
+
+      try {
+        const res = await fetch(`http://localhost:3000/posts/${this.post._id}/saves-count`);
+        if (res.ok) {
+          const data = await res.json();
+          this.postSaveCount = data.savesCount || 0;
+        }
+      } catch (err) {
+        console.error("Cannot fetch save count:", err);
+        this.postSaveCount = 0;
+      }
+    },
+
+    async toggleSavePost() {
+  const savedUser = JSON.parse(localStorage.getItem("user"));
+  if (!savedUser) return alert("Please login to save posts");
+
+  try {
+    const postId = this.post._id;
+    const isSaved = this.savedPosts.includes(postId);
+    
+    const res = await fetch(`http://localhost:3000/feeds/save/${postId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        userId: savedUser.id,
+        action: isSaved ? 'unsave' : 'save'
+      })
+    });
+
+    const data = await res.json();
+    
+    if (res.ok) {
+      this.saveCountUpdated = true;
+      setTimeout(() => {
+        this.saveCountUpdated = false;
+      }, 300);
+
+      if (isSaved) {
+        this.savedPosts = this.savedPosts.filter(id => id !== postId);
+        this.postSaveCount = Math.max(0, this.postSaveCount - 1);
+        // Emit both events
+        this.$emit('save-count-updated', { postId: postId, count: this.postSaveCount });
+        this.$emit('save-status-changed', { postId: postId, isSaved: false }); // NEW
+        alert(data.msg || 'Item unsaved successfully');
+      } else {
+        this.savedPosts.push(postId);
+        this.postSaveCount++;
+        // Emit both events
+        this.$emit('save-count-updated', { postId: postId, count: this.postSaveCount });
+        this.$emit('save-status-changed', { postId: postId, isSaved: true }); // NEW
+        alert(data.msg || 'Item saved successfully');
+      }
+    } else {
+      alert(data.msg || 'Failed to save/unsave item');
+    }
+  } catch (err) {
+    console.error("Cannot save/unsave item:", err);
+    alert("Unable to save/unsave item");
+  }
+},
 
     async fetchComments(postId) {
       try {
@@ -470,18 +591,16 @@ export default {
       }
     },
 
-  // Reply to reply methods
+    // Reply to reply methods
     toggleReplyToReply(replyId, replyAuthor) {
       if (this.replyInputsReply[replyId] !== undefined) {
         delete this.replyInputsReply[replyId];
         delete this.replyingToReply[replyId];
       } else {
-        
         this.replyInputsReply[replyId] = '';
         this.replyingToReply[replyId] = replyAuthor;
       }
     },
-
 
     async submitReply(commentId) {
       const replyContent = this.replyInputs[commentId];
@@ -522,38 +641,38 @@ export default {
     },
 
     async submitReplyToReply(commentId, replyId) {
-  const content = this.replyInputsReply[replyId];
-  const savedUser = JSON.parse(localStorage.getItem("user"));
-  const replyTo = this.replyingToReply[replyId];
+      const content = this.replyInputsReply[replyId];
+      const savedUser = JSON.parse(localStorage.getItem("user"));
+      const replyTo = this.replyingToReply[replyId];
 
-  if (!content?.trim()) return;
+      if (!content?.trim()) return;
 
-  try {
-    const res = await fetch(`http://localhost:3000/comments/reply/${commentId}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        content,
-        authorId: savedUser.id,
-        replyToUserId: replyTo?._id || null
-      })
-    });
+      try {
+        const res = await fetch(`http://localhost:3000/comments/reply/${commentId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            content,
+            authorId: savedUser.id,
+            replyToUserId: replyTo?._id || null
+          })
+        });
 
-    const data = await res.json();
-    if (res.ok && data.reply) {
-      const comment = this.comments.find(c => c._id === commentId);
-      if (comment) {
-        comment.replies.push(data.reply);
+        const data = await res.json();
+        if (res.ok && data.reply) {
+          const comment = this.comments.find(c => c._id === commentId);
+          if (comment) {
+            comment.replies.push(data.reply);
+          }
+          delete this.replyInputsReply[replyId];
+          delete this.replyingToReply[replyId];
+
+          this.$emit('comment-count-updated', { postId: this.post._id, count: this.totalCommentCount });
+        }
+      } catch (err) {
+        console.error("Error replying to reply:", err);
       }
-      delete this.replyInputsReply[replyId];
-      delete this.replyingToReply[replyId];
-
-      this.$emit('comment-count-updated', { postId: this.post._id, count: this.totalCommentCount });
-    }
-  } catch (err) {
-    console.error("Lỗi khi reply trong reply:", err);
-  }
-},
+    },
 
     toggleRepliesVisibility(commentId) {
       this.showReplies[commentId] = !this.showReplies[commentId];
@@ -627,10 +746,10 @@ export default {
     },
 
     startReplyingToReply(commentId, reply) {
-  this.replyInputsReply[reply._id] = '';
-  this.replyingToReply[reply._id] = reply.author;
-  this.showReplies[commentId] = true;
-},
+      this.replyInputsReply[reply._id] = '';
+      this.replyingToReply[reply._id] = reply.author;
+      this.showReplies[commentId] = true;
+    },
 
     startEditReply(reply) {
       this.editingReplyId = reply._id;
@@ -738,15 +857,15 @@ export default {
 /* Modal Header */
 .comment-modal-header {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
   padding: 20px 24px;
-  border-bottom: 1px solid #e4e6eb;
   background: white;
   flex-shrink: 0;
   position: sticky;
   top: 0;
   z-index: 10;
+  position:relative;
 }
 
 .comment-modal-header h3 {
@@ -754,6 +873,8 @@ export default {
   font-size: 20px;
   font-weight: 600;
   color: #1c1e21;
+  text-align: center;
+  font-weight: bold;
 }
 
 .close-btn {
@@ -769,6 +890,10 @@ export default {
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s ease;
+   position: absolute; /* THÊM */
+  right: 24px; /* THÊM */
+  top: 50%; /* THÊM */
+  transform: translateY(-50%); 
 }
 
 .close-btn:hover {
@@ -818,6 +943,54 @@ export default {
   color: #1c1e21;
   margin: 12px 0;
   word-wrap: break-word;
+  white-space: pre-line;
+}
+
+/* Recipe Content Styles */
+.recipe-content {
+  background: #f8f9fa;
+  border: 1px solid #e3e6ea;
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 12px;
+}
+
+.recipe-title {
+  color: #1c1e21;
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+  border-bottom: 1px solid #e3e6ea;
+  padding-bottom: 8px;
+}
+
+.recipe-section {
+  margin-bottom: 12px;
+}
+
+.recipe-section:last-child {
+  margin-bottom: 0;
+}
+
+.recipe-section strong {
+  color: #1877f2;
+  font-size: 14px;
+  font-weight: 600;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.recipe-text {
+  font-size: 14px;
+  line-height: 1.5;
+  color: #1c1e21;
+  margin: 0;
+  white-space: pre-line;
+  word-wrap: break-word;
+  background: white;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #e3e6ea;
 }
 
 /* Media in Modal */
@@ -872,7 +1045,6 @@ export default {
 }
 
 .action-btn:hover {
-  
   color: #1877f2;
 }
 
@@ -953,8 +1125,8 @@ export default {
   background: #f0f2f5;
   border-radius: 16px;
   padding: 8px 12px;
-  display: inline-block;  /* Đổi lại thành inline-block */
-  max-width: 80%;  /* Giới hạn chiều rộng tối đa */
+  display: inline-block;
+  max-width: 80%;
   word-wrap: break-word;
 }
 
@@ -1112,7 +1284,7 @@ export default {
 }
 
 .edit-reply-container .edit-reply-input {
-  width: calc(100% - 40px) !important;  /* Trừ đi margin của avatar */
+  width: calc(100% - 40px) !important;
   min-height: 80px;
   padding: 10px 14px;
   border: 1px solid #ddd;
@@ -1239,7 +1411,7 @@ export default {
   padding: 8px 12px;
   border-radius: 16px;
   display: inline-block;
-  max-width: 75%;  /* Giới hạn chiều rộng để vừa đủ nội dung */
+  max-width: 75%;
   word-wrap: break-word;
 }
 

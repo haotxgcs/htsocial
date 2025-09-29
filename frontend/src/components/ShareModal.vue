@@ -1,53 +1,78 @@
 <template>
   <div class="modal-backdrop" @click.self="close">
     <div class="modal-box">
-      <h3>Share Post</h3>
+      <!-- Header -->
+      <div class="modal-header">
+        <h3>Share Post</h3>
+        <button class="close-btn" @click="close">&times;</button>
+      </div>
 
       <!-- Thông tin người chia sẻ -->
-      <div class="user-info">
-        <img :src="getAvatarUrl(user)" class="avatar" />
-        <div>
-          <strong>{{ user.firstname }} {{ user.lastname }}</strong>
-          <p class="timestamp">{{ formatTime(new Date()) }}</p>
-        </div>
-      </div>
-
-      <!-- Chọn audience -->
-      <div class="audience-select">
-        <label for="audience">Audience:</label>
-        <select v-model="audience" id="audience">
-          <option value="public">🌐 Public</option>
-          <option value="friends">👥 Friends</option>
-          <option value="private">🔒 Private</option>
-        </select>
-      </div>
-
-      <!-- Nội dung chia sẻ -->
-      <textarea
-        v-model="content"
-        placeholder="Say something about this post..."
-      ></textarea>
-
-      <!-- Preview bài viết gốc -->
-      <div class="shared-box">
-        <div class="post-header">
-          <img :src="getAvatarUrl(post.author)" class="avatar-small" />
-          <div class="author-details">
-            <strong>{{ post.author.firstname }} {{ post.author.lastname }}</strong>
-            <p>{{ formatTime(post.createdAt) }}</p>
+      <div class="share-content">
+        <div class="user-info">
+          <img :src="getAvatarUrl(user)" class="avatar" />
+          <div class="user-details">
+            <strong>{{ user.firstname }} {{ user.lastname }}</strong>
+            <div class="audience-inline">
+              <select v-model="audience" id="audience">
+                <option value="public">🌍 Public</option>
+                <option value="friends">👥 Friends</option>
+                <option value="private">🔒 Private</option>
+              </select>
+            </div>
           </div>
         </div>
-        <p>{{ post.content }}</p>
-        <div v-if="post.media" class="media-preview">
-          <img v-if="post.mediaType === 'image'" :src="`http://localhost:3000/${post.media}`" />
-          <video v-else controls :src="`http://localhost:3000/${post.media}`"></video>
+
+        <!-- Nội dung chia sẻ -->
+        <textarea
+          v-model="content"
+          placeholder="Say something about this post..."
+          class="share-textarea"
+        ></textarea>
+
+        <!-- Preview bài viết gốc -->
+        <div class="shared-box">
+          <div class="post-header">
+            <img :src="getAvatarUrl(post.author)" class="avatar-small" />
+            <div class="author-details">
+              <strong>{{ post.author.firstname }} {{ post.author.lastname }}</strong>
+              <p class="timestamp">
+                {{ formatTime(post.createdAt) }}
+                <span v-if="post.audience === 'public'">🌍</span>
+                <span v-else-if="post.audience === 'friends'">👥</span>
+                <span v-else-if="post.audience === 'private'">🔒</span>
+              </p>
+            </div>
+          </div>
+          
+          <!-- Content with recipe support -->
+          <div class="post-content">
+            <p v-if="post.content && !post.recipeName">{{ post.content }}</p>
+            
+            <div v-if="post.recipeName" class="recipe-preview">
+              <div class="recipe-header">🔍 {{ post.recipeName }}</div>
+              <div v-if="post.ingredients" class="recipe-item">
+                <strong>📋 Ingredients:</strong>
+                <span>{{ post.ingredients }}</span>
+              </div>
+              <div v-if="post.instructions" class="recipe-item">
+                <strong>👨‍🍳 Instructions:</strong>
+                <span>{{ post.instructions }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="post.media" class="media-preview">
+            <img v-if="post.mediaType === 'image'" :src="`http://localhost:3000/${post.media}`" />
+            <video v-else controls :src="`http://localhost:3000/${post.media}`"></video>
+          </div>
         </div>
       </div>
 
       <!-- Hành động -->
       <div class="modal-actions">
-        <button class="btn share" @click="submit">Share</button>
         <button class="btn cancel" @click="close">Cancel</button>
+        <button class="btn share" @click="submit">Share</button>
       </div>
     </div>
   </div>
@@ -98,111 +123,300 @@ export default {
 <style scoped>
 .modal-backdrop {
   position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.35);
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.8);
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 99999;
+  z-index: 10000;
+  animation: fadeIn 0.2s ease-out;
 }
+
 .modal-box {
   background: white;
-  padding: 20px;
   width: 100%;
-  max-width: 500px;            
+  max-width: 550px;
   border-radius: 12px;
   max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+/* Header */
+.modal-header {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px 24px;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #1c1e21;
+  text-align: center;
+}
+
+.close-btn {
+  position: absolute;
+  right: 16px;
+  background: #f0f2f5;
+  border: none;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 20px;
+  color: #8a8d91;
+  transition: background-color 0.2s;
+}
+
+.close-btn:hover {
+  background: #e4e6ea;
+}
+
+/* Content */
+.share-content {
+  padding: 20px 24px;
   overflow-y: auto;
-  overflow-x: hidden;           
-  box-sizing: border-box;      
-
-  /* hide scrollbar  */
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE, Edge */
-
+  flex: 1;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
- .modal-box::-webkit-scrollbar {
-  display: none; /* Chrome, Safari */
+
+.share-content::-webkit-scrollbar {
+  display: none;
 }
+
 .user-info {
   display: flex;
   align-items: center;
-  margin-bottom: 10px;
+  margin-bottom: 16px;
 }
+
 .avatar {
   width: 40px;
   height: 40px;
   border-radius: 50%;
   margin-right: 12px;
+  object-fit: cover;
 }
-.audience-select {
-  margin-bottom: 12px;
+
+.user-details {
+  flex: 1;
 }
-.audience-select label {
-  font-weight: bold;
-  margin-right: 8px;
+
+.user-details strong {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1c1e21;
+  display: block;
+  margin-bottom: 4px;
 }
-.audience-select select {
-  padding: 6px;
+
+.audience-inline select {
+  padding: 4px 8px;
   border-radius: 6px;
   border: 1px solid #ccc;
+  font-size: 13px;
+  background: #f0f2f5;
+  cursor: pointer;
+  outline: none;
 }
-textarea {
+
+.audience-inline select:focus {
+  border-color: #1877f2;
+}
+
+/* Textarea */
+.share-textarea {
   width: 100%;
-  min-height: 80px;
-  resize: vertical;             /* ✅ Cho resize chiều dọc */
-  padding: 10px;
-  border: 1.5px solid #ccc;
+  min-height: 100px;
+  max-height: 200px;
+  resize: vertical;
+  padding: 12px;
+  border: 1px solid #ccc;
   border-radius: 8px;
-  margin-bottom: 15px;
-  box-sizing: border-box;       /* ✅ Không để vượt khung */
-  overflow-x: hidden;           /* ✅ Ngăn kéo ngang */
+  margin-bottom: 16px;
+  box-sizing: border-box;
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.4;
+  background: transparent;
+  overflow-y: auto;
+  outline: none;
+ 
 }
+
+.share-textarea::placeholder {
+  color: #626569;
+}
+
+/* Shared box */
 .shared-box {
-  border: 1px solid #ddd;
-  padding: 10px;
+  border: 1px solid #e4e6eb;
+  padding: 12px;
   border-radius: 8px;
-  background: #f9f9f9;
+  background: #f8f9fa;
 }
+
 .post-header {
   display: flex;
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 }
+
 .avatar-small {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   margin-right: 10px;
+  object-fit: cover;
 }
+
+.author-details strong {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1c1e21;
+  display: block;
+}
+
+.timestamp {
+  font-size: 12px;
+  color: #65676b;
+  margin: 2px 0 0 0;
+}
+
+/* Post content */
+.post-content {
+  font-size: 14px;
+  line-height: 1.4;
+  color: #1c1e21;
+  word-wrap: break-word;
+  white-space: pre-line;
+  margin-bottom: 8px;
+}
+
+.post-content p {
+  margin: 0;
+}
+
+/* Recipe preview */
+.recipe-preview {
+  background: white;
+  border: 1px solid #e4e6eb;
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: 8px;
+}
+
+.recipe-header {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1877f2;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e4e6eb;
+}
+
+.recipe-item {
+  margin-bottom: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.recipe-item:last-child {
+  margin-bottom: 0;
+}
+
+.recipe-item strong {
+  display: block;
+  color: #1c1e21;
+  margin-bottom: 4px;
+}
+
+.recipe-item span {
+  color: #65676b;
+  white-space: pre-line;
+  word-wrap: break-word;
+}
+
+/* Media preview */
+.media-preview {
+  margin-top: 8px;
+}
+
 .media-preview img,
 .media-preview video {
-  max-width: 100%;
-  border-radius: 6px;
-  margin-top: 8px;
-  aspect-ratio: 1 / 1; /* Luôn giữ hình vuông */
-  object-fit: cover;   /* Cắt để lấp đầy khung */
+  width: 100%;
+  max-height: 300px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #000;
 }
+
+/* Actions */
 .modal-actions {
   display: flex;
   justify-content: flex-end;
-  margin-top: 15px;
+  gap: 8px;
+  padding: 16px 24px;
+  border-top: 1px solid #e4e6eb;
+  flex-shrink: 0;
 }
+
 .btn {
-  padding: 6px 14px;
+  padding: 10px 24px;
   border: none;
   border-radius: 6px;
-  font-weight: bold;
+  font-weight: 600;
+  font-size: 13px;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
+
 .btn.share {
-  background-color: #0d6efd;
+  background-color: #1877f2;
   color: white;
-  margin-right: 8px;
 }
+
+.btn.share:hover {
+  background-color: #166fe5;
+}
+
 .btn.cancel {
-  background-color: #e0e0e0;
+  background-color: #e4e6eb;
+  color: #1c1e21;
 }
 
+.btn.cancel:hover {
+  background-color: #d8dadf;
+}
 
+/* Responsive */
+@media (max-width: 768px) {
+  .modal-box {
+    max-width: 100%;
+    margin: 0 10px;
+  }
+  
+  .share-content {
+    padding: 16px;
+  }
+  
+  .modal-actions {
+    padding: 12px 16px;
+  }
+}
 </style>

@@ -1,94 +1,106 @@
 <template>
-  <div v-if="isVisible" class="modal-overlay" @click="closeModal">
-    <div class="modal-content" @click.stop>
-
-      <!-- Header -->
-      <div class="modal-header">
+  <div v-if="isVisible" class="edit-post-modal-overlay" @click="closeModal">
+    <div class="edit-post-modal-content" @click.stop>
+      <!-- Header modal -->
+      <div class="edit-post-modal-header">
         <h3>Edit Post</h3>
         <button class="close-btn" @click="closeModal">&times;</button>
       </div>
 
-      <!-- Body -->
-      <div class="modal-body">
-        <!-- Post author -->
-        <div class="post-creator-info">
-          <img :src="getAvatarUrl(user)" class="creator-avatar" />
-          <div class="creator-details">
-            <strong>{{ user.firstname }} {{ user.lastname }}</strong>
-            <div class="privacy-selector">
-              <select v-model="editPrivacy">
-                <option value="public">🌍 Public</option>
-                <option value="friends">👥 Friends</option>
-                <option value="private">🔒 Private</option>
-              </select>
-            </div>
+      <!-- User info -->
+      <div class="post-creator-info">
+        <img :src="getAvatarUrl(user)" alt="avatar" class="creator-avatar" />
+        <div class="creator-details">
+          <strong>{{ user?.firstname }} {{ user?.lastname }}</strong>
+          <div class="privacy-selector">
+            <select v-model="editPrivacy">
+              <option value="public">🌍 Public</option>
+              <option value="friends">👥 Friends</option>
+              <option value="private">🔒 Private</option>
+            </select>
           </div>
         </div>
+      </div>
 
-        <!-- Content -->
-        <textarea
-          v-model="editContent"
-          class="post-textarea"
-          placeholder="What are you thinking?"
-          ref="editTextarea"
-          @input="adjustTextareaHeight"
-        ></textarea>
-
-        <!-- Existing media -->
-        <div v-if="editMediaPreview" class="media-preview-container">
-          <img
-            v-if="editMediaType === 'image'"
-            :src="editMediaPreview"
-            class="preview-image"
+      <!-- Recipe content -->
+      <div class="post-content-area">
+        <!-- Tên món ăn -->
+        <div class="recipe-field">
+          <label class="field-label">Recipe Name</label>
+          <input 
+            v-model="recipeName" 
+            placeholder="Example: Beef Stew, Chicken Curry, Vegan Salad,..."
+            class="recipe-input"
+            ref="recipeNameInput"
           />
-          <video
-            v-else-if="editMediaType === 'video'"
-            controls
-            class="preview-video"
-          >
-            <source :src="editMediaPreview" type="video/mp4" />
-          </video>
-          <button class="remove-media-btn" @click="removeEditMedia">&times;</button>
         </div>
 
-        <!-- Add emoji + media -->
+        <!-- Nguyên liệu -->
+        <div class="recipe-field">
+          <label class="field-label">Ingredients</label>
+          <textarea 
+            v-model="ingredients" 
+            placeholder="Example:&#10;- 500g beef&#10;- 2 onions&#10;- 3 cloves of garlic&#10;- Spices: salt, pepper, fish sauce"
+            class="recipe-textarea ingredients-textarea"
+            ref="ingredientsTextarea"
+            @input="adjustTextareaHeight($refs.ingredientsTextarea)"
+          ></textarea>
+        </div>
+
+        <!-- Cách làm -->
+        <div class="recipe-field">
+          <label class="field-label">Instructions</label>
+          <textarea 
+            v-model="instructions" 
+            placeholder="Detailed description of the steps:&#10;Step 1: Prepare ingredients...&#10;Step 2: Marinate meat with spices...&#10;Step 3: Cook in order..."
+            class="recipe-textarea instructions-textarea"
+            ref="instructionsTextarea"
+            @input="adjustTextareaHeight($refs.instructionsTextarea)"
+          ></textarea>
+        </div>
+        
         <div class="add-options">
-          <!-- Emoji button -->
+          <!-- Nút mở Emoji Picker -->
           <button 
             @click="showEmojiPicker = !showEmojiPicker" 
             class="add-option"
           >
             <span class="option-icon"><img src="../assets/emoji.png" /></span>
-            <span>Emoji</span>
+            <span>Icon</span>
           </button>
 
-          <!-- Media button -->
+          <!-- Nút chọn media -->
           <label class="add-option">
-            <input 
-              type="file" 
-              @change="handleEditFile" 
-              accept="image/*,video/*" 
-              style="display: none;" 
-            />
+            <input type="file" @change="handleMediaSelect" accept="image/*,video/*" style="display: none;" />
             <span class="option-icon"><img src="../assets/media.png" /></span>
             <span>Media</span>
           </label>
+          
+          <!-- Emoji Picker component -->
+          <EmojiPicker 
+            v-if="showEmojiPicker" 
+            @select="insertEmoji"
+          />
         </div>
-
-        <!-- Emoji Picker -->
-        <EmojiPicker 
-          v-if="showEmojiPicker" 
-          @select="insertEditEmoji"
-          style="z-index: 9999; position: relative;"
-        />
       </div>
 
-      <!-- Footer -->
-      <div class="modal-footer">
-        <button @click="closeModal" class="btn btn-secondary">
-          Cancel
-        </button>
-        <button @click="submitEditPost" class="btn btn-primary">
+      <!-- Media preview -->
+      <div v-if="selectedMedia || editMediaPreview" class="media-preview">
+        <div class="media-preview-container">
+          <img v-if="isImageFile()" :src="mediaPreviewUrl" class="preview-image" />
+          <video v-else-if="isVideoFile()" :src="mediaPreviewUrl" class="preview-video" controls></video>
+          <button @click="removeMedia" class="remove-media-btn">&times;</button>
+        </div>
+      </div>
+
+      <!-- Post button -->
+      <div class="post-actions-footer">
+        <button 
+          @click="submitEditPost" 
+          :disabled="!canPost"
+          class="post-submit-btn"
+          :class="{ disabled: !canPost }"
+        >
           Save
         </button>
       </div>
@@ -100,7 +112,7 @@
 import EmojiPicker from './Emoji.vue';
 
 export default {
-  name: 'EditPostModal',
+  name: "EditPostModal",
   components: {
     EmojiPicker
   },
@@ -120,13 +132,22 @@ export default {
   },
   data() {
     return {
-      editContent: '',
-      editMediaType: '',
-      editMediaPreview: '',
-      editMediaFile: null,
+      recipeName: '',
+      ingredients: '',
+      instructions: '',
       editPrivacy: 'public',
-      showEmojiPicker: false
-    };
+      selectedMedia: null,
+      editMediaPreview: '',
+      mediaPreviewUrl: null,
+      showEmojiPicker: false,
+    }
+  },
+  computed: {
+    canPost() {
+      return this.recipeName.trim().length > 0 && 
+             this.ingredients.trim().length > 0 && 
+             this.instructions.trim().length > 0;
+    }
   },
   watch: {
     post: {
@@ -141,11 +162,27 @@ export default {
       if (newVal && this.post) {
         this.initializeEditData();
         this.$nextTick(() => {
-          if (this.$refs.editTextarea) {
-            this.adjustTextareaHeight();
-            this.$refs.editTextarea.focus();
+          if (this.$refs.recipeNameInput) {
+            this.$refs.recipeNameInput.focus();
           }
         });
+        
+        // Close emoji picker when clicking outside
+        const handleClickOutside = (e) => {
+          if (!e.target.closest('.emoji-picker')) {
+            this.showEmojiPicker = false;
+          }
+        };
+        document.addEventListener('click', handleClickOutside);
+        
+        // Store the handler to remove it later
+        this._clickOutsideHandler = handleClickOutside;
+      } else {
+        // Remove event listener when modal is closed
+        if (this._clickOutsideHandler) {
+          document.removeEventListener('click', this._clickOutsideHandler);
+          this._clickOutsideHandler = null;
+        }
       }
     }
   },
@@ -153,10 +190,34 @@ export default {
     initializeEditData() {
       if (!this.post) return;
       
-      this.editContent = this.post.content || '';
-      this.editMediaType = this.post.mediaType || '';
+      // Parse recipe content from post
+      const content = this.post.content || '';
+      
+      // Try to extract recipe name (match everything after "Recipe Name:" until we hit "Ingredients:")
+      const nameMatch = content.match(/Recipe Name:\s*([^\n]+)/i);
+      this.recipeName = nameMatch ? nameMatch[1].trim() : '';
+      
+      // Extract ingredients (match everything between "Ingredients:" and "Instructions:")
+      const ingredientsMatch = content.match(/Ingredients:\s*([\s\S]*?)(?=Instructions:)/i);
+      this.ingredients = ingredientsMatch ? ingredientsMatch[1].trim() : '';
+      
+      // Extract instructions (match everything after "Instructions:")
+      const instructionsMatch = content.match(/Instructions:\s*([\s\S]*?)$/i);
+      this.instructions = instructionsMatch ? instructionsMatch[1].trim() : '';
+      
+      // If no structured content found, treat as plain text
+      if (!this.recipeName && !this.ingredients && !this.instructions) {
+        this.recipeName = content.trim();
+        this.ingredients = '';
+        this.instructions = '';
+      }
+      
+      // Set media if exists
       this.editMediaPreview = this.post.media ? `http://localhost:3000/${this.post.media}` : '';
-      this.editMediaFile = null;
+      this.mediaPreviewUrl = this.editMediaPreview;
+      this.selectedMedia = null;
+      
+      // Set privacy
       this.editPrivacy = this.post.audience || 'public';
       this.showEmojiPicker = false;
     },
@@ -166,70 +227,141 @@ export default {
       return `http://localhost:3000/${author.avatar}`;
     },
 
-    adjustTextareaHeight() {
-      this.$nextTick(() => {
-        const textarea = this.$refs.editTextarea;
-        if (textarea) {
-          textarea.style.height = 'auto';
-          textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
-        }
-      });
+    closeModal() {
+      this.resetForm();
+      this.$emit('close');
     },
 
-    insertEditEmoji(emoji) {
-      const textarea = this.$refs.editTextarea;
-      if (!textarea) {
-        console.warn("Không tìm thấy editTextarea");
-        return;
-      }
-
-      const startPos = textarea.selectionStart || 0;
-      const endPos = textarea.selectionEnd || 0;
-
-      this.editContent =
-        this.editContent.substring(0, startPos) +
-        emoji +
-        this.editContent.substring(endPos);
-
-      this.$nextTick(() => {
-        textarea.focus();
-        textarea.setSelectionRange(
-          startPos + emoji.length,
-          startPos + emoji.length
-        );
-      });
-
-      this.adjustTextareaHeight();
-    },
-
-    handleEditFile(e) {
-      const file = e.target.files[0];
-      if (!file) return;
-      
-      this.editMediaFile = file;
-      this.editMediaType = file.type.startsWith('video') ? 'video' : 'image';
-      this.editMediaPreview = URL.createObjectURL(file);
-    },
-
-    removeEditMedia() {
-      if (this.editMediaPreview && this.editMediaPreview.startsWith('blob:')) {
-        URL.revokeObjectURL(this.editMediaPreview);
-      }
+    resetForm() {
+      this.recipeName = '';
+      this.ingredients = '';
+      this.instructions = '';
+      this.editPrivacy = 'public';
+      this.selectedMedia = null;
       this.editMediaPreview = '';
-      this.editMediaFile = null;
-      this.editMediaType = '';
+      this.showEmojiPicker = false;
+      
+      if (this.mediaPreviewUrl && this.mediaPreviewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(this.mediaPreviewUrl);
+      }
+      this.mediaPreviewUrl = null;
     },
 
+    adjustTextareaHeight(textarea) {
+      if (!textarea) return;
+      this.$nextTick(() => {
+        textarea.style.height = 'auto';
+        textarea.style.height = Math.min(textarea.scrollHeight, 150) + 'px';
+      });
+    },
+
+    // Emoji picker methods
+    insertEmoji(emoji) {
+      // Determine which field is currently focused
+      const activeElement = document.activeElement;
+      let targetField = null;
+      let targetProperty = null;
+
+      if (activeElement === this.$refs.recipeNameInput) {
+        targetField = this.$refs.recipeNameInput;
+        targetProperty = 'recipeName';
+      } else if (activeElement === this.$refs.ingredientsTextarea) {
+        targetField = this.$refs.ingredientsTextarea;
+        targetProperty = 'ingredients';
+      } else if (activeElement === this.$refs.instructionsTextarea) {
+        targetField = this.$refs.instructionsTextarea;
+        targetProperty = 'instructions';
+      }
+
+      if (targetField && targetProperty) {
+        const startPos = targetField.selectionStart;
+        const endPos = targetField.selectionEnd;
+        
+        this[targetProperty] = this[targetProperty].substring(0, startPos) + 
+                              emoji + 
+                              this[targetProperty].substring(endPos);
+        
+        this.$nextTick(() => {
+          targetField.focus();
+          targetField.setSelectionRange(startPos + emoji.length, startPos + emoji.length);
+          
+          // Auto resize if it's a textarea
+          if (targetField.tagName === 'TEXTAREA') {
+            this.adjustTextareaHeight(targetField);
+          }
+        });
+      }
+    },
+
+    // Media handling methods
+    handleMediaSelect(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      this.selectedMedia = file;
+      
+      // Revoke old blob URL if exists
+      if (this.mediaPreviewUrl && this.mediaPreviewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(this.mediaPreviewUrl);
+      }
+      
+      this.mediaPreviewUrl = URL.createObjectURL(file);
+      this.editMediaPreview = '';
+    },
+
+    removeMedia() {
+      if (this.mediaPreviewUrl && this.mediaPreviewUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(this.mediaPreviewUrl);
+      }
+      this.selectedMedia = null;
+      this.mediaPreviewUrl = null;
+      this.editMediaPreview = '';
+    },
+
+    isImageFile() {
+      if (this.selectedMedia) {
+        return this.selectedMedia.type.startsWith('image/');
+      }
+      // Check if existing media is image
+      if (this.editMediaPreview && this.post) {
+        return this.post.mediaType === 'image';
+      }
+      return false;
+    },
+
+    isVideoFile() {
+      if (this.selectedMedia) {
+        return this.selectedMedia.type.startsWith('video/');
+      }
+      // Check if existing media is video
+      if (this.editMediaPreview && this.post) {
+        return this.post.mediaType === 'video';
+      }
+      return false;
+    },
+
+    // Submit edit post
     async submitEditPost() {
-      if (!this.post) return;
+      if (!this.canPost || !this.post) return;
 
       try {
         const formData = new FormData();
-        formData.append('content', this.editContent);
+        
+        // Tạo nội dung post dạng text với format đẹp
+        const recipeContent = 
+        `Recipe Name: ${this.recipeName}
+
+        Ingredients:
+        ${this.ingredients}
+
+        Instructions:
+        ${this.instructions}`;
+        
+        formData.append('content', recipeContent);
         formData.append('audience', this.editPrivacy);
         
-        if (this.editMediaFile) {
-          formData.append('image', this.editMediaFile);
+        if (this.selectedMedia) {
+          formData.append('image', this.selectedMedia);
         }
 
         const res = await fetch(`http://localhost:3000/posts/${this.post._id}`, {
@@ -237,76 +369,75 @@ export default {
           body: formData
         });
 
-        if (!res.ok) throw new Error('Failed to update post');
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
 
-        alert('Update successfully!');
+        alert('Cập nhật công thức thành công!');
         this.$emit('updated');
-        this.closeModal();
+        this.resetForm();
       } catch (err) {
-        console.error("Error to update post:", err);
-        alert("Unable to update post!");
+        console.error("Không thể cập nhật công thức:", err);
+        alert("Không thể cập nhật công thức: " + err.message);
       }
-    },
-
-    closeModal() {
-      // Clean up media preview URL if it's a blob
-      if (this.editMediaPreview && this.editMediaPreview.startsWith('blob:')) {
-        URL.revokeObjectURL(this.editMediaPreview);
-      }
-      
-      this.showEmojiPicker = false;
-      this.$emit('close');
     }
   },
 
   beforeUnmount() {
-    // Clean up any blob URLs
-    if (this.editMediaPreview && this.editMediaPreview.startsWith('blob:')) {
-      URL.revokeObjectURL(this.editMediaPreview);
+    // Cleanup event listener
+    if (this._clickOutsideHandler) {
+      document.removeEventListener('click', this._clickOutsideHandler);
+    }
+    
+    // Cleanup media preview URL
+    if (this.mediaPreviewUrl && this.mediaPreviewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(this.mediaPreviewUrl);
     }
   }
 };
 </script>
 
 <style scoped>
-/* Edit post modal */
-.modal-overlay {
+/* Edit Post Modal Styles */
+.edit-post-modal-overlay {
   position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(255, 255, 255, 0.8);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  overflow-y: auto;
-}
-
-.modal-content {
-  background: white;
-  max-width: 500px;
-  max-height: 90vh;
+  top: 0;
+  left: 0;
   width: 100%;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.8);
   display: flex;
-  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
 }
 
-.modal-header {
+.edit-post-modal-content {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  width: 90%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: slideUp 0.3s ease-out;
+}
+
+.edit-post-modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
-  border-bottom: 1px solid #ddd;
+  padding: 20px 24px;
   position: relative;
-  flex-shrink: 0; 
 }
 
-.modal-header h3 {
-  font-size: 18px;
-  font-weight: bold;
+.edit-post-modal-header h3 {
   margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #1c1e21;
+  text-align: center;
   flex: 1;
 }
 
@@ -331,27 +462,10 @@ export default {
   background: #e4e6ea;
 }
 
-.modal-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 12px 16px;
-  min-height: 0;
-}
-
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 12px 16px;
-  border-top: 1px solid #ddd;
-  flex-shrink: 0;
-  background: white;
-}
-
 .post-creator-info {
   display: flex;
   align-items: center;
-  padding: 16px 0;
+  padding: 16px 24px;
   gap: 12px;
 }
 
@@ -384,25 +498,84 @@ export default {
   cursor: pointer;
 }
 
-.post-textarea {
-  width: 100%;
-  min-height: 120px;
-  border: none;
-  outline: none;
-  resize: none;
+.post-content-area {
+  padding: 0 24px;
+  position: relative;
+}
+
+/* Recipe form styling */
+.recipe-field {
+  margin-bottom: 20px;
+}
+
+.field-label {
+  display: block;
   font-size: 16px;
+  font-weight: 600;
+  color: #1c1e21;
+  margin-bottom: 8px;
+}
+
+.recipe-input {
+  width: 100%;
+  padding: 12px;
+  font-size: 18px;
+  font-family: inherit;
+  line-height: 1.2;
+  color: #1c1e21;
+  background: #f8f9fa;
+  border: 1px solid #e4e6ea;
+  border-radius: 8px;
+  box-sizing: border-box;
+  transition: border-color 0.2s, background-color 0.2s;
+}
+
+.recipe-input:focus {
+  border-color: #1877f2;
+  background: #ffffff;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(24, 119, 242, 0.2);
+}
+
+.recipe-textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 12px;
+  font-size: 15px;
   font-family: inherit;
   line-height: 1.4;
   color: #1c1e21;
-  background: transparent;
-  padding: 8px 0;
-  margin-bottom: 16px;
+  background: #f8f9fa;
+  border: 1px solid #e4e6ea;
+  border-radius: 8px;
   box-sizing: border-box;
+  resize: vertical;
+  transition: border-color 0.2s, background-color 0.2s;
 }
 
-.post-textarea::placeholder {
+.recipe-textarea:focus {
+  border-color: #1877f2;
+  background: #ffffff;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(24, 119, 242, 0.2);
+}
+
+.recipe-textarea::placeholder {
   color: #8a8d91;
-  font-weight: 400;
+  font-style: italic;
+}
+
+.ingredients-textarea {
+  font-family: monospace;
+  font-size: 14px;
+}
+
+.instructions-textarea {
+  min-height: 120px;
+}
+
+.media-preview {
+  padding: 0 24px 16px;
 }
 
 .media-preview-container {
@@ -411,7 +584,6 @@ export default {
   border-radius: 12px;
   overflow: hidden;
   background: #f8f9fa;
-  margin-bottom: 16px;
 }
 
 .preview-image,
@@ -448,6 +620,7 @@ export default {
   display: flex;
   justify-content: space-between;
   gap: 12px;
+  padding: 0 24px;
   margin-bottom: 16px;
   width: 100%;
   box-sizing: border-box;
@@ -478,43 +651,65 @@ export default {
   height: 20px;
 }
 
-.btn-primary {
+.post-actions-footer {
+  padding: 16px 24px;
+  border-top: 1px solid #e4e6ea;
+}
+
+.post-submit-btn {
+  width: 100%;
+  padding: 12px;
   background: #1877f2;
   color: white;
   border: none;
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-weight: bold;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
   cursor: pointer;
+  transition: background-color 0.2s;
 }
 
-.btn-primary:hover {
+.post-submit-btn:hover:not(.disabled) {
   background: #166fe5;
 }
 
-.btn-secondary {
-  background: #e4e6eb;
-  color: #050505;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 6px;
-  cursor: pointer;
+.post-submit-btn.disabled {
+  background: #e4e6ea;
+  color: #bcc0c4;
+  cursor: not-allowed;
 }
 
-.btn-secondary:hover {
-  background: #d8dadf;
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 /* Responsive Design */
 @media (max-width: 768px) {
-  .modal-content {
+  .edit-post-modal-content {
     width: 95%;
     margin: 20px;
     max-height: calc(100vh - 40px);
   }
   
-  .post-textarea {
-    font-size: 16px;
+  .recipe-textarea {
+    font-size: 18px;
   }
   
   .add-options {
@@ -525,5 +720,24 @@ export default {
   .add-option {
     justify-content: flex-start;
   }
+}
+
+/* Scrollbar Styling */
+.edit-post-modal-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.edit-post-modal-content::-webkit-scrollbar-track {
+  background: #f8f9fa;
+  border-radius: 3px;
+}
+
+.edit-post-modal-content::-webkit-scrollbar-thumb {
+  background: #bcc0c4;
+  border-radius: 3px;
+}
+
+.edit-post-modal-content::-webkit-scrollbar-thumb:hover {
+  background: #8a8d91;
 }
 </style>

@@ -907,6 +907,7 @@ export default {
   border-left: 3px solid #ccc;
   margin-top: 10px;
   border-radius: 6px;
+  white-space: pre-line;
 }
 
 .restricted-post-warning {

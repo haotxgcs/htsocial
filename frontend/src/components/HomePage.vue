@@ -197,8 +197,8 @@
                     <span>Share</span>
                   </button>
                   <button @click="toggleSavePost(post)">
-              <img :src="isSaved(post) ? require('../assets/saved.png') : require('../assets/save.png')" class="action-icon" />
-              <span>{{ isSaved(post) ? 'Saved' : 'Save' }}</span>
+              <img :src="isSaved(post.post) ? require('../assets/saved.png') : require('../assets/save.png')" class="action-icon" />
+              <span>{{ isSaved(post.post) ? 'Saved' : 'Save' }}</span>
           </button>
                 </div>
               </template>
@@ -281,12 +281,15 @@
     :is-visible="commentModalVisible"
     :post="selectedPost"
     :user="user"
+    :initial-save-count="getPostSaveCount(selectedPost)"
     @close="closeCommentModal"
     @commented="handleCommentAdded"
     @comment-deleted="handleCommentDeleted"
     @liked="handlePostLiked"
     @share="handleSharePost"
     @comment-count-updated="onCommentCountUpdated"
+    @save-count-updated="handleSaveCountUpdated"
+    @save-status-changed="handleSaveStatusChanged"
   />
 </template>
 
@@ -508,9 +511,37 @@ export default {
     }
   },
 
+  handleSaveCountUpdated(data) {
+  console.log('🔄 Save count updated from CommentModal:', data);
+  this.postSaveCounts[data.postId] = data.count;
+  
+  const postIndex = this.posts.findIndex(p => p._id === data.postId || (p.post && p.post._id === data.postId));
+  if (postIndex !== -1) {
+    const post = this.posts[postIndex];
+    if (post.post) {
+      post.post.savesCount = data.count;
+    } else {
+      post.savesCount = data.count;
+    }
+  }
+},
+
+handleSaveStatusChanged(data) {
+  console.log('💾 Save status changed:', data);
+  if (data.isSaved) {
+    // Add to savedPosts if not already there
+    if (!this.savedPosts.includes(data.postId)) {
+      this.savedPosts.push(data.postId);
+    }
+  } else {
+    // Remove from savedPosts
+    this.savedPosts = this.savedPosts.filter(id => id !== data.postId);
+  }
+},
+
     isSaved(post) {
       return this.savedPosts.includes(post._id);
-    },
+    }, 
 
     async loadSavedPosts() {
       try {
@@ -1064,6 +1095,7 @@ export default {
   border-left: 3px solid #ccc;
   margin-top: 10px;
   border-radius: 6px;
+  white-space: pre-line;
 }
 
 .restricted-post-warning {
