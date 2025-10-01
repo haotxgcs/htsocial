@@ -7,71 +7,165 @@
       </div>
       
       <div class="sidebar-menu">
-        <div class="menu-item active">
+        <div class="menu-item" :class="{ active: currentView === 'home' }" @click="currentView = 'home'">
           <span class="icon">🏠</span>
           <span>Home</span>
         </div>
-        <div class="menu-item">
+        <div class="menu-item" :class="{ active: currentView === 'requests' }" @click="currentView = 'requests'">
           <span class="icon">👥</span>
           <span>Friend Requests</span>
+          <span class="badge" v-if="friendRequests.length > 0">{{ friendRequests.length }}</span>
           <span class="arrow">›</span>
         </div>
-        <div class="menu-item">
+        <div class="menu-item" :class="{ active: currentView === 'sent' }" @click="currentView = 'sent'">
+          <span class="icon">📤</span>
+          <span>Sent Requests</span>
+          <span class="badge" v-if="sentRequests.length > 0">{{ sentRequests.length }}</span>
+          <span class="arrow">›</span>
+        </div>
+        <div class="menu-item" :class="{ active: currentView === 'suggestions' }" @click="currentView = 'suggestions'">
           <span class="icon">💡</span>
           <span>Suggestions</span>
           <span class="arrow">›</span>
         </div>
-        <div class="menu-item">
+        <div class="menu-item" :class="{ active: currentView === 'friends' }" @click="currentView = 'friends'">
           <span class="icon">👫</span>
           <span>All friends</span>
-          <span class="arrow">›</span>
-        </div>
-        <div class="menu-item">
-          <span class="icon">🎂</span>
-          <span>Birthdays</span>
-        </div>
-        <div class="menu-item">
-          <span class="icon">📋</span>
-          <span>Custom Lists</span>
           <span class="arrow">›</span>
         </div>
       </div>
     </div>
 
     <div class="main-content">
-      <div class="content-header">
-        <h3>Friend Requests</h3>
-        <a href="#" class="see-all">See all</a>
-      </div>
+      <!-- Friend Requests Section -->
+      <div v-if="currentView === 'requests'">
+        <div class="content-header">
+          <h3>Friend Requests</h3>
+          <span class="count">{{ friendRequests.length }} request{{ friendRequests.length !== 1 ? 's' : '' }}</span>
+        </div>
 
-      <div class="friend-requests-grid">
-        <div class="friend-card" v-for="friend in friends" :key="friend.id">
-          <div class="friend-image">
-            <img :src="friend.avatar || defaultAvatar" alt="Profile" />
-          </div>
-          <div class="friend-info">
-            <h4>{{ friend.firstname }} {{ friend.lastname }}</h4>
-            <div class="mutual-friends" v-if="friend.mutualFriends">
-              <span class="mutual-icon">👥</span>
-              <span>{{ friend.mutualFriends }} mutual friend{{ friend.mutualFriends !== 1 ? 's' : '' }}</span>
+        <div class="friend-requests-grid" v-if="friendRequests.length > 0">
+          <div class="friend-card" v-for="request in friendRequests" :key="request._id">
+            <div class="friend-image">
+              <img :src="getImageUrl(request.avatar)" :alt="request.firstname" />
+            </div>
+            <div class="friend-info">
+              <h4>{{ request.firstname }} {{ request.lastname }}</h4>
+              <p class="username">@{{ request.username }}</p>
+              <div class="status-indicator" v-if="request.active">
+                <span class="online-dot"></span>
+                <span>Online</span>
+              </div>
+            </div>
+            <div class="friend-actions">
+              <button class="confirm-btn" @click="acceptFriendRequest(request._id)">Confirm</button>
+              <button class="delete-btn" @click="declineFriendRequest(request._id)">Delete</button>
             </div>
           </div>
-          <div class="friend-actions">
-            <button class="confirm-btn" @click="confirmFriend(friend.id)">Confirm</button>
-            <button class="delete-btn" @click="removeFriend(friend.id)">Delete</button>
-          </div>
+        </div>
+
+        <div v-else class="empty-state">
+          <p>No friend requests at this time</p>
         </div>
       </div>
 
-      <!-- Nếu không có friend requests, hiển thị danh sách bạn bè hiện tại -->
-      <div v-if="friends.length === 0" class="no-requests">
-        <h3>All Friends</h3>
-        <div class="friends-grid">
-          <div class="existing-friend-card" v-for="friend in existingFriends" :key="friend.id">
-            <img :src="friend.avatar || defaultAvatar" alt="Profile" />
-            <div class="friend-name">{{ friend.firstname }} {{ friend.lastname }}</div>
-            <button class="unfriend-btn" @click="removeFriend(friend.id)">Unfriend</button>
+      <!-- Sent Requests Section -->
+      <div v-if="currentView === 'sent'">
+        <div class="content-header">
+          <h3>Sent Requests</h3>
+          <span class="count">{{ sentRequests.length }} pending</span>
+        </div>
+
+        <div class="friend-requests-grid" v-if="sentRequests.length > 0">
+          <div class="friend-card" v-for="request in sentRequests" :key="request._id">
+            <div class="friend-image">
+              <img :src="getImageUrl(request.avatar)" :alt="request.firstname" />
+            </div>
+            <div class="friend-info">
+              <h4>{{ request.firstname }} {{ request.lastname }}</h4>
+              <p class="username">@{{ request.username }}</p>
+              <div class="status-indicator" v-if="request.active">
+                <span class="online-dot"></span>
+                <span>Online</span>
+              </div>
+            </div>
+            <div class="friend-actions">
+              <button class="delete-btn full-width" @click="cancelFriendRequest(request._id)">Cancel Request</button>
+            </div>
           </div>
+        </div>
+
+        <div v-else class="empty-state">
+          <p>No pending sent requests</p>
+        </div>
+      </div>
+
+      <!-- Suggestions Section (All Users) -->
+      <div v-if="currentView === 'suggestions'">
+        <div class="content-header">
+          <h3>People You May Know</h3>
+          <div class="search-box">
+            <input 
+              type="text" 
+              v-model="searchQuery" 
+              placeholder="Search users..." 
+              @input="filterUsers"
+            />
+          </div>
+        </div>
+
+        <div class="friend-requests-grid" v-if="suggestedUsers.length > 0">
+          <div class="friend-card" v-for="user in suggestedUsers" :key="user._id">
+            <div class="friend-image">
+              <img :src="getImageUrl(user.avatar)" :alt="user.firstname" />
+            </div>
+            <div class="friend-info">
+              <h4>{{ user.firstname }} {{ user.lastname }}</h4>
+              <p class="username">@{{ user.username }}</p>
+              <div class="status-indicator" v-if="user.active">
+                <span class="online-dot"></span>
+                <span>Online</span>
+              </div>
+            </div>
+            <div class="friend-actions">
+              <button 
+                class="confirm-btn full-width" 
+                @click="sendFriendRequest(user._id)"
+                :disabled="isRequestSent(user._id)"
+              >
+                {{ isRequestSent(user._id) ? 'Request Sent' : 'Add Friend' }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div v-else class="empty-state">
+          <p>{{ searchQuery ? 'No users found' : 'No suggestions available' }}</p>
+        </div>
+      </div>
+
+      <!-- All Friends Section -->
+      <div v-if="currentView === 'friends' || currentView === 'home'">
+        <div class="content-header">
+          <h3>All Friends</h3>
+          <span class="count">{{ allFriends.length }} friend{{ allFriends.length !== 1 ? 's' : '' }}</span>
+        </div>
+
+        <div class="friends-grid" v-if="allFriends.length > 0">
+          <div class="existing-friend-card" v-for="friend in allFriends" :key="friend._id">
+            <img :src="getImageUrl(friend.avatar)" :alt="friend.firstname" />
+            <div class="friend-name">{{ friend.firstname }} {{ friend.lastname }}</div>
+            <p class="username">@{{ friend.username }}</p>
+            <div class="status-indicator" v-if="friend.active">
+              <span class="online-dot"></span>
+              <span>Online</span>
+            </div>
+            <button class="unfriend-btn" @click="unfriend(friend._id)">Unfriend</button>
+          </div>
+        </div>
+
+        <div v-else class="empty-state">
+          <p>You don't have any friends yet</p>
         </div>
       </div>
     </div>
@@ -83,111 +177,289 @@ export default {
   name: "FriendPage",
   data() {
     return {
-      friends: [
-        // Mock data for friend requests (giống như trong hình)
-        {
-          id: 1,
-          firstname: "Nguyễn Ky",
-          lastname: "Duyên",
-          avatar: null,
-          mutualFriends: 1
-        },
-        {
-          id: 2,
-          firstname: "Minh",
-          lastname: "PT",
-          avatar: null,
-          mutualFriends: 1
-        },
-        {
-          id: 3,
-          firstname: "Loan",
-          lastname: "Anh",
-          avatar: null,
-          mutualFriends: 0
-        },
-        {
-          id: 4,
-          firstname: "Kim",
-          lastname: "Hiên",
-          avatar: null,
-          mutualFriends: 1
-        },
-        {
-          id: 5,
-          firstname: "Minh",
-          lastname: "Tran",
-          avatar: null,
-          mutualFriends: 3
-        }
-      ],
-      existingFriends: [], // Danh sách bạn bè hiện tại
+      currentUser: null,
+      currentView: 'home', // home, requests, sent, suggestions, friends
+      friendRequests: [], // Lời mời kết bạn nhận được
+      sentRequests: [], // Lời mời kết bạn đã gửi
+      allFriends: [], // Danh sách bạn bè
+      allUsers: [], // Tất cả người dùng
+      suggestedUsers: [], // Gợi ý kết bạn (users chưa là bạn)
+      searchQuery: '', // Tìm kiếm người dùng
       defaultAvatar: require('../assets/user.png'),
     };
   },
   mounted() {
-    const user = JSON.parse(localStorage.getItem("user"));
-    if (!user) return this.$router.push("/login");
-
-    // Gọi API lấy danh sách bạn bè hiện tại
-    fetch(`http://localhost:3000/users/${user.id}`)
-      .then(res => res.json())
-      .then(data => {
-        if (data.friends && data.friends.length > 0) {
-          Promise.all(
-            data.friends.map(id =>
-              fetch(`http://localhost:3000/users/${id}`).then(res => res.json())
-            )
-          ).then(friendsData => {
-            this.existingFriends = friendsData;
-          });
-        }
-      });
+    this.loadUserData();
   },
   methods: {
-    async confirmFriend(friendId) {
+    // Load dữ liệu người dùng từ localStorage
+    loadUserData() {
       const user = JSON.parse(localStorage.getItem("user"));
-      if (!user) return;
+      if (!user) {
+        this.$router.push("/login");
+        return;
+      }
+      this.currentUser = user;
+      this.loadFriendRequests();
+      this.loadSentRequests();
+      this.loadAllFriends();
+      this.loadAllUsers();
+    },
 
+    // Lấy danh sách lời mời kết bạn nhận được
+    async loadFriendRequests() {
       try {
-        const res = await fetch("http://localhost:3000/users/accept-friend", {
+        const res = await fetch(`http://localhost:3000/users/${this.currentUser.id}`);
+        const userData = await res.json();
+        
+        if (userData.requestReceived && userData.requestReceived.length > 0) {
+          const requests = await Promise.all(
+            userData.requestReceived.map(id =>
+              fetch(`http://localhost:3000/users/${id}`).then(r => r.json())
+            )
+          );
+          this.friendRequests = requests;
+        } else {
+          this.friendRequests = [];
+        }
+      } catch (err) {
+        console.error("Load friend requests error:", err);
+      }
+    },
+
+    // Lấy danh sách lời mời kết bạn đã gửi
+    async loadSentRequests() {
+      try {
+        const res = await fetch(`http://localhost:3000/users/${this.currentUser.id}`);
+        const userData = await res.json();
+        
+        if (userData.requestSent && userData.requestSent.length > 0) {
+          const requests = await Promise.all(
+            userData.requestSent.map(id =>
+              fetch(`http://localhost:3000/users/${id}`).then(r => r.json())
+            )
+          );
+          this.sentRequests = requests;
+        } else {
+          this.sentRequests = [];
+        }
+      } catch (err) {
+        console.error("Load sent requests error:", err);
+      }
+    },
+
+    // Lấy danh sách tất cả bạn bè
+    async loadAllFriends() {
+      try {
+        const res = await fetch(`http://localhost:3000/users/${this.currentUser.id}/friends`);
+        const friends = await res.json();
+        this.allFriends = friends;
+      } catch (err) {
+        console.error("Load all friends error:", err);
+      }
+    },
+
+    // Chấp nhận lời mời kết bạn
+    async acceptFriendRequest(requesterId) {
+      try {
+        const res = await fetch("http://localhost:3000/users/friend-request/accept", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId: user.id, friendId })
+          body: JSON.stringify({ 
+            userId: this.currentUser.id, 
+            requesterId 
+          })
         });
+        
         const result = await res.json();
+        
         if (res.ok) {
-          this.friends = this.friends.filter(f => f.id !== friendId);
           alert("Đã chấp nhận lời mời kết bạn!");
+          this.loadFriendRequests();
+          this.loadAllFriends();
+          this.filterSuggestedUsers();
         } else {
           alert(result.msg || "Lỗi khi chấp nhận kết bạn");
         }
       } catch (err) {
         console.error("Accept friend error:", err);
+        alert("Lỗi kết nối server");
       }
     },
 
-    async removeFriend(friendId) {
-      const user = JSON.parse(localStorage.getItem("user"));
-      if (!user) return;
+    // Từ chối lời mời kết bạn (thực chất là cancel từ phía người nhận)
+    async declineFriendRequest(requesterId) {
+      try {
+        const res = await fetch("http://localhost:3000/users/friend-request/cancel", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            fromUserId: requesterId,
+            toUserId: this.currentUser.id
+          })
+        });
+        
+        const result = await res.json();
+        
+        if (res.ok) {
+          alert("Đã xóa lời mời kết bạn!");
+          this.loadFriendRequests();
+          this.filterSuggestedUsers();
+        } else {
+          alert(result.msg || "Lỗi khi xóa lời mời");
+        }
+      } catch (err) {
+        console.error("Decline friend error:", err);
+        alert("Lỗi kết nối server");
+      }
+    },
+
+    // Hủy lời mời kết bạn đã gửi
+    async cancelFriendRequest(toUserId) {
+      try {
+        const res = await fetch("http://localhost:3000/users/friend-request/cancel", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            fromUserId: this.currentUser.id,
+            toUserId 
+          })
+        });
+        
+        const result = await res.json();
+        
+        if (res.ok) {
+          alert("Đã hủy lời mời kết bạn!");
+          this.loadSentRequests();
+          this.filterSuggestedUsers();
+        } else {
+          alert(result.msg || "Lỗi khi hủy lời mời");
+        }
+      } catch (err) {
+        console.error("Cancel friend request error:", err);
+        alert("Lỗi kết nối server");
+      }
+    },
+
+    // Hủy kết bạn
+    async unfriend(friendId) {
+      if (!confirm("Bạn có chắc muốn hủy kết bạn?")) return;
 
       try {
         const res = await fetch("http://localhost:3000/users/unfriend", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId: user.id, friendId })
+          body: JSON.stringify({ 
+            userId: this.currentUser.id, 
+            friendId 
+          })
         });
+        
         const result = await res.json();
+        
         if (res.ok) {
-          this.friends = this.friends.filter(f => f.id !== friendId);
-          this.existingFriends = this.existingFriends.filter(f => f.id !== friendId);
           alert("Đã hủy kết bạn!");
+          this.loadAllFriends();
+          this.filterSuggestedUsers();
         } else {
           alert(result.msg || "Lỗi khi hủy kết bạn");
         }
       } catch (err) {
         console.error("Unfriend error:", err);
+        alert("Lỗi kết nối server");
       }
+    },
+
+    // Get image URL
+    getImageUrl(avatar) {
+      if (!avatar) return this.defaultAvatar;
+      if (avatar.startsWith('http')) return avatar;
+      return `http://localhost:3000/${avatar}`;
+    },
+
+    // Lấy tất cả người dùng
+    async loadAllUsers() {
+      try {
+        const res = await fetch('http://localhost:3000/users');
+        const users = await res.json();
+        this.allUsers = users;
+        this.filterSuggestedUsers();
+      } catch (err) {
+        console.error("Load all users error:", err);
+      }
+    },
+
+    // Lọc gợi ý kết bạn (loại bỏ bạn bè hiện tại và requests đã nhận, giữ lại requests đã gửi)
+    filterSuggestedUsers() {
+      const friendIds = this.allFriends.map(f => f._id);
+      const receivedIds = this.friendRequests.map(r => r._id);
+
+      this.suggestedUsers = this.allUsers.filter(user => {
+        return user._id !== this.currentUser.id &&
+               !friendIds.includes(user._id) &&
+               !receivedIds.includes(user._id);
+      });
+
+      if (this.searchQuery) {
+        this.filterUsers();
+      }
+    },
+
+    // Tìm kiếm người dùng
+    filterUsers() {
+      if (!this.searchQuery.trim()) {
+        this.filterSuggestedUsers();
+        return;
+      }
+
+      const query = this.searchQuery.toLowerCase();
+      const friendIds = this.allFriends.map(f => f._id);
+      const sentIds = this.sentRequests.map(r => r._id);
+      const receivedIds = this.friendRequests.map(r => r._id);
+
+      this.suggestedUsers = this.allUsers.filter(user => {
+        const fullName = `${user.firstname} ${user.lastname}`.toLowerCase();
+        const username = user.username.toLowerCase();
+        const matchesSearch = fullName.includes(query) || username.includes(query);
+
+        return user._id !== this.currentUser.id &&
+               !friendIds.includes(user._id) &&
+               !sentIds.includes(user._id) &&
+               !receivedIds.includes(user._id) &&
+               matchesSearch;
+      });
+    },
+
+    // Gửi lời mời kết bạn
+    async sendFriendRequest(toUserId) {
+      try {
+        const res = await fetch("http://localhost:3000/users/friend-request/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            fromUserId: this.currentUser.id, 
+            toUserId 
+          })
+        });
+        
+        const result = await res.json();
+        
+        if (res.ok) {
+          alert("Đã gửi lời mời kết bạn!");
+          this.loadSentRequests();
+          this.filterSuggestedUsers();
+        } else {
+          alert(result.msg || "Lỗi khi gửi lời mời");
+        }
+      } catch (err) {
+        console.error("Send friend request error:", err);
+        alert("Lỗi kết nối server");
+      }
+    },
+
+    // Kiểm tra xem đã gửi request chưa
+    isRequestSent(userId) {
+      return this.sentRequests.some(r => r._id === userId);
     }
   }
 };
@@ -284,16 +556,26 @@ export default {
   color: white;
 }
 
-.menu-item span:not(.icon):not(.arrow) {
+.menu-item span:not(.icon):not(.arrow):not(.badge) {
   flex: 1;
   font-size: 15px;
   font-weight: 500;
 }
 
+.badge {
+  background: #e41e3f;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-left: 8px;
+}
+
 .arrow {
   color: #65676b;
   font-size: 16px;
-  margin-left: auto;
+  margin-left: 8px;
 }
 
 /* Main Content */
@@ -318,15 +600,27 @@ export default {
   margin: 0;
 }
 
-.see-all {
-  color: #1877f2;
-  text-decoration: none;
-  font-weight: 600;
+.count {
+  color: #65676b;
   font-size: 15px;
 }
 
-.see-all:hover {
-  text-decoration: underline;
+.search-box {
+  flex: 0 0 300px;
+}
+
+.search-box input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #e4e6ea;
+  border-radius: 20px;
+  font-size: 15px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.search-box input:focus {
+  border-color: #1877f2;
 }
 
 /* Friend Requests Grid */
@@ -353,6 +647,7 @@ export default {
   width: 100%;
   height: 280px;
   overflow: hidden;
+  background: #f0f2f5;
 }
 
 .friend-image img {
@@ -372,16 +667,26 @@ export default {
   margin: 0 0 4px 0;
 }
 
-.mutual-friends {
-  display: flex;
-  align-items: center;
+.username {
   color: #65676b;
   font-size: 13px;
-  margin-bottom: 12px;
+  margin: 0 0 8px 0;
 }
 
-.mutual-icon {
-  margin-right: 4px;
+.status-indicator {
+  display: flex;
+  align-items: center;
+  color: #42b72a;
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+.online-dot {
+  width: 8px;
+  height: 8px;
+  background: #42b72a;
+  border-radius: 50%;
+  margin-right: 6px;
 }
 
 .friend-actions {
@@ -401,6 +706,11 @@ export default {
   transition: background-color 0.2s;
 }
 
+.full-width {
+  flex: 1;
+  width: 100%;
+}
+
 .confirm-btn {
   background: #1877f2;
   color: white;
@@ -408,6 +718,12 @@ export default {
 
 .confirm-btn:hover {
   background: #166fe5;
+}
+
+.confirm-btn:disabled {
+  background: #e4e6ea;
+  color: #65676b;
+  cursor: not-allowed;
 }
 
 .delete-btn {
@@ -419,15 +735,7 @@ export default {
   background: #d8dadf;
 }
 
-/* Existing Friends */
-.no-requests h3 {
-  font-size: 20px;
-  font-weight: 700;
-  color: #1c1e21;
-  margin-bottom: 20px;
-  padding: 0 4px;
-}
-
+/* All Friends Grid */
 .friends-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -453,13 +761,14 @@ export default {
   border-radius: 50%;
   object-fit: cover;
   margin-bottom: 12px;
+  background: #f0f2f5;
 }
 
 .friend-name {
   font-size: 15px;
   font-weight: 600;
   color: #1c1e21;
-  margin-bottom: 12px;
+  margin-bottom: 4px;
 }
 
 .unfriend-btn {
@@ -472,10 +781,22 @@ export default {
   font-size: 13px;
   cursor: pointer;
   transition: background-color 0.2s;
+  margin-top: 8px;
 }
 
 .unfriend-btn:hover {
   background: #d8dadf;
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: 40px;
+  color: #65676b;
+}
+
+.empty-state p {
+  font-size: 16px;
 }
 
 /* Responsive */

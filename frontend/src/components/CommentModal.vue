@@ -451,46 +451,53 @@ export default {
   }
 },
 
-    async fetchComments(postId) {
-      try {
-        const res = await fetch(`http://localhost:3000/comments/posts/${postId}`);
-        const data = await res.json();
-        this.comments = data;
-      } catch (err) {
-        console.error("Error to fetch comments:", err);
-        this.comments = [];
-      }
-    },
+async fetchComments(postId) {
+  try {
+    const isShare = this.post.isSharePost || false; // ✅ Đổi thành isSharePost
+    const url = `http://localhost:3000/comments/posts/${postId}${isShare ? '?isShare=true' : ''}`;
+    
+    const res = await fetch(url);
+    const data = await res.json();
+    this.comments = data;
+  } catch (err) {
+    console.error("Error to fetch comments:", err);
+    this.comments = [];
+  }
+},
 
-    async submitComment() {
-      if (!this.newComment.trim()) return;
+async submitComment() {
+  if (!this.newComment.trim()) return;
 
-      const user = JSON.parse(localStorage.getItem("user"));
-      if (!user || !this.post) return;
+  const user = JSON.parse(localStorage.getItem("user"));
+  if (!user || !this.post) return;
 
-      try {
-        const res = await fetch(`http://localhost:3000/comments/posts/${this.post._id}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            content: this.newComment,
-            authorId: user.id
-          })
-        });
+  try {
+    const isShare = this.post.isSharePost || false; // ✅ Đổi thành isSharePost
+    const targetId = this.post._id; // ✅ Dùng trực tiếp _id
+    
+    const res = await fetch(`http://localhost:3000/comments/posts/${targetId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        content: this.newComment,
+        authorId: user.id,
+        isShare: isShare // ✅ Truyền đúng flag
+      })
+    });
 
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.msg || "Submit comment fail");
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.msg || "Submit comment fail");
 
-        this.comments.push(data.comment);
-        this.newComment = "";
-        this.$emit('commented', data.comment);
-        this.$emit('comment-count-updated', { postId: this.post._id, count: this.totalCommentCount });
-      } catch (err) {
-        console.error("Error to send comment:", err);
-        alert("Unable to send comment: " + err.message);
-      }
-    },
-
+    this.comments.push(data.comment);
+    this.newComment = "";
+    this.$emit('commented', data.comment);
+    this.$emit('comment-count-updated', { postId: targetId, count: this.totalCommentCount });
+  } catch (err) {
+    console.error("Error to send comment:", err);
+    alert("Unable to send comment: " + err.message);
+  }
+},
+ 
     async toggleCommentLike(comment) {
       const savedUser = JSON.parse(localStorage.getItem("user"));
       if (!savedUser) return alert("Please log in to like comments");

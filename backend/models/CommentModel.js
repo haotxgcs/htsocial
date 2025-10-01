@@ -11,7 +11,7 @@ const commentSchema = new mongoose.Schema({
   post: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Post",
-    required: true
+    
   },
   likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }], // ✅ Like comment
   
@@ -25,7 +25,8 @@ const commentSchema = new mongoose.Schema({
       createdAt: { type: Date, default: Date.now }
       
     }
-  ]
+  ],
+
 }, { timestamps: true });
 
 module.exports = mongoose.model("Comment", commentSchema);

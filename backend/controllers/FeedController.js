@@ -1,4 +1,4 @@
-// controllers/FeedController.js
+// ===== FeedController.js =====
 const Post = require("../models/PostModel");
 const Share = require("../models/ShareModel");
 const User = require("../models/UserModel");
@@ -10,7 +10,7 @@ exports.getUnifiedFeed = async (req, res) => {
     const user = await User.findById(viewerId).populate("friends");
     if (!user) return res.status(404).json({ msg: "User not found" });
 
-    // ===== Lấy bài viết gốc =====
+    // Lấy bài viết gốc
     const posts = await Post.find()
       .populate("author", "firstname lastname username avatar friends")
       .sort({ createdAt: -1 });
@@ -29,7 +29,7 @@ exports.getUnifiedFeed = async (req, res) => {
       }
     });
 
-    // ===== Lấy bài chia sẻ =====
+    // Lấy bài chia sẻ
     const shares = await Share.find()
       .populate("username", "firstname lastname username avatar friends")
       .populate({
@@ -45,11 +45,10 @@ exports.getUnifiedFeed = async (req, res) => {
       const sharer = share.username;
       if (!sharer) return false;
 
-      // Nếu user đã ẩn share này → bỏ qua
       const isHidden = user.hiddenShares.some(id => id.toString() === share._id.toString());
       if (isHidden) return false;
 
-      // Nếu bài post bị xóa → vẫn giữ lại share để frontend hiển thị "This post is deleted"
+      // Giữ lại share ngay cả khi post bị xóa
       if (!share.post) return true;
 
       const isAuthor = sharer._id.equals(viewerId);
@@ -93,7 +92,13 @@ exports.getUnifiedFeed = async (req, res) => {
           canViewPost = false;
       }
 
-      return { ...share, canViewPost, type: "share" };
+      return { 
+        ...share, 
+        canViewPost, 
+        type: "share",
+        commentCount: share.commentCount || 0,
+        replyCommentCount: share.replyCommentCount || 0
+      };
     });
 
     const allFeed = [...formattedPosts, ...formattedShares].sort(
@@ -111,12 +116,10 @@ exports.getUserFeed = async (req, res) => {
   try {
     const { userId } = req.params;
 
-    // Lấy bài viết gốc
     const posts = await Post.find({ author: userId })
       .populate("author", "firstname lastname username avatar friends")
       .lean();
 
-    // Lấy share
     const shares = await Share.find({ username: userId })
       .populate("username", "firstname lastname username avatar friends")
       .populate({
@@ -128,18 +131,18 @@ exports.getUserFeed = async (req, res) => {
       })
       .lean();
 
-    // Format giống homepage
     const formattedPosts = posts.map((p) => ({
       ...p,
-      type: "original", // Đổi thành 'original' để khớp với v-if trong template
+      type: "original",
     }));
 
     const formattedShares = shares.map((s) => ({
       ...s,
       type: "share",
+      commentCount: s.commentCount || 0,
+      replyCommentCount: s.replyCommentCount || 0
     }));
 
-    // Gộp + sort theo thời gian
     const allFeed = [...formattedPosts, ...formattedShares].sort(
       (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
     );
@@ -173,7 +176,9 @@ exports.getHiddenShares = async (req, res) => {
 
     const result = hiddenShares.map(s => ({
       ...s.toObject(),
-      type: "share"
+      type: "share",
+      commentCount: s.commentCount || 0,
+      replyCommentCount: s.replyCommentCount || 0
     }));
 
     res.status(200).json(result);
@@ -190,14 +195,12 @@ exports.getHiddenPosts = async (req, res) => {
     const user = await User.findById(viewerId);
     if (!user) return res.status(404).json({ msg: "User not found" });
 
-    // Tìm các bài viết mà user đã ẩn
     const hiddenPosts = await Post.find({
       _id: { $in: user.hiddenPosts || [] }
     })
       .populate("author", "firstname lastname username avatar friends")
       .sort({ createdAt: -1 });
 
-    // Gắn type để phân biệt khi frontend gộp
     const result = hiddenPosts.map(p => ({
       ...p.toObject(),
       type: "post"
@@ -210,52 +213,29 @@ exports.getHiddenPosts = async (req, res) => {
   }
 };
 
-// ===== SAVED POSTS FUNCTIONALITY =====
+// ===== SAVED POSTS FUNCTIONALITY (CHỈ POST, KHÔNG SHARE) =====
 
 exports.getSavedItems = async (req, res) => {
   try {
     const { userId } = req.params;
-    // console.log('Getting saved items for userId:', userId);
 
     const user = await User.findById(userId);
     if (!user) {
-      console.log('User not found:', userId);
       return res.status(404).json({ msg: 'User not found' });
     }
 
-    // console.log('User found:', user.username);
-    // console.log('User savedPosts:', user.savedPosts?.length || 0);
-
     if (!user.savedPosts || user.savedPosts.length === 0) {
-      console.log('No saved items found');
       return res.json([]);
     }
 
-    // ===== Lấy saved Posts =====
+    // Chỉ lấy Posts, không lấy Shares
     const savedPosts = await Post.find({
       _id: { $in: user.savedPosts }
     })
     .populate("author", "firstname lastname username avatar friends")
     .lean();
 
-    // ===== Lấy saved Shares =====
-    const savedShares = await Share.find({
-      _id: { $in: user.savedPosts }
-    })
-    .populate("username", "firstname lastname username avatar friends")
-    .populate({
-      path: "post",
-      populate: {
-        path: "author",
-        select: "firstname lastname username avatar friends"
-      }
-    })
-    .lean();
-
-    // console.log('Found saved posts:', savedPosts.length);
-    // console.log('Found saved shares:', savedShares.length);
-
-    // ===== Format Posts =====
+    // Format và filter
     const formattedPosts = savedPosts
       .filter(post => {
         if (!post || !post.author) return false;
@@ -276,66 +256,12 @@ exports.getSavedItems = async (req, res) => {
         ...post,
         type: 'post',
         likesCount: post.likes ? post.likes.length : 0,
-        commentCount: post.commentCount || 0
-      }));
-
-    // ===== Format Shares =====
-    const formattedShares = savedShares
-      .filter(share => {
-        if (!share || !share.username) return false;
-
-        const sharerId = share.username._id.toString();
-        const viewerId = userId;
-        const isSharer = sharerId === viewerId;
-        const isFriend = share.username.friends && share.username.friends.includes(viewerId);
-
-        // Check share visibility
-        let canViewShare = false;
-        switch (share.audience) {
-          case 'public': canViewShare = true; break;
-          case 'friends': canViewShare = isSharer || isFriend; break;
-          case 'private': canViewShare = isSharer; break;
-          default: canViewShare = false;
-        }
-
-        return canViewShare;
-      })
-      .map(share => {
-        const post = share.post;
-        let canViewPost = false;
-
-        // Check if can view the original post
-        if (post && post.author) {
-          const postAuthorId = post.author._id.toString();
-          const viewerId = userId;
-          const isPostAuthor = postAuthorId === viewerId;
-          const isPostFriend = post.author.friends && post.author.friends.includes(viewerId);
-
-          switch (post.audience) {
-            case 'public': canViewPost = true; break;
-            case 'friends': canViewPost = isPostAuthor || isPostFriend; break;
-            case 'private': canViewPost = isPostAuthor; break;
-            default: canViewPost = false;
-          }
-        }
-
-        return {
-          ...share,
-          type: 'share',
-          canViewPost,
-          likesCount: post && post.likes ? post.likes.length : 0,
-          commentCount: post ? (post.commentCount || 0) : 0
-        };
-      });
-
-    // ===== Combine và sort =====
-    const allSavedItems = [...formattedPosts, ...formattedShares]
+        commentCount: post.commentCount || 0,
+        savesCount: post.savesCount || 0 // THÊM savesCount
+      }))
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-    // console.log('Returning saved items count:', allSavedItems.length);
-    // console.log('Posts:', formattedPosts.length, 'Shares:', formattedShares.length);
     
-    res.json(allSavedItems);
+    res.json(formattedPosts);
 
   } catch (error) {
     console.error('Get saved items error:', error);
@@ -346,69 +272,72 @@ exports.getSavedItems = async (req, res) => {
 exports.toggleSaveItem = async (req, res) => {
   try {
     const { itemId } = req.params;
-    const { userId, action } = req.body; // action: 'save' hoặc 'unsave'
+    const { userId, action } = req.body;
 
-    // Kiểm tra user tồn tại
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ msg: 'User not found' });
     }
 
-    // Kiểm tra item tồn tại (có thể là Post hoặc Share)
-    let item = await Post.findById(itemId);
-    let itemType = 'post';
-    
-    if (!item) {
-      item = await Share.findById(itemId);
-      itemType = 'share';
+    // Chỉ cho phép save Post, không save Share
+    const post = await Post.findById(itemId);
+    if (!post) {
+      return res.status(404).json({ msg: 'Post not found' });
     }
 
-    if (!item) {
-      return res.status(404).json({ msg: 'Item not found' });
-    }
-
-    // Kiểm tra xem user đã save item này chưa
     const isSaved = user.savedPosts && user.savedPosts.includes(itemId);
 
     if (action === 'save') {
       if (!isSaved) {
-        // Thêm item vào savedPosts
         if (!user.savedPosts) user.savedPosts = [];
         user.savedPosts.push(itemId);
         await user.save();
         
+        // TĂNG savesCount trong Post
+        await Post.findByIdAndUpdate(itemId, {
+          $inc: { savesCount: 1 }
+        });
+        
         res.json({ 
-          msg: `${itemType} saved successfully`,
+          msg: 'Post saved successfully',
           saved: true,
           itemId: itemId,
-          itemType: itemType
+          itemType: 'post',
+          savesCount: (post.savesCount || 0) + 1
         });
       } else {
         res.json({ 
-          msg: `${itemType} already saved`,
+          msg: 'Post already saved',
           saved: true,
           itemId: itemId,
-          itemType: itemType
+          itemType: 'post',
+          savesCount: post.savesCount || 0
         });
       }
     } else if (action === 'unsave') {
       if (isSaved) {
-        // Xóa item khỏi savedPosts
         user.savedPosts = user.savedPosts.filter(id => id.toString() !== itemId);
         await user.save();
         
+        // GIẢM savesCount trong Post
+        await Post.findByIdAndUpdate(itemId, {
+          $inc: { savesCount: -1 }
+        });
+        
         res.json({ 
-          msg: `${itemType} unsaved successfully`,
+          msg: 'Post unsaved successfully',
           saved: false,
           itemId: itemId,
-          itemType: itemType
+          itemType: 'post',
+          savesCount: Math.max(0, (post.savesCount || 0) - 1)
         });
       } else {
         res.json({ 
-          msg: `${itemType} was not saved`,
+          msg: 'Post was not saved',
           saved: false,
           itemId: itemId,
-          itemType: itemType
+          itemType: 'post',
+          savesCount: post.savesCount || 0
         });
       }
     } else {
@@ -430,7 +359,6 @@ exports.getSavedItemIds = async (req, res) => {
       return res.status(404).json({ msg: 'User not found' });
     }
 
-    // Trả về danh sách ID của saved items
     const savedItemIds = user.savedPosts || [];
     
     res.json({ 

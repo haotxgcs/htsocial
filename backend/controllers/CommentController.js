@@ -2,20 +2,23 @@ const Comment = require("../models/CommentModel");
 const Post = require("../models/PostModel");
 const User = require("../models/UserModel");
 
-
-// ===== Tạo comment mới =====
+// Tạo comment mới
 exports.createComment = async (req, res) => {
   try {
     const { content, authorId } = req.body;
-    const postId = req.params.postId || req.body.post;
+    const postId = req.params.postId;
 
     if (!content || !authorId || !postId) {
-      return res.status(400).json({ msg: "Missing content, authorId, or post ID" });
+      return res.status(400).json({ msg: "Missing required fields" });
     }
 
     const user = await User.findById(authorId);
     if (!user) return res.status(404).json({ msg: "Author not found" });
 
+    const post = await Post.findById(postId);
+    if (!post) return res.status(404).json({ msg: "Post not found" });
+
+    // Tạo comment
     const comment = new Comment({
       content,
       author: user._id,
@@ -24,6 +27,8 @@ exports.createComment = async (req, res) => {
     });
 
     await comment.save();
+
+    // Tăng commentCount
     await Post.findByIdAndUpdate(postId, { $inc: { commentCount: 1 } });
 
     const populated = await Comment.findById(comment._id)
@@ -36,7 +41,7 @@ exports.createComment = async (req, res) => {
   }
 };
 
-// ===== Lấy danh sách comment theo postId =====
+// Lấy comments theo Post
 exports.getCommentsByPost = async (req, res) => {
   try {
     const postId = req.params.postId;
@@ -54,20 +59,23 @@ exports.getCommentsByPost = async (req, res) => {
   }
 };
 
-// ===== Cập nhật comment =====
+// Cập nhật comment
 exports.updateComment = async (req, res) => {
   try {
     const { content } = req.body;
+    
+    if (!content || !content.trim()) {
+      return res.status(400).json({ msg: "Content is required" });
+    }
+
     const comment = await Comment.findById(req.params.id);
     if (!comment) return res.status(404).json({ msg: "Comment not found" });
 
-    if (content) comment.content = content;
-
+    comment.content = content;
     await comment.save();
 
     const updated = await Comment.findById(comment._id)
       .populate("author", "username firstname lastname avatar");
-      
 
     res.status(200).json({ msg: "Comment updated", comment: updated });
   } catch (err) {
@@ -76,19 +84,23 @@ exports.updateComment = async (req, res) => {
   }
 };
 
-// ===== Xoá comment =====
+// Xóa comment
 exports.deleteComment = async (req, res) => {
   try {
-    const comment = await Comment.findByIdAndDelete(req.params.id);
+    const comment = await Comment.findById(req.params.id);
     if (!comment) return res.status(404).json({ msg: "Comment not found" });
+
     const numReplies = comment.replies?.length || 0;
 
+    // Giảm counter
     await Post.findByIdAndUpdate(comment.post, {
       $inc: {
         commentCount: -1,
         replyCommentCount: -numReplies
       }
     });
+
+    await Comment.findByIdAndDelete(req.params.id);
 
     res.json({ msg: "Comment deleted" });
   } catch (err) {
@@ -97,11 +109,16 @@ exports.deleteComment = async (req, res) => {
   }
 };
 
+// Toggle like comment
 exports.toggleLikeComment = async (req, res) => {
   try {
-    const comment = await Comment.findById(req.params.commentId);
     const { userId } = req.body;
+    
+    if (!userId) {
+      return res.status(400).json({ msg: "User ID is required" });
+    }
 
+    const comment = await Comment.findById(req.params.commentId);
     if (!comment) return res.status(404).json({ msg: "Comment not found" });
 
     const index = comment.likes.indexOf(userId);
@@ -113,7 +130,6 @@ exports.toggleLikeComment = async (req, res) => {
 
     await comment.save();
 
-    // ✅ Populate lại để không mất thông tin author
     const updatedComment = await Comment.findById(comment._id)
       .populate("author", "username firstname lastname avatar")
       .populate("replies.author", "username firstname lastname avatar");
@@ -128,36 +144,39 @@ exports.toggleLikeComment = async (req, res) => {
   }
 };
 
-
-// ===== Trả lời comment (reply) =====
+// Add Reply
 exports.addReply = async (req, res) => {
   try {
-    const { content, authorId, replyToUserId, replyToReplyId } = req.body;
-    const comment = await Comment.findById(req.params.commentId);
+    const { content, authorId, replyToUserId } = req.body;
+    const { commentId } = req.params;
+
+    if (!content || !authorId) {
+      return res.status(400).json({ msg: "Content and authorId are required" });
+    }
+
+    const comment = await Comment.findById(commentId);
     if (!comment) return res.status(404).json({ msg: "Comment not found" });
 
-    const user = await User.findById(authorId,replyToUserId,replyToReplyId);
+    const user = await User.findById(authorId);
     if (!user) return res.status(404).json({ msg: "Author not found" });
 
-    // Push reply với replyTo
     comment.replies.push({
       content,
       author: user._id,
-      replyTo: replyToUserId || null, 
-      replyToReplyId: replyToReplyId || null, 
+      replyTo: replyToUserId || null,
       createdAt: new Date(),
       likes: []
     });
 
     await comment.save();
-    await Post.findByIdAndUpdate(comment.post, {$inc: { replyCommentCount: 1 }});
 
-    // Populate lại full reply để gửi về
+    // Tăng replyCommentCount
+    await Post.findByIdAndUpdate(comment.post, { $inc: { replyCommentCount: 1 } });
+
     const updated = await Comment.findById(comment._id)
       .populate("replies.author", "firstname lastname avatar")
       .populate("replies.replyTo", "firstname lastname avatar");
-      
-    // Gửi reply mới nhất
+
     res.status(200).json({ msg: "Reply added", reply: updated.replies.at(-1) });
   } catch (err) {
     console.error("Reply error:", err);
@@ -165,11 +184,15 @@ exports.addReply = async (req, res) => {
   }
 };
 
-
+// Update Reply
 exports.updateReply = async (req, res) => {
   try {
     const { content } = req.body;
     const { commentId, replyId } = req.params;
+
+    if (!content || !content.trim()) {
+      return res.status(400).json({ msg: "Content is required" });
+    }
 
     const comment = await Comment.findById(commentId);
     if (!comment) return res.status(404).json({ msg: "Comment not found" });
@@ -177,11 +200,9 @@ exports.updateReply = async (req, res) => {
     const reply = comment.replies.id(replyId);
     if (!reply) return res.status(404).json({ msg: "Reply not found" });
 
-    reply.content = content || reply.content;
-
+    reply.content = content;
     await comment.save();
 
-    // Populate lại
     const updated = await Comment.findById(commentId)
       .populate("replies.author", "firstname lastname avatar")
       .populate("replies.replyTo", "firstname lastname avatar");
@@ -195,30 +216,39 @@ exports.updateReply = async (req, res) => {
   }
 };
 
-
+// Delete Reply
 exports.deleteReply = async (req, res) => {
   try {
     const { commentId, replyId } = req.params;
 
     const comment = await Comment.findById(commentId);
     if (!comment) return res.status(404).json({ msg: "Comment not found" });
+
     const reply = comment.replies.id(replyId);
     if (!reply) return res.status(404).json({ msg: "Reply not found" });
+
     comment.replies.pull(replyId);
     await comment.save();
-    await Post.findByIdAndUpdate(comment.post, {$inc: { replyCommentCount: -1 }}); 
+
+    // Giảm replyCommentCount
+    await Post.findByIdAndUpdate(comment.post, { $inc: { replyCommentCount: -1 } });
+
     res.status(200).json({ msg: "Reply deleted", replies: comment.replies });
   } catch (err) {
     console.error("Delete reply error:", err);
     res.status(500).json({ msg: "Server error" });
   }
-}
+};
 
-
+// Toggle like reply
 exports.toggleLikeReply = async (req, res) => {
   try {
     const { commentId, replyId } = req.params;
     const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ msg: "User ID is required" });
+    }
 
     const comment = await Comment.findById(commentId);
     if (!comment) return res.status(404).json({ msg: "Comment not found" });
@@ -235,7 +265,6 @@ exports.toggleLikeReply = async (req, res) => {
 
     await comment.save();
 
-    // ✅ Populate đầy đủ cả author và replyTo
     const updated = await Comment.findById(commentId)
       .populate("replies.author", "firstname lastname avatar")
       .populate("replies.replyTo", "firstname lastname avatar");
@@ -246,14 +275,8 @@ exports.toggleLikeReply = async (req, res) => {
       msg: index > -1 ? "Reply unliked" : "Reply liked",
       reply: updatedReply
     });
-
   } catch (err) {
     console.error("Toggle like reply error:", err);
     res.status(500).json({ msg: "Server error" });
   }
 };
-
-
-
-
-

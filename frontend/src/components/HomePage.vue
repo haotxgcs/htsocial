@@ -174,32 +174,16 @@
                     <source :src="`http://localhost:3000/${post.post.media}`" type="video/mp4" />
                   </video>
                 </div>
-                <!-- Like/Comment/Share count -->
-                <div class="post-stats">
-                  <span v-if="post.post.likes?.length > 0">{{ post.post.likes.length }} liked</span>
-                  <span v-if="getPostCommentCount(post) > 0">{{ getPostCommentCount(post) }} commented</span>
-                  <span v-if="post.post.sharesCount > 0">{{ post.post.sharesCount }} shared</span>
-                   <span v-if="getPostSaveCount(post.post) > 0">{{ getPostSaveCount(post.post) }} saved</span>
-                </div>
+                
 
                 <!-- Actions -->
                 <div class="post-actions">
-                  <button @click="toggleLike(post.post)">
-                    <img :src="isLiked(post.post) ? require('../assets/like.png') : require('../assets/unlike.png')" class="action-icon" />
-                    <span>Like</span>
-                  </button>
+                  
                   <button @click="openCommentModal(post.post)">
-                    <img src="../assets/comment.png" class="action-icon" />
-                    <span>Comment</span>
+                    <img src="../assets/arrow.png" class="action-icon" />
+                    <span>Open Origin Post</span>
                   </button>
-                  <button @click="openShareModal(post.post)">
-                    <img src="../assets/share.png" class="action-icon" />
-                    <span>Share</span>
-                  </button>
-                  <button @click="toggleSavePost(post)">
-              <img :src="isSaved(post.post) ? require('../assets/saved.png') : require('../assets/save.png')" class="action-icon" />
-              <span>{{ isSaved(post.post) ? 'Saved' : 'Save' }}</span>
-          </button>
+                  
                 </div>
               </template>
             </template>

@@ -14,7 +14,7 @@
           <strong>{{ user?.firstname }} {{ user?.lastname }}</strong>
           <div class="privacy-selector">
             <select v-model="editPrivacy">
-              <option value="public">🌍 Public</option>
+              <option value="public">🌐 Public</option>
               <option value="friends">👥 Friends</option>
               <option value="private">🔒 Private</option>
             </select>
@@ -33,6 +33,44 @@
             class="recipe-input"
             ref="recipeNameInput"
           />
+        </div>
+
+        <!-- Category -->
+        <div class="recipe-field">
+          <label class="field-label">Category</label>
+          <select v-model="selectedCategory" class="category-select">
+            <option value="">Select a category</option>
+            <option value="appetizer"> Appetizer</option>
+            <option value="main-course"> Main Course</option>
+            <option value="side-dish"> Side Dish</option>
+            <option value="soup"> Soup</option>
+            <option value="salad"> Salad</option>
+            <option value="dessert"> Dessert</option>
+            <option value="beverage"> Beverage</option>
+            <option value="snack"> Snack</option>
+            <option value="breakfast"> Breakfast</option>
+            <option value="lunch"> Lunch</option>
+            <option value="dinner"> Dinner</option>
+            <option value="vegetarian"> Vegetarian</option>
+            <option value="vegan"> Vegan</option>
+            <option value="seafood"> Seafood</option>
+            <option value="pasta"> Pasta</option>
+            <option value="rice"> Rice Dish</option>
+            <option value="noodles"> Noodles</option>
+            <option value="bakery"> Bakery</option>
+            <option value="grilled"> Grilled</option>
+            <option value="fried"> Fried</option>
+            <option value="steamed"> Steamed</option>
+            <option value="stir-fry"> Stir-fry</option>
+            <option value="slow-cooked"> Slow-cooked</option>
+            <option value="quick-meal"> Quick Meal</option>
+            <option value="traditional"> Traditional</option>
+            <option value="fusion"> Fusion</option>
+            <option value="healthy"> Healthy</option>
+            <option value="comfort-food"> Comfort Food</option>
+            <option value="kid-friendly"> Kid-friendly</option>
+            <option value="party"> Party Food</option>
+          </select>
         </div>
 
         <!-- Nguyên liệu -->
@@ -133,6 +171,7 @@ export default {
   data() {
     return {
       recipeName: '',
+      selectedCategory: '',
       ingredients: '',
       instructions: '',
       editPrivacy: 'public',
@@ -145,6 +184,7 @@ export default {
   computed: {
     canPost() {
       return this.recipeName.trim().length > 0 && 
+             this.selectedCategory.trim().length > 0 &&
              this.ingredients.trim().length > 0 && 
              this.instructions.trim().length > 0;
     }
@@ -167,18 +207,14 @@ export default {
           }
         });
         
-        // Close emoji picker when clicking outside
         const handleClickOutside = (e) => {
           if (!e.target.closest('.emoji-picker')) {
             this.showEmojiPicker = false;
           }
         };
         document.addEventListener('click', handleClickOutside);
-        
-        // Store the handler to remove it later
         this._clickOutsideHandler = handleClickOutside;
       } else {
-        // Remove event listener when modal is closed
         if (this._clickOutsideHandler) {
           document.removeEventListener('click', this._clickOutsideHandler);
           this._clickOutsideHandler = null;
@@ -190,24 +226,34 @@ export default {
     initializeEditData() {
       if (!this.post) return;
       
-      // Parse recipe content from post
       const content = this.post.content || '';
       
-      // Try to extract recipe name (match everything after "Recipe Name:" until we hit "Ingredients:")
+      // Extract recipe name
       const nameMatch = content.match(/Recipe Name:\s*([^\n]+)/i);
       this.recipeName = nameMatch ? nameMatch[1].trim() : '';
       
-      // Extract ingredients (match everything between "Ingredients:" and "Instructions:")
+      // Extract category
+      const categoryMatch = content.match(/Category:\s*(?:[\u{1F300}-\u{1F9FF}]\s*)?([^\n]+)/iu);
+      if (categoryMatch) {
+        const categoryText = categoryMatch[1].trim();
+        // Try to match with category values
+        this.selectedCategory = this.getCategoryValueFromLabel(categoryText);
+      } else {
+        this.selectedCategory = this.post.category || '';
+      }
+      
+      // Extract ingredients
       const ingredientsMatch = content.match(/Ingredients:\s*([\s\S]*?)(?=Instructions:)/i);
       this.ingredients = ingredientsMatch ? ingredientsMatch[1].trim() : '';
       
-      // Extract instructions (match everything after "Instructions:")
+      // Extract instructions
       const instructionsMatch = content.match(/Instructions:\s*([\s\S]*?)$/i);
       this.instructions = instructionsMatch ? instructionsMatch[1].trim() : '';
       
       // If no structured content found, treat as plain text
       if (!this.recipeName && !this.ingredients && !this.instructions) {
         this.recipeName = content.trim();
+        this.selectedCategory = '';
         this.ingredients = '';
         this.instructions = '';
       }
@@ -222,6 +268,78 @@ export default {
       this.showEmojiPicker = false;
     },
 
+    getCategoryValueFromLabel(label) {
+      const categories = {
+        'Appetizer': 'appetizer',
+        'Main Course': 'main-course',
+        'Side Dish': 'side-dish',
+        'Soup': 'soup',
+        'Salad': 'salad',
+        'Dessert': 'dessert',
+        'Beverage': 'beverage',
+        'Snack': 'snack',
+        'Breakfast': 'breakfast',
+        'Lunch': 'lunch',
+        'Dinner': 'dinner',
+        'Vegetarian': 'vegetarian',
+        'Vegan': 'vegan',
+        'Seafood': 'seafood',
+        'Pasta': 'pasta',
+        'Rice Dish': 'rice',
+        'Noodles': 'noodles',
+        'Bakery': 'bakery',
+        'Grilled': 'grilled',
+        'Fried': 'fried',
+        'Steamed': 'steamed',
+        'Stir-fry': 'stir-fry',
+        'Slow-cooked': 'slow-cooked',
+        'Quick Meal': 'quick-meal',
+        'Traditional': 'traditional',
+        'Fusion': 'fusion',
+        'Healthy': 'healthy',
+        'Comfort Food': 'comfort-food',
+        'Kid-friendly': 'kid-friendly',
+        'Party Food': 'party'
+      };
+      return categories[label] || label.toLowerCase().replace(/\s+/g, '-');
+    },
+
+    getCategoryLabel(category) {
+      const categories = {
+        'appetizer': ' Appetizer',
+        'main-course': ' Main Course',
+        'side-dish': ' Side Dish',
+        'soup': ' Soup',
+        'salad': ' Salad',
+        'dessert': ' Dessert',
+        'beverage': ' Beverage',
+        'snack': ' Snack',
+        'breakfast': ' Breakfast',
+        'lunch': ' Lunch',
+        'dinner': ' Dinner',
+        'vegetarian': ' Vegetarian',
+        'vegan': ' Vegan',
+        'seafood': ' Seafood',
+        'pasta': ' Pasta',
+        'rice': ' Rice Dish',
+        'noodles': ' Noodles',
+        'bakery': ' Bakery',
+        'grilled': ' Grilled',
+        'fried': ' Fried',
+        'steamed': ' Steamed',
+        'stir-fry': ' Stir-fry',
+        'slow-cooked': ' Slow-cooked',
+        'quick-meal': ' Quick Meal',
+        'traditional': ' Traditional',
+        'fusion': ' Fusion',
+        'healthy': ' Healthy',
+        'comfort-food': ' Comfort Food',
+        'kid-friendly': ' Kid-friendly',
+        'party': ' Party Food'
+      };
+      return categories[category] || category;
+    },
+
     getAvatarUrl(author) {
       if (!author || !author.avatar) return 'http://localhost:3000/uploads/user.png';
       return `http://localhost:3000/${author.avatar}`;
@@ -234,6 +352,7 @@ export default {
 
     resetForm() {
       this.recipeName = '';
+      this.selectedCategory = '';
       this.ingredients = '';
       this.instructions = '';
       this.editPrivacy = 'public';
@@ -255,9 +374,7 @@ export default {
       });
     },
 
-    // Emoji picker methods
     insertEmoji(emoji) {
-      // Determine which field is currently focused
       const activeElement = document.activeElement;
       let targetField = null;
       let targetProperty = null;
@@ -285,7 +402,6 @@ export default {
           targetField.focus();
           targetField.setSelectionRange(startPos + emoji.length, startPos + emoji.length);
           
-          // Auto resize if it's a textarea
           if (targetField.tagName === 'TEXTAREA') {
             this.adjustTextareaHeight(targetField);
           }
@@ -293,14 +409,12 @@ export default {
       }
     },
 
-    // Media handling methods
     handleMediaSelect(event) {
       const file = event.target.files[0];
       if (!file) return;
 
       this.selectedMedia = file;
       
-      // Revoke old blob URL if exists
       if (this.mediaPreviewUrl && this.mediaPreviewUrl.startsWith('blob:')) {
         URL.revokeObjectURL(this.mediaPreviewUrl);
       }
@@ -322,7 +436,6 @@ export default {
       if (this.selectedMedia) {
         return this.selectedMedia.type.startsWith('image/');
       }
-      // Check if existing media is image
       if (this.editMediaPreview && this.post) {
         return this.post.mediaType === 'image';
       }
@@ -333,32 +446,32 @@ export default {
       if (this.selectedMedia) {
         return this.selectedMedia.type.startsWith('video/');
       }
-      // Check if existing media is video
       if (this.editMediaPreview && this.post) {
         return this.post.mediaType === 'video';
       }
       return false;
     },
 
-    // Submit edit post
     async submitEditPost() {
       if (!this.canPost || !this.post) return;
 
       try {
         const formData = new FormData();
         
-        // Tạo nội dung post dạng text với format đẹp
         const recipeContent = 
         `Recipe Name: ${this.recipeName}
+        
+Category: ${this.getCategoryLabel(this.selectedCategory)}
 
-        Ingredients:
-        ${this.ingredients}
+Ingredients:
+${this.ingredients}
 
-        Instructions:
-        ${this.instructions}`;
+Instructions:
+${this.instructions}`;
         
         formData.append('content', recipeContent);
         formData.append('audience', this.editPrivacy);
+        formData.append('category', this.selectedCategory);
         
         if (this.selectedMedia) {
           formData.append('image', this.selectedMedia);
@@ -384,12 +497,10 @@ export default {
   },
 
   beforeUnmount() {
-    // Cleanup event listener
     if (this._clickOutsideHandler) {
       document.removeEventListener('click', this._clickOutsideHandler);
     }
     
-    // Cleanup media preview URL
     if (this.mediaPreviewUrl && this.mediaPreviewUrl.startsWith('blob:')) {
       URL.revokeObjectURL(this.mediaPreviewUrl);
     }
@@ -398,7 +509,6 @@ export default {
 </script>
 
 <style scoped>
-/* Edit Post Modal Styles */
 .edit-post-modal-overlay {
   position: fixed;
   top: 0;
@@ -503,7 +613,6 @@ export default {
   position: relative;
 }
 
-/* Recipe form styling */
 .recipe-field {
   margin-bottom: 20px;
 }
@@ -516,10 +625,11 @@ export default {
   margin-bottom: 8px;
 }
 
-.recipe-input {
+.recipe-input,
+.category-select {
   width: 100%;
   padding: 12px;
-  font-size: 18px;
+  font-size: 15px;
   font-family: inherit;
   line-height: 1.2;
   color: #1c1e21;
@@ -530,7 +640,22 @@ export default {
   transition: border-color 0.2s, background-color 0.2s;
 }
 
-.recipe-input:focus {
+.recipe-input {
+  font-size: 18px;
+}
+
+.category-select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 20px;
+  padding-right: 40px;
+}
+
+.recipe-input:focus,
+.category-select:focus {
   border-color: #1877f2;
   background: #ffffff;
   outline: none;
@@ -679,7 +804,6 @@ export default {
   cursor: not-allowed;
 }
 
-/* Animations */
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -700,7 +824,6 @@ export default {
   }
 }
 
-/* Responsive Design */
 @media (max-width: 768px) {
   .edit-post-modal-content {
     width: 95%;
@@ -722,7 +845,6 @@ export default {
   }
 }
 
-/* Scrollbar Styling */
 .edit-post-modal-content::-webkit-scrollbar {
   width: 6px;
 }
