@@ -66,6 +66,21 @@
             </video>
           </div>
 
+          <!-- Rating Statistics -->
+          <div v-if="post.totalRatings > 0" class="rating-statistics">
+            <div class="rating-summary">
+              <div class="average-rating">
+                <span class="rating-number">{{ post.averageRating }}</span>
+                <div class="stars-display">
+                  <span v-for="star in 5" :key="star" class="star-icon" :class="{ filled: star <= Math.round(post.averageRating) }">★</span>
+                </div>
+              </div>
+              <div class="rating-count">
+                <span>{{ post.totalRatings }} rating{{ post.totalRatings > 1 ? 's' : '' }}</span>
+              </div>
+            </div>
+          </div>
+
           <!-- Like/Comment/Share count -->
           <div class="post-stats">
             <span v-if="post.likes?.length > 0">{{ post.likes.length }} liked</span>
@@ -73,6 +88,8 @@
             <span v-if="post.sharesCount > 0">{{ post.sharesCount }} shared</span>
             <span v-if="getPostSaveCount(post) > 0">{{ getPostSaveCount(post) }} saved</span>
           </div>
+
+          
 
           <!-- Actions -->
           <div class="post-actions">
@@ -1192,4 +1209,51 @@ handleSaveStatusChanged(data) {
   background: #166fe5;
 }
 
+/* Rating Statistics Styles */
+.rating-statistics {
+  background: linear-gradient(135deg, #fff9e6 0%, #ffe9b8 100%);
+  border: 1px solid #ffd966;
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin: 12px 0;
+}
+
+.rating-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.average-rating {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rating-number {
+  font-size: 28px;
+  font-weight: bold;
+  color: #f57c00;
+}
+
+.stars-display {
+  display: flex;
+  gap: 2px;
+}
+
+.star-icon {
+  font-size: 18px;
+  color: #ddd;
+}
+
+.star-icon.filled {
+  color: #ffc107;
+}
+
+.rating-count {
+  font-size: 14px;
+  color: #856404;
+  font-weight: 600;
+}
 </style>

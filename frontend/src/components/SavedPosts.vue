@@ -100,7 +100,8 @@
       @liked="handlePostLiked"
       @share="handleSharePost"
       @comment-count-updated="onCommentCountUpdated"
-      @save-count-updated="handleSaveCountUpdated"
+      @save-status-changed="handleSaveStatusChanged"
+      
     />
   </div>
 </template>
@@ -297,7 +298,21 @@ export default {
 
     handlePostShared() {
       console.log('Post shared successfully');
+    },
+
+    handleSaveStatusChanged(data) {
+    console.log('Save status changed:', data);
+    if (!data.isSaved) {
+      // User đã unsave, xóa khỏi danh sách
+      this.savedPosts = this.savedPosts.filter(p => p._id !== data.postId);
+      
+      const message = this.savedPosts.length > 0
+        ? `Unsaved successfully. ${this.savedPosts.length} posts remaining.`
+        : 'Unsaved successfully. No saved posts remaining.';
+      
+      alert(message);
     }
+  },
   },
 
   created() {

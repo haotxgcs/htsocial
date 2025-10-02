@@ -7,10 +7,14 @@ const postSchema = new mongoose.Schema(
     media: { type: String },
     mediaType: { type: String, enum: ['image', 'video'], default: null },
     likes: [{type: mongoose.Schema.Types.ObjectId,ref: "User"}],
+
     commentCount: { type: Number, default: 0 },
     replyCommentCount: {type: Number,default: 0},
     sharesCount: { type: Number, default: 0 },
     savesCount: { type: Number, default: 0 },
+    totalRatings: { type: Number,default: 0},
+    averageRating: {type: Number,default: 0},
+
     audience: { type: String, enum: ["public", "friends", "private"], default: "public"},
     hiddenBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
 

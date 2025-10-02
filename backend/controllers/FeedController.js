@@ -258,6 +258,7 @@ exports.getSavedItems = async (req, res) => {
         likesCount: post.likes ? post.likes.length : 0,
         commentCount: post.commentCount || 0,
         savesCount: post.savesCount || 0 // THÊM savesCount
+        
       }))
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     

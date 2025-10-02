@@ -5,7 +5,7 @@ const User = require("../models/UserModel");
 // Tạo comment mới
 exports.createComment = async (req, res) => {
   try {
-    const { content, authorId } = req.body;
+    const { content, authorId, rating } = req.body;
     const postId = req.params.postId;
 
     if (!content || !authorId || !postId) {
@@ -24,9 +24,24 @@ exports.createComment = async (req, res) => {
       author: user._id,
       post: postId,
       likes: [],
+      rating: rating || null
     });
 
     await comment.save();
+
+    // Cập nhật rating statistics nếu có rating
+    if (rating && rating > 0) {
+      const currentTotal = post.totalRatings || 0;
+      const currentAverage = post.averageRating || 0;
+      
+      const newTotalRatings = currentTotal + 1;
+      const newAverageRating = ((currentAverage * currentTotal) + rating) / newTotalRatings;
+      
+      await Post.findByIdAndUpdate(postId, {
+        totalRatings: newTotalRatings,
+        averageRating: parseFloat(newAverageRating.toFixed(1))
+      });
+    }
 
     // Tăng commentCount
     await Post.findByIdAndUpdate(postId, { $inc: { commentCount: 1 } });
@@ -91,6 +106,29 @@ exports.deleteComment = async (req, res) => {
     if (!comment) return res.status(404).json({ msg: "Comment not found" });
 
     const numReplies = comment.replies?.length || 0;
+
+    // Cập nhật rating statistics nếu comment có rating
+    if (comment.rating && comment.rating > 0) {
+      const post = await Post.findById(comment.post);
+      
+      if (post) {
+        const currentTotal = post.totalRatings || 0;
+        const currentAverage = post.averageRating || 0;
+        
+        const newTotalRatings = Math.max(0, currentTotal - 1);
+        let newAverageRating = 0;
+        
+        if (newTotalRatings > 0) {
+          // Tính lại average sau khi bỏ rating này
+          newAverageRating = ((currentAverage * currentTotal) - comment.rating) / newTotalRatings;
+        }
+        
+        await Post.findByIdAndUpdate(comment.post, {
+          totalRatings: newTotalRatings,
+          averageRating: parseFloat(newAverageRating.toFixed(1))
+        });
+      }
+    }
 
     // Giảm counter
     await Post.findByIdAndUpdate(comment.post, {

@@ -48,13 +48,31 @@
           </video>
         </div>
 
+        <div v-if="totalRatings > 0" class="rating-statistics">
+        <div class="rating-summary">
+          <div class="average-rating">
+            <span class="rating-number">{{ averageRating }}</span>
+            <div class="stars-display">
+              <span v-for="star in 5" :key="star" class="star-icon" :class="{ filled: star <= Math.round(averageRating) }">★</span>
+            </div>
+          </div>
+          <div class="rating-count">
+            <span>{{ totalRatings }} rating{{ totalRatings > 1 ? 's' : '' }}</span>
+          </div>
+        </div>
+        </div>
+
         <!-- Post Stats -->
         <div class="post-stats">
           <span v-if="post?.likes?.length > 0">{{ post.likes.length }} liked</span>
           <span v-if="totalCommentCount > 0">{{ totalCommentCount }} commented</span>
           <span v-if="post?.sharesCount > 0">{{ post.sharesCount }} shared</span>
           <span v-if="postSaveCount > 0" :class="{ updated: saveCountUpdated }">{{ postSaveCount }} saved</span>
+
+          
         </div>
+
+
 
         <!-- Action Buttons in Modal -->
         <div class="post-actions-modal">
@@ -95,6 +113,11 @@
                 <strong class="comment-author">{{ comment.author?.firstname }} {{ comment.author?.lastname }}</strong>
                 <span v-if="isPostAuthor(comment.author)" class="author-label">Author</span>
                 
+                <div v-if="comment.rating" class="comment-rating">
+                  <span v-for="star in 5" :key="star" class="star-display" :class="{ filled: star <= comment.rating }">★</span>
+                  <span class="rating-text-display">{{ comment.rating }} stars</span>
+                </div>
+
                 <!-- Edit mode -->
                 <div v-if="editingCommentId === comment._id" class="edit-comment-container">
                   <textarea v-model="editedContent" class="edit-textarea" @keyup.enter="saveComment(comment._id)"></textarea>
@@ -229,24 +252,56 @@
       </div>
 
       <!-- Add Comment Section -->
-      <div class="add-comment-section">
-        <img :src="getAvatarUrl(user)" class="user-avatar" alt="avatar" />
-        <div class="comment-input-wrapper">
-          <input
-            v-model="newComment"
-            @keyup.enter="submitComment"
-            placeholder="Write a comment..."
-            class="comment-input"
-          />
-          <button 
-            @click="submitComment" 
-            :disabled="!newComment.trim()"
-            class="send-comment-btn"
-          >
-            ➤
-          </button>
-        </div>
-      </div>
+      <!-- Add Comment Section -->
+<div class="add-comment-section">
+  <img :src="getAvatarUrl(user)" class="user-avatar" alt="avatar" />
+  <div class="comment-input-container">
+    <!-- Toggle rating option -->
+    <div class="rating-toggle">
+      <button @click="showRatingOption = !showRatingOption" class="toggle-rating-btn">
+        <span v-if="!showRatingOption">⭐ Add Rating</span>
+        <span v-else>💬 Comment Only</span>
+      </button>
+    </div>
+
+    <!-- Star rating selector -->
+    <div v-if="showRatingOption" class="star-rating-selector">
+      <span 
+        v-for="star in 5" 
+        :key="star"
+        @click="selectedRating = star"
+        @mouseenter="hoverRating = star"
+        @mouseleave="hoverRating = 0"
+        class="star"
+        :class="{ 
+          filled: star <= (hoverRating || selectedRating),
+          selected: star <= selectedRating 
+        }"
+      >
+        ★
+      </span>
+      <span v-if="selectedRating > 0" class="rating-text">
+        {{ selectedRating }} star{{ selectedRating > 1 ? 's' : '' }}
+      </span>
+    </div>
+
+    <div class="comment-input-wrapper">
+      <input
+        v-model="newComment"
+        @keyup.enter="submitComment"
+        :placeholder="showRatingOption ? 'Write a review with rating...' : 'Write a comment...'"
+        class="comment-input"
+      />
+      <button 
+        @click="submitComment" 
+        :disabled="!newComment.trim() || (showRatingOption && selectedRating === 0)"
+        class="send-comment-btn"
+      >
+        ➤
+      </button>
+    </div>
+  </div>
+</div>
     </div>
   </div>
 </template>
@@ -291,6 +346,12 @@ export default {
       savedPosts: [], // Track saved post IDs
       postSaveCount: 0, 
       saveCountUpdated: false,
+
+      // Rating post in comments
+      showRatingOption: false,
+      selectedRating: 0,
+      hoverRating: 0,
+      userHasRated: false, 
     }
   },
   computed: {
@@ -311,7 +372,16 @@ export default {
         }
       });
       return total;
-    }
+    },
+
+    totalRatings() {
+    return this.post?.totalRatings || 0;
+  },
+
+  averageRating() {
+    return this.post?.averageRating || 0;
+  }
+
   },
   watch: {
     post: {
@@ -319,6 +389,7 @@ export default {
         if (newPost) {
           this.fetchComments(newPost._id);
            this.fetchPostSaveCount(); // NEW
+            this.checkUserRating(); 
         }
       },
       immediate: true
@@ -329,6 +400,7 @@ export default {
         this.fetchComments(this.post._id);
         this.loadSavedPosts();
          this.fetchPostSaveCount(); // NEW
+          this.checkUserRating(); 
       }
     },
 
@@ -354,6 +426,8 @@ export default {
       this.editedContent = '';
       this.editingReplyId = null;
       this.editedReplyContent = '';
+      this.selectedRating = 0;
+      this.showRatingOption = false;
     },
 
     getAvatarUrl(author) {
@@ -467,21 +541,22 @@ async fetchComments(postId) {
 
 async submitComment() {
   if (!this.newComment.trim()) return;
+  
+  if (this.showRatingOption && this.selectedRating === 0) {
+    return alert("Please select a rating");
+  }
 
   const user = JSON.parse(localStorage.getItem("user"));
   if (!user || !this.post) return;
 
   try {
-    const isShare = this.post.isSharePost || false; // ✅ Đổi thành isSharePost
-    const targetId = this.post._id; // ✅ Dùng trực tiếp _id
-    
-    const res = await fetch(`http://localhost:3000/comments/posts/${targetId}`, {
+    const res = await fetch(`http://localhost:3000/comments/posts/${this.post._id}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         content: this.newComment,
         authorId: user.id,
-        isShare: isShare // ✅ Truyền đúng flag
+        rating: this.showRatingOption ? this.selectedRating : null // ✅ Gửi rating
       })
     });
 
@@ -490,14 +565,18 @@ async submitComment() {
 
     this.comments.push(data.comment);
     this.newComment = "";
+    this.selectedRating = 0; // Reset rating
+    this.showRatingOption = false; // Reset toggle
+    
     this.$emit('commented', data.comment);
-    this.$emit('comment-count-updated', { postId: targetId, count: this.totalCommentCount });
+    this.$emit('comment-count-updated', { postId: this.post._id, count: this.totalCommentCount });
+    this.$emit('rating-updated', { postId: this.post._id });
   } catch (err) {
     console.error("Error to send comment:", err);
     alert("Unable to send comment: " + err.message);
   }
 },
- 
+  
     async toggleCommentLike(comment) {
       const savedUser = JSON.parse(localStorage.getItem("user"));
       if (!savedUser) return alert("Please log in to like comments");
@@ -574,6 +653,7 @@ async submitComment() {
           this.comments = this.comments.filter(c => c._id !== commentId);
           this.$emit('comment-deleted', commentId);
           this.$emit('comment-count-updated', { postId: this.post._id, count: this.totalCommentCount });
+           this.$emit('rating-updated', { postId: this.post._id });
         }
       } catch (err) {
         console.error("Error to delete comment:", err);
@@ -818,7 +898,25 @@ async submitComment() {
 
     sharePost() {
       this.$emit('share', this.post);
-    }
+    },
+
+    async checkUserRating() {
+  const savedUser = JSON.parse(localStorage.getItem("user"));
+  if (!savedUser || !this.post) return;
+
+  try {
+    const res = await fetch(`http://localhost:3000/comments/posts/${this.post._id}`);
+    const data = await res.json();
+    
+    // Check if user has already rated (comment with rating)
+    this.userHasRated = data.some(comment => 
+      comment.author._id === savedUser.id && comment.rating > 0
+    );
+  } catch (err) {
+    console.error("Error checking user rating:", err);
+    this.userHasRated = false;
+  }
+},
   }
 };
 </script>
@@ -1238,6 +1336,7 @@ async submitComment() {
   border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;
+  margin-top:0;
 }
 
 .comment-input-wrapper {
@@ -1489,5 +1588,154 @@ async submitComment() {
   .add-comment-section {
     padding: 12px 16px;
   }
+}
+
+.comment-input-container {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+}
+
+.rating-toggle {
+  display: flex;
+  justify-content: flex-end;
+  order:-1;
+}
+
+.toggle-rating-btn {
+  background: #e7f3ff;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  color: #1877f2;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.toggle-rating-btn:hover {
+  background: #d0e7ff;
+}
+
+.star-rating-selector {
+  display: flex;
+  position: absolute;  /* ← THÊM */
+  bottom: 100%;        /* ← THÊM */
+  left: 60px;
+  align-items: center;
+  gap: 4px;
+  padding: 8px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  border: 1px solid #ccc;
+}
+
+.star {
+  font-size: 24px;
+  cursor: pointer;
+  color: #ddd;
+  transition: all 0.2s;
+  user-select: none;
+}
+
+.star.filled {
+  color: #ffc107;
+}
+
+.star.selected {
+  transform: scale(1.1);
+}
+.star:hover {
+  transform: scale(1.15); /* ✅ Thêm hover effect */
+}
+
+.rating-text {
+  margin-left: 8px;
+  font-size: 14px;
+  color: #65676b;
+  font-weight: 600;
+}
+
+.comment-rating {
+  display: flex;
+  gap: 2px;
+   margin: 4px 0 8px 0;
+}
+
+.star-display {
+  font-size: 14px;
+  color: #ddd;
+}
+
+.star-display.filled {
+  color: #ffc107;
+}
+
+.rating-text-display {
+  margin-left: 4px;
+  font-size: 13px;
+  color: #856404;
+  font-weight: 600;
+}
+
+/* ✅ THÊM MỚI - Rating Statistics Styles */
+.rating-statistics {
+  background: linear-gradient(135deg, #fff9e6 0%, #ffe9b8 100%);
+  border: 1px solid #ffd966;
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin: 12px 0;
+}
+
+.rating-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.average-rating {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rating-number {
+  font-size: 28px;
+  font-weight: bold;
+  color: #f57c00;
+}
+
+.stars-display {
+  display: flex;
+  gap: 2px;
+}
+
+.star-icon {
+  font-size: 18px;
+  color: #ddd;
+}
+
+.star-icon.filled {
+  color: #ffc107;
+}
+
+.rating-count {
+  font-size: 14px;
+  color: #856404;
+  font-weight: 600;
+}
+
+/* ✅ THÊM MỚI - Animation cho save count update */
+.updated {
+  animation: pulse 0.3s ease-in-out;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
 }
 </style>
