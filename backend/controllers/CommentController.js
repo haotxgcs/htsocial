@@ -18,7 +18,20 @@ exports.createComment = async (req, res) => {
     const post = await Post.findById(postId);
     if (!post) return res.status(404).json({ msg: "Post not found" });
 
-    // Tạo comment
+    if (rating && rating > 0) {
+      const existingRating = await Comment.findOne({
+        post: postId,
+        author: authorId,
+        rating: { $exists: true, $ne: null, $gt: 0 }
+      });
+
+      if (existingRating) {
+        return res.status(400).json({ 
+          msg: "You have already rated this post. You can only rate once." 
+        });
+      }
+    }
+
     const comment = new Comment({
       content,
       author: user._id,
@@ -29,27 +42,42 @@ exports.createComment = async (req, res) => {
 
     await comment.save();
 
-    // Cập nhật rating statistics nếu có rating
+    // ✅ SỬA LẠI: Cập nhật rating đơn giản hơn
+    let ratingStats = null;
     if (rating && rating > 0) {
-      const currentTotal = post.totalRatings || 0;
-      const currentAverage = post.averageRating || 0;
-      
-      const newTotalRatings = currentTotal + 1;
-      const newAverageRating = ((currentAverage * currentTotal) + rating) / newTotalRatings;
+      const updatedPost = await Post.findByIdAndUpdate(
+        postId,
+        {
+          $inc: { 
+            totalRatings: 1,
+            totalRatingSum: rating
+          }
+        },
+        { new: true }
+      );
+
+      const newAverageRating = updatedPost.totalRatingSum / updatedPost.totalRatings;
       
       await Post.findByIdAndUpdate(postId, {
-        totalRatings: newTotalRatings,
-        averageRating: parseFloat(newAverageRating.toFixed(1))
+        averageRating: Math.round(newAverageRating * 10) / 10
       });
+
+      ratingStats = {
+        totalRatings: updatedPost.totalRatings,
+        averageRating: Math.round(newAverageRating * 10) / 10
+      };
     }
 
-    // Tăng commentCount
     await Post.findByIdAndUpdate(postId, { $inc: { commentCount: 1 } });
 
     const populated = await Comment.findById(comment._id)
       .populate("author", "username firstname lastname avatar");
 
-    res.status(201).json({ msg: "Comment added", comment: populated });
+    res.status(201).json({ 
+      msg: "Comment added", 
+      comment: populated,
+      ratingStats
+    });
   } catch (err) {
     console.error("Create comment error:", err);
     res.status(500).json({ msg: "Server error" });
@@ -77,7 +105,7 @@ exports.getCommentsByPost = async (req, res) => {
 // Cập nhật comment
 exports.updateComment = async (req, res) => {
   try {
-    const { content } = req.body;
+    const { content, rating } = req.body;
     
     if (!content || !content.trim()) {
       return res.status(400).json({ msg: "Content is required" });
@@ -86,20 +114,50 @@ exports.updateComment = async (req, res) => {
     const comment = await Comment.findById(req.params.id);
     if (!comment) return res.status(404).json({ msg: "Comment not found" });
 
+    const oldRating = comment.rating || 0;
+    const newRating = rating || 0;
+    
     comment.content = content;
+    
+    // Nếu có thay đổi rating
+    let ratingStats = null;
+    if (oldRating !== newRating && newRating > 0) {
+      comment.rating = newRating;
+      
+      const post = await Post.findById(comment.post);
+      if (post) {
+        // Trừ rating cũ, cộng rating mới
+        const newSum = (post.totalRatingSum - oldRating) + newRating;
+        const newAvg = newSum / post.totalRatings;
+        
+        await Post.findByIdAndUpdate(comment.post, {
+          totalRatingSum: newSum,
+          averageRating: Math.round(newAvg * 10) / 10
+        });
+        
+        ratingStats = {
+          totalRatings: post.totalRatings,
+          averageRating: Math.round(newAvg * 10) / 10
+        };
+      }
+    }
+    
     await comment.save();
 
     const updated = await Comment.findById(comment._id)
       .populate("author", "username firstname lastname avatar");
 
-    res.status(200).json({ msg: "Comment updated", comment: updated });
+    res.status(200).json({ 
+      msg: "Comment updated", 
+      comment: updated,
+      ratingStats
+    });
   } catch (err) {
     console.error("Update comment error:", err);
     res.status(500).json({ msg: "Error updating comment" });
   }
 };
 
-// Xóa comment
 exports.deleteComment = async (req, res) => {
   try {
     const comment = await Comment.findById(req.params.id);
@@ -107,30 +165,28 @@ exports.deleteComment = async (req, res) => {
 
     const numReplies = comment.replies?.length || 0;
 
-    // Cập nhật rating statistics nếu comment có rating
+    // SỬA LẠI PHẦN NÀY
     if (comment.rating && comment.rating > 0) {
       const post = await Post.findById(comment.post);
       
       if (post) {
-        const currentTotal = post.totalRatings || 0;
-        const currentAverage = post.averageRating || 0;
+        const newTotalRatings = Math.max(0, (post.totalRatings || 0) - 1);
+        const newTotalRatingSum = Math.max(0, (post.totalRatingSum || 0) - comment.rating);
         
-        const newTotalRatings = Math.max(0, currentTotal - 1);
+        // Nếu không còn rating nào, set averageRating = 0
         let newAverageRating = 0;
-        
         if (newTotalRatings > 0) {
-          // Tính lại average sau khi bỏ rating này
-          newAverageRating = ((currentAverage * currentTotal) - comment.rating) / newTotalRatings;
+          newAverageRating = Math.round((newTotalRatingSum / newTotalRatings) * 10) / 10;
         }
         
         await Post.findByIdAndUpdate(comment.post, {
           totalRatings: newTotalRatings,
-          averageRating: parseFloat(newAverageRating.toFixed(1))
+          totalRatingSum: newTotalRatingSum,
+          averageRating: newAverageRating
         });
       }
     }
 
-    // Giảm counter
     await Post.findByIdAndUpdate(comment.post, {
       $inc: {
         commentCount: -1,
@@ -315,6 +371,46 @@ exports.toggleLikeReply = async (req, res) => {
     });
   } catch (err) {
     console.error("Toggle like reply error:", err);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
+
+exports.checkUserRating = async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const { userId } = req.query;
+
+    if (!userId) {
+      return res.status(400).json({ msg: "User ID is required" });
+    }
+
+    const existingRating = await Comment.findOne({
+      post: postId,
+      author: userId,
+      rating: { $exists: true, $ne: null, $gt: 0 }
+    });
+
+    res.json({ hasRated: !!existingRating });
+  } catch (err) {
+    console.error("Check user rating error:", err);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
+
+// Lấy rating statistics
+exports.getRatingStats = async (req, res) => {
+  try {
+    const { postId } = req.params;
+
+    const post = await Post.findById(postId);
+    if (!post) return res.status(404).json({ msg: "Post not found" });
+
+    res.json({
+      totalRatings: post.totalRatings || 0,
+      averageRating: post.averageRating || 0
+    });
+  } catch (err) {
+    console.error("Get rating stats error:", err);
     res.status(500).json({ msg: "Server error" });
   }
 };

@@ -13,6 +13,7 @@ const postSchema = new mongoose.Schema(
     sharesCount: { type: Number, default: 0 },
     savesCount: { type: Number, default: 0 },
     totalRatings: { type: Number,default: 0},
+    totalRatingSum: { type: Number, default: 0 },
     averageRating: {type: Number,default: 0},
 
     audience: { type: String, enum: ["public", "friends", "private"], default: "public"},

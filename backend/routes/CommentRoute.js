@@ -9,7 +9,10 @@ const {
   addReply,
   updateReply,
   deleteReply,
-  toggleLikeReply
+  toggleLikeReply,
+  getRatingStats,
+  checkUserRating
+
 } = require("../controllers/CommentController");
 
 // Tạo comment cho 1 bài viết
@@ -29,5 +32,7 @@ router.put("/reply/:commentId/:replyId", updateReply);
 router.delete("/reply/:commentId/:replyId", deleteReply);
 router.post("/reply/:commentId/:replyId/like", toggleLikeReply);
 
-
+// Rating routes
+router.get('/posts/:postId/rating-stats', getRatingStats);
+router.get('/posts/:postId/check-user-rating', checkUserRating);
 module.exports = router;

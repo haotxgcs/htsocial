@@ -25,7 +25,17 @@
 
         <!-- Post Content with Recipe Support -->
         <div class="post-content">
-          {{ post?.content }}
+          <div ref="postContentRef" :class="{ 'content-collapsed': shouldShowReadMore && !isContentExpanded }">
+            {{ displayedContent }}
+          </div>
+          <button 
+            v-if="shouldShowReadMore" 
+            @click="toggleContent" 
+            class="read-more-btn"
+          >
+            {{ isContentExpanded ? 'Show Less' : 'Show More' }}
+          </button>
+
           <!-- Recipe content with proper formatting -->
           <div v-if="post?.recipeName" class="recipe-content">
             <h4 class="recipe-title">{{ post.recipeName }}</h4>
@@ -97,6 +107,38 @@
 
       <!-- Comments Section -->
       <div class="comments-section">
+        <!-- Filter Bar -->
+        <div class="comment-filter-bar">
+          <button 
+            @click="commentFilter = 'newest'" 
+            :class="{ active: commentFilter === 'newest' }"
+            class="filter-btn"
+          >
+            Newest
+          </button>
+          <button 
+            @click="commentFilter = 'oldest'" 
+            :class="{ active: commentFilter === 'oldest' }"
+            class="filter-btn"
+          >
+            Oldest
+          </button>
+          <button 
+            @click="commentFilter = 'rated'" 
+            :class="{ active: commentFilter === 'rated' }"
+            class="filter-btn"
+          >
+            With Rating
+          </button>
+          <button 
+            @click="commentFilter = 'normal'" 
+            :class="{ active: commentFilter === 'normal' }"
+            class="filter-btn"
+          >
+            Comments Only
+          </button>
+        </div>
+
         <div class="comments-list">
           <div v-if="comments.length === 0" class="no-comments">
             <div class="no-comments-icon">💬</div>
@@ -105,7 +147,7 @@
           </div>
 
           <!-- Comment Items -->
-          <div v-for="comment in comments" :key="comment._id" class="comment-item">
+          <div v-for="comment in filteredComments" :key="comment._id" class="comment-item">
             <img :src="getAvatarUrl(comment.author)" class="comment-avatar" alt="avatar" />
             <div class="comment-content">
               <!-- Comment bubble -->
@@ -118,9 +160,36 @@
                   <span class="rating-text-display">{{ comment.rating }} stars</span>
                 </div>
 
+                
                 <!-- Edit mode -->
                 <div v-if="editingCommentId === comment._id" class="edit-comment-container">
-                  <textarea v-model="editedContent" class="edit-textarea" @keyup.enter="saveComment(comment._id)"></textarea>
+                  <!-- Rating editor nếu comment có rating -->
+                  <div v-if="showEditRating" class="edit-rating-section">
+                    <span class="edit-rating-label">Edit Rating:</span>
+                    <div class="edit-stars">
+                      <span 
+                        v-for="star in 5" 
+                        :key="star"
+                        @click="editingRating = star"
+                        @mouseenter="editingHoverRating = star"
+                        @mouseleave="editingHoverRating = 0"
+                        class="star"
+                        :class="{ 
+                          filled: star <= (editingHoverRating || editingRating)
+                        }"
+                      >
+                        ★
+                      </span>
+                      <span class="edit-rating-value">{{ editingRating }} stars</span>
+                    </div>
+                  </div>
+                  
+                  <textarea 
+                    v-model="editedContent" 
+                    class="edit-textarea" 
+                    @keyup.enter="saveComment(comment._id)"
+                  ></textarea>
+                  
                   <div class="edit-actions">
                     <button @click="saveComment(comment._id)" class="save-btn">Save</button>
                     <button @click="cancelEdit" class="cancel-btn">Cancel</button>
@@ -258,8 +327,14 @@
   <div class="comment-input-container">
     <!-- Toggle rating option -->
     <div class="rating-toggle">
-      <button @click="showRatingOption = !showRatingOption" class="toggle-rating-btn">
-        <span v-if="!showRatingOption">⭐ Add Rating</span>
+      <button 
+        @click="showRatingOption = !showRatingOption" 
+        :disabled="userHasRated && !showRatingOption"
+        class="toggle-rating-btn"
+        :class="{ disabled: userHasRated && !showRatingOption }"
+      >
+        <span v-if="!showRatingOption && !userHasRated">⭐ Add Rating</span>
+        <span v-else-if="!showRatingOption && userHasRated">✅ Already Rated</span>
         <span v-else>💬 Comment Only</span>
       </button>
     </div>
@@ -352,6 +427,16 @@ export default {
       selectedRating: 0,
       hoverRating: 0,
       userHasRated: false, 
+      localTotalRatings: 0, 
+      localAverageRating: 0,
+      editingRating: 0,
+      showEditRating: false,
+      editingHoverRating: 0,
+
+      commentFilter: 'newest', // 'newest', 'oldest', 'rated', 'normal'
+
+      isContentExpanded: false,
+      contentLineCount: 0,
     }
   },
   computed: {
@@ -375,41 +460,84 @@ export default {
     },
 
     totalRatings() {
-    return this.post?.totalRatings || 0;
-  },
+    return this.localTotalRatings || this.post?.totalRatings || 0;
+    },
 
-  averageRating() {
-    return this.post?.averageRating || 0;
-  }
+    averageRating() {
+      return this.localAverageRating || this.post?.averageRating || 0;
+    },
+
+    filteredComments() {
+      let filtered = [...this.comments];
+      
+      // Filter theo loại
+      if (this.commentFilter === 'rated') {
+        filtered = filtered.filter(c => c.rating && c.rating > 0);
+      } else if (this.commentFilter === 'normal') {
+        filtered = filtered.filter(c => !c.rating || c.rating === 0);
+      }
+      
+      // Sort theo thời gian
+      if (this.commentFilter === 'newest') {
+        filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      } else if (this.commentFilter === 'oldest') {
+        filtered.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+      } else {
+        // Mặc định: mới nhất lên trên
+        filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      }
+      
+      return filtered;
+    },
+
+    shouldShowReadMore() {
+    return this.contentLineCount > 10;
+    },
+
+    displayedContent() {
+      if (!this.post?.content) return '';
+      if (!this.shouldShowReadMore || this.isContentExpanded) {
+        return this.post.content;
+      }
+      // Chỉ hiển thị 10 dòng đầu
+      const lines = this.post.content.split('\n');
+      return lines.slice(0, 10).join('\n');
+    }
 
   },
   watch: {
-    post: {
-      handler(newPost) {
-        if (newPost) {
-          this.fetchComments(newPost._id);
-           this.fetchPostSaveCount(); // NEW
-            this.checkUserRating(); 
-        }
-      },
-      immediate: true
-    },
-
-    isVisible(newVal) {
-      if (newVal && this.post) {
-        this.fetchComments(this.post._id);
-        this.loadSavedPosts();
-         this.fetchPostSaveCount(); // NEW
-          this.checkUserRating(); 
+  post: {
+    handler(newPost) {
+      if (newPost) {
+        this.localTotalRatings = newPost.totalRatings || 0;
+        this.localAverageRating = newPost.averageRating || 0;
+        this.fetchComments(newPost._id);
+        this.fetchPostSaveCount();
+        this.checkUserRating();
+         this.calculateContentLines();
       }
     },
+    immediate: true
+  },
 
-    initialSaveCount(newCount) {
+  isVisible(newVal) {
+    if (newVal && this.post) {
+      this.localTotalRatings = this.post.totalRatings || 0;
+      this.localAverageRating = this.post.averageRating || 0;
+      this.fetchComments(this.post._id);
+      this.loadSavedPosts();
+      this.fetchPostSaveCount();
+      this.checkUserRating();
+       this.calculateContentLines();
+    }
+  },
+
+  initialSaveCount(newCount) {
     if (newCount !== undefined && newCount !== this.postSaveCount) {
       this.postSaveCount = newCount;
     }
   }
-  },
+},
   methods: {
     closeModal() {
       this.$emit('close');
@@ -428,6 +556,11 @@ export default {
       this.editedReplyContent = '';
       this.selectedRating = 0;
       this.showRatingOption = false;
+      this.localTotalRatings = 0;    
+      this.localAverageRating = 0;   
+      this.userHasRated = false;  
+      this.isContentExpanded = false; 
+      this.contentLineCount = 0;  
     },
 
     getAvatarUrl(author) {
@@ -539,11 +672,16 @@ async fetchComments(postId) {
   }
 },
 
+
 async submitComment() {
   if (!this.newComment.trim()) return;
   
   if (this.showRatingOption && this.selectedRating === 0) {
     return alert("Please select a rating");
+  }
+
+  if (this.showRatingOption && this.userHasRated) {
+    return alert("You have already rated this post. You can only rate once.");
   }
 
   const user = JSON.parse(localStorage.getItem("user"));
@@ -556,7 +694,7 @@ async submitComment() {
       body: JSON.stringify({
         content: this.newComment,
         authorId: user.id,
-        rating: this.showRatingOption ? this.selectedRating : null // ✅ Gửi rating
+        rating: this.showRatingOption ? this.selectedRating : null
       })
     });
 
@@ -564,13 +702,26 @@ async submitComment() {
     if (!res.ok) throw new Error(data.msg || "Submit comment fail");
 
     this.comments.push(data.comment);
+    
+    // FIXED - Update local values instead of mutating prop
+    if (this.showRatingOption && this.selectedRating > 0) {
+      this.userHasRated = true;
+      await this.fetchRatingStats();
+
+      
+    }
+    
     this.newComment = "";
-    this.selectedRating = 0; // Reset rating
-    this.showRatingOption = false; // Reset toggle
+    this.selectedRating = 0;
+    this.showRatingOption = false;
     
     this.$emit('commented', data.comment);
     this.$emit('comment-count-updated', { postId: this.post._id, count: this.totalCommentCount });
-    this.$emit('rating-updated', { postId: this.post._id });
+    this.$emit('rating-updated', { 
+      postId: this.post._id, 
+      totalRatings: this.localTotalRatings,
+      averageRating: this.localAverageRating
+    });
   } catch (err) {
     console.error("Error to send comment:", err);
     alert("Unable to send comment: " + err.message);
@@ -611,55 +762,112 @@ async submitComment() {
     editComment(comment) {
       this.editingCommentId = comment._id;
       this.editedContent = comment.content;
+
+      // Thêm phần này - load rating nếu có
+      if (comment.rating && comment.rating > 0) {
+        this.editingRating = comment.rating;
+        this.showEditRating = true;
+      } else {
+        this.editingRating = 0;
+        this.showEditRating = false;
+      }
     },
 
     async saveComment(commentId) {
-      if (!this.editedContent.trim()) return;
+  if (!this.editedContent.trim()) return;
 
-      try {
-        const res = await fetch(`http://localhost:3000/comments/${commentId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content: this.editedContent })
-        });
+  try {
+    const updateData = { content: this.editedContent };
+    
+    // Thêm rating nếu có
+    if (this.showEditRating && this.editingRating > 0) {
+      updateData.rating = this.editingRating;
+    }
+    
+    const res = await fetch(`http://localhost:3000/comments/${commentId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updateData)
+    });
 
-        if (res.ok) {
-          const commentIndex = this.comments.findIndex(c => c._id === commentId);
-          if (commentIndex !== -1) {
-            this.comments[commentIndex].content = this.editedContent;
-          }
-          this.cancelEdit();
+    const data = await res.json();
+    
+    if (res.ok) {
+      const commentIndex = this.comments.findIndex(c => c._id === commentId);
+      if (commentIndex !== -1) {
+        this.comments[commentIndex].content = this.editedContent;
+        
+        // Cập nhật rating nếu có
+        if (this.showEditRating) {
+          this.comments[commentIndex].rating = this.editingRating;
         }
-      } catch (err) {
-        console.error("Error to update comment:", err);
-        alert("Unable to update comment");
+        
+        // Nếu có thay đổi rating, fetch lại stats
+        if (data.ratingStats) {
+          this.localTotalRatings = data.ratingStats.totalRatings;
+          this.localAverageRating = data.ratingStats.averageRating;
+          
+          this.$emit('rating-updated', { 
+            postId: this.post._id,
+            totalRatings: data.ratingStats.totalRatings,
+            averageRating: data.ratingStats.averageRating
+          });
+        }
       }
-    },
+      this.cancelEdit();
+    }
+  } catch (err) {
+    console.error("Error to update comment:", err);
+    alert("Unable to update comment");
+  }
+},
 
     cancelEdit() {
-      this.editingCommentId = null;
-      this.editedContent = '';
-    },
+  this.editingCommentId = null;
+  this.editedContent = '';
+  this.editingRating = 0;
+  this.showEditRating = false;
+  this.editingHoverRating = 0;
+},
 
     async deleteComment(commentId) {
-      if (!confirm("Are you sure to delete this comment")) return;
+  if (!confirm("Are you sure to delete this comment")) return;
 
-      try {
-        const res = await fetch(`http://localhost:3000/comments/${commentId}`, {
-          method: 'DELETE'
-        });
+  try {
+    const deletedComment = this.comments.find(c => c._id === commentId);
+    const hadRating = deletedComment && deletedComment.rating > 0;
 
-        if (res.ok) {
-          this.comments = this.comments.filter(c => c._id !== commentId);
-          this.$emit('comment-deleted', commentId);
-          this.$emit('comment-count-updated', { postId: this.post._id, count: this.totalCommentCount });
-           this.$emit('rating-updated', { postId: this.post._id });
-        }
-      } catch (err) {
-        console.error("Error to delete comment:", err);
-        alert("Unable to delete comment");
-      }
-    },
+    const res = await fetch(`http://localhost:3000/comments/${commentId}`, {
+      method: 'DELETE'
+    });
+
+    if (res.ok) {
+      this.comments = this.comments.filter(c => c._id !== commentId);
+      
+      // FIXED - Update local values instead of mutating prop
+      if (hadRating) {
+  const savedUser = JSON.parse(localStorage.getItem("user"));
+  if (deletedComment.author._id === savedUser.id) {
+    this.userHasRated = false;
+  }
+  
+  // Fetch latest stats
+  await this.fetchRatingStats();
+}
+      
+      this.$emit('comment-deleted', commentId);
+      this.$emit('comment-count-updated', { postId: this.post._id, count: this.totalCommentCount });
+      this.$emit('rating-updated', { 
+        postId: this.post._id,
+        totalRatings: this.localTotalRatings,
+        averageRating: this.localAverageRating
+      });
+    }
+  } catch (err) {
+    console.error("Error to delete comment:", err);
+    alert("Unable to delete comment");
+  }
+},
 
     isMyComment(comment) {
       const savedUser = JSON.parse(localStorage.getItem("user"));
@@ -917,6 +1125,34 @@ async submitComment() {
     this.userHasRated = false;
   }
 },
+
+async fetchRatingStats() {
+  if (!this.post || !this.post._id) return;
+  
+  try {
+    const res = await fetch(`http://localhost:3000/comments/posts/${this.post._id}/rating-stats`);
+    if (res.ok) {
+      const stats = await res.json();
+      this.localTotalRatings = stats.totalRatings || 0;
+      this.localAverageRating = stats.averageRating || 0;
+    }
+  } catch (err) {
+    console.error("Cannot fetch rating stats:", err);
+  }
+},
+
+calculateContentLines() {
+  this.$nextTick(() => {
+    if (this.post?.content) {
+      const lines = this.post.content.split('\n');
+      this.contentLineCount = lines.length;
+    }
+  });
+},
+
+toggleContent() {
+  this.isContentExpanded = !this.isContentExpanded;
+}
   }
 };
 </script>
@@ -1049,6 +1285,32 @@ async submitComment() {
   margin: 12px 0;
   word-wrap: break-word;
   white-space: pre-line;
+}
+
+.content-collapsed {
+  position: relative;
+  max-height: none;
+  overflow: hidden;
+}
+
+.read-more-btn {
+  background: none;
+  border: none;
+  color: #1877f2;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px 0;
+  margin-top: 4px;
+  display: inline-block;
+  transition: all 0.2s ease;
+  font-style:italic;
+  font-weight: lighter;
+}
+
+.read-more-btn:hover {
+  color: #166fe5;
+  text-decoration: underline;
 }
 
 /* Recipe Content Styles */
@@ -1737,5 +1999,95 @@ async submitComment() {
 @keyframes pulse {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.05); }
+}
+
+.toggle-rating-btn:disabled,
+.toggle-rating-btn.disabled {
+  background: #e4e6ea;
+  color: #8a8d91;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.toggle-rating-btn:disabled:hover,
+.toggle-rating-btn.disabled:hover {
+  background: #e4e6ea;
+}
+
+.edit-rating-section {
+  margin-bottom: 12px;
+  padding: 10px;
+  background: #fff9e6;
+  border-radius: 8px;
+  border: 1px solid #ffd966;
+}
+
+.edit-rating-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #856404;
+  margin-bottom: 8px;
+}
+
+.edit-stars {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.edit-rating-value {
+  margin-left: 8px;
+  font-size: 13px;
+  color: #856404;
+  font-weight: 600;
+}
+
+/* Filter Bar */
+.comment-filter-bar {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  background: white;
+  border-bottom: 1px solid #e4e6eb;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.comment-filter-bar::-webkit-scrollbar {
+  height: 4px;
+}
+
+.comment-filter-bar::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 2px;
+}
+
+.filter-btn {
+  padding: 8px 16px;
+  border: 1px solid #e4e6eb;
+  background: white;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #65676b;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.filter-btn:hover {
+  background: #f0f2f5;
+}
+
+.filter-btn.active {
+  background: #1877f2;
+  color: white;
+  border-color: #1877f2;
+}
+
+.filter-btn.active:hover {
+  background: #166fe5;
 }
 </style>

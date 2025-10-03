@@ -56,7 +56,18 @@
             </div>
           </div>
 
-          <p class="post-text">{{ post.content }}</p>
+         <div class="post-content-wrapper">
+  <p class="post-text" :class="{ 'content-collapsed': shouldShowReadMore(post._id) && !expandedPosts[post._id] }">
+    {{ getDisplayedContent(post) }}
+  </p>
+  <button 
+    v-if="shouldShowReadMore(post._id)" 
+    @click="togglePostContent(post._id)" 
+    class="read-more-btn"
+  >
+    {{ expandedPosts[post._id] ? 'Show Less' : 'Show More' }}
+  </button>
+</div>
 
           <!-- Media -->
           <div v-if="post.media" class="post-media">
@@ -147,7 +158,18 @@
             </div>
           </div>
 
-          <p class="post-text" v-if="post.content"><i>{{ post.content }}</i></p>
+          <div v-if="post.content" class="post-content-wrapper">
+  <p class="post-text" :class="{ 'content-collapsed': shouldShowReadMore(post._id) && !expandedPosts[post._id] }">
+    <i>{{ getDisplayedContent(post) }}</i>
+  </p>
+  <button 
+    v-if="shouldShowReadMore(post._id)" 
+    @click="togglePostContent(post._id)" 
+    class="read-more-btn"
+  >
+    {{ expandedPosts[post._id] ? 'Show Less' : 'Show More' }}
+  </button>
+</div>
 
           <!-- ======= BÀI GỐC (bên trong share) ======= -->
           <!-- Shared post content box -->
@@ -184,7 +206,18 @@
                     </p>
                   </div>
                 </div>
-                <p>{{ post.post.content }}</p>
+                <div class="post-content-wrapper">
+  <p :class="{ 'content-collapsed': shouldShowReadMore(post.post._id) && !expandedPosts[post.post._id] }">
+    {{ getDisplayedContent(post.post) }}
+  </p>
+  <button 
+    v-if="shouldShowReadMore(post.post._id)" 
+    @click="togglePostContent(post.post._id)" 
+    class="read-more-btn"
+  >
+    {{ expandedPosts[post.post._id] ? 'Show Less' : 'Show More' }}
+  </button>
+</div>
                 <div v-if="post.post.media">
                   <img v-if="post.post.mediaType === 'image'" :src="`http://localhost:3000/${post.post.media}`" class="post-image" />
                   <video v-else controls class="post-video">
@@ -291,6 +324,7 @@
     @comment-count-updated="onCommentCountUpdated"
     @save-count-updated="handleSaveCountUpdated"
     @save-status-changed="handleSaveStatusChanged"
+    @rating-updated="handleRatingUpdated"
   />
 </template>
 
@@ -345,6 +379,10 @@ export default {
       editedShare: null,
       showShareModal: false,
       postToShare: null,
+
+      // For expanding long posts
+      expandedPosts: {}, 
+      postLineCounts: {}, 
     }
   },
 
@@ -363,29 +401,32 @@ export default {
     },
     
     async fetchPosts() {
-    try {
-      const savedUser = JSON.parse(localStorage.getItem("user"));
-      if (!savedUser) {
-        return alert("Please login to view posts");
-      }
-
-      const viewerId = savedUser.id;
-      const res = await fetch(`http://localhost:3000/feeds/${viewerId}`);
-      if (!res.ok) {
-        throw new Error(`HTTP error! status: ${res.status}`);
-      }
-
-      const data = await res.json();
-      this.posts = data;
-      
-      // Fetch save counts sau khi load posts
-      this.fetchAllSaveCounts();
-    } catch (err) {
-      console.error("Error in fetch posts:", err);
-      alert("Unable to fetch posts");
+  try {
+    const savedUser = JSON.parse(localStorage.getItem("user"));
+    if (!savedUser) {
+      return alert("Please login to view posts");
     }
-  },
 
+    const viewerId = savedUser.id;
+    const res = await fetch(`http://localhost:3000/feeds/${viewerId}`);
+    if (!res.ok) {
+      throw new Error(`HTTP error! status: ${res.status}`);
+    }
+
+    const data = await res.json();
+    this.posts = data;
+    
+    this.fetchAllSaveCounts();
+    
+    // THÊM DÒNG NÀY
+    this.$nextTick(() => {
+      this.calculateAllPostLineCounts();
+    });
+  } catch (err) {
+    console.error("Error in fetch posts:", err);
+    alert("Unable to fetch posts");
+  }
+},
     // NEW: Fetch save count cho một post
   async fetchPostSaveCount(postId) {
     if (this.postSaveCounts[postId] !== undefined) {
@@ -540,6 +581,32 @@ handleSaveStatusChanged(data) {
   }
 },
 
+handleRatingUpdated(data) {
+  console.log('Rating updated:', data);
+  
+  // Tìm post trong list và cập nhật
+  const postIndex = this.posts.findIndex(p => 
+    p._id === data.postId || (p.post && p.post._id === data.postId)
+  );
+  
+  if (postIndex !== -1) {
+    const post = this.posts[postIndex];
+    
+    // Nếu là shared post
+    if (post.post) {
+      post.post.totalRatings = data.totalRatings;
+      post.post.averageRating = data.averageRating;
+    } else {
+      // Nếu là post thường
+      post.totalRatings = data.totalRatings;
+      post.averageRating = data.averageRating;
+    }
+    
+    // Force update
+    this.$forceUpdate();
+  } 
+},
+
     isSaved(post) {
       return this.savedPosts.includes(post._id);
     }, 
@@ -566,6 +633,10 @@ handleSaveStatusChanged(data) {
 
     handlePostCreated() {
       this.fetchPosts();
+
+      this.$nextTick(() => {
+        this.calculateAllPostLineCounts();
+      });
     },
 
     async hideThisPost(postId) {
@@ -654,6 +725,10 @@ handleSaveStatusChanged(data) {
     
     handlePostUpdated() {
       this.fetchPosts();
+
+      this.$nextTick(() => {
+        this.calculateAllPostLineCounts();
+      });
     },
 
     async toggleLike(post) {
@@ -747,9 +822,6 @@ handleSaveStatusChanged(data) {
       this.showShareModal = true;
     },
 
-    // ✅ REMOVED: canViewSharedPost method - now handled by backend
-    // Backend provides canViewPost property directly
-
     getPostAccessMessage(post) {
       if (!post) return 'Content not available';
       if (post.audience === 'private') {
@@ -800,7 +872,66 @@ handleSaveStatusChanged(data) {
       } catch (err) {
         console.error("Failed to load friends", err);
       }
-    }
+    },
+
+    calculatePostLineCount(post) {
+  if (post?.content) {
+    const content = post.content.trim();
+    const lines = content.split('\n').filter(line => line.trim().length > 0);
+    this.postLineCounts[post._id] = {
+      lineCount: lines.length,
+      charCount: content.length
+    };
+  }
+},
+  
+  // THÊM MỚI - Calculate line counts for all posts
+  calculateAllPostLineCounts() {
+    this.posts.forEach(post => {
+      if (post.type === 'post') {
+        this.calculatePostLineCount(post);
+      } else if (post.type === 'share' && post.post) {
+        this.calculatePostLineCount(post.post);
+      }
+    });
+  },
+  
+  // THÊM MỚI - Toggle content expansion
+togglePostContent(postId) {
+  this.expandedPosts[postId] = !this.expandedPosts[postId];
+},
+
+  shouldShowReadMore(postId) {
+  const counts = this.postLineCounts[postId];
+  if (!counts) return false;
+  // Hiện "Show More" nếu > 10 dòng HOẶC > 300 ký tự
+  return counts.lineCount > 10 || counts.charCount > 300;
+},
+
+// 3. getDisplayedContent - cắt theo dòng hoặc ký tự
+getDisplayedContent(post) {
+  if (!post?.content) return '';
+  const postId = post._id;
+  
+  if (!this.shouldShowReadMore(postId) || this.expandedPosts[postId]) {
+    return post.content;
+  }
+  
+  const counts = this.postLineCounts[postId];
+  
+  // Nếu quá dài theo dòng, cắt 10 dòng đầu
+  if (counts.lineCount > 10) {
+    const lines = post.content.split('\n');
+    return lines.slice(0, 10).join('\n') + '...';
+  }
+  
+  // Nếu quá dài theo ký tự, cắt 300 ký tự
+  if (counts.charCount > 300) {
+    return post.content.substring(0, 300) + '...';
+  }
+  
+  return post.content;
+}
   },
 
   mounted() {
@@ -1255,5 +1386,36 @@ handleSaveStatusChanged(data) {
   font-size: 14px;
   color: #856404;
   font-weight: 600;
+}
+
+/* Show More/Less Styles */
+.post-content-wrapper {
+  margin: 10px 0;
+}
+
+.content-collapsed {
+  position: relative;
+  max-height: none;
+  overflow: hidden;
+}
+
+.read-more-btn {
+  background: none;
+  border: none;
+  color: #1877f2;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px 0;
+  margin-top: 4px;
+  display: inline-block;
+  transition: all 0.2s ease;
+  font-style:italic;
+  font-weight:lighter;
+}
+
+.read-more-btn:hover {
+  color: #166fe5;
+  text-decoration: underline;
 }
 </style>
