@@ -228,12 +228,10 @@
 
                 <!-- Actions -->
                 <div class="post-actions">
-                  
                   <button @click="openCommentModal(post.post)">
                     <img src="../assets/arrow.png" class="action-icon" />
                     <span>Open Origin Post</span>
                   </button>
-                  
                 </div>
               </template>
             </template>
@@ -277,7 +275,7 @@
   :user="user"
   @close="createPostModalVisible = false"
   @posted="handlePostCreated"
-/>
+  />
           
   <!-- Modals -->
   <ConfirmDialog
@@ -1022,8 +1020,9 @@ getDisplayedContent(post) {
 .post-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: center;  /* Đảm bảo có dòng này */
   position: relative;
+  margin-bottom: 12px;  /* Thêm khoảng cách */
 }
 
 .post-header img {
@@ -1042,7 +1041,7 @@ getDisplayedContent(post) {
 .post-text {
   margin: 10px 0;
   font-size: 14px;
-  white-space: pre-line; /* Thêm dòng này */
+  white-space: pre-line; 
   word-wrap: break-word; 
 }
 
@@ -1176,32 +1175,38 @@ getDisplayedContent(post) {
 
 .post-author-info {
   display: flex;
-  align-items: center;
+  align-items: center;  /* Căn giữa theo chiều dọc */
+  flex: 1;
 }
 
 .post-author-info img {
   width: 40px;
   height: 40px;
-  border-radius: 999px;
+  border-radius: 50%;
   margin-right: 10px;
   object-fit: cover;
+  flex-shrink: 0;  /* Không cho avatar bị co lại */
 }
 
 .author-details {
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: center;  /* Căn giữa nội dung */
+  min-width: 0;  /* Cho phép text wrap nếu cần */
 }
 
 .author-details strong {
   font-size: 15px;
-  font-weight: bold;
+  font-weight: 600;
+  color: #1c1e21;
+  line-height: 1.2;
 }
 
 .author-details .time {
   font-size: 12px;
-  color: gray;
+  color: #65676b;
   margin-top: 2px;
+  line-height: 1.2;
 }
 
 .post-stats {

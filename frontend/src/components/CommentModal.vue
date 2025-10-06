@@ -1253,7 +1253,7 @@ toggleContent() {
 
 .post-author-info {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 12px;
 }
 

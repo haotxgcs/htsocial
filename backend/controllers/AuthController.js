@@ -188,7 +188,7 @@ exports.getUserById = async (req, res) => {
   try {
     const user = await User.findById(
       req.params.id,
-      "firstname lastname username email avatar role createdAt updatedAt active requestSent requestReceived"
+      "firstname lastname username email avatar role bio birthday location gender createdAt updatedAt active requestSent requestReceived"
     );
     if (!user) return res.status(404).json({ msg: "User not found" });
 
@@ -206,7 +206,7 @@ exports.getUserById = async (req, res) => {
 
 // ===== 7. Cập nhật user (Update User) =====
 exports.updateUser = async (req, res) => {
-  const { firstname, lastname, username, email, avatar, role, bio, coverPhoto, gender, location } = req.body;
+  const { firstname, lastname, username, email, avatar, role, bio, coverPhoto, gender, location, birthday} = req.body;
 
   try {
     const updatedUser = await User.findByIdAndUpdate(
@@ -221,7 +221,8 @@ exports.updateUser = async (req, res) => {
         bio,
         coverPhoto,
         gender,
-        location
+        location,
+        birthday
       },
       { new: true, runValidators: true, fields: "-password" }
     );

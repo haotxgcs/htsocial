@@ -43,7 +43,32 @@
           </button>
         </div>
 
-        <p class="post-text">{{ post.content }}</p>
+        <!-- Post Content with Show More/Less -->
+<div class="post-text-container">
+  <div :class="{ 'content-collapsed': shouldShowReadMore(post) && !expandedPosts[post._id] }" class="post-text">
+    {{ getDisplayedContent(post) }}
+  </div>
+  <button 
+    v-if="shouldShowReadMore(post)" 
+    @click="togglePostContent(post._id)" 
+    class="read-more-btn"
+  >
+    {{ expandedPosts[post._id] ? 'Show Less' : 'Show More' }}
+  </button>
+
+  <!-- Recipe content if exists -->
+  <div v-if="post.recipeName" class="recipe-content">
+    <h4 class="recipe-title">{{ post.recipeName }}</h4>
+    <div v-if="post.ingredients" class="recipe-section">
+      <strong>Ingredients:</strong>
+      <p class="recipe-text">{{ post.ingredients }}</p>
+    </div>
+    <div v-if="post.instructions" class="recipe-section">
+      <strong>Instructions:</strong>
+      <p class="recipe-text">{{ post.instructions }}</p>
+    </div>
+  </div>
+</div>
 
         <!-- Media -->
         <div v-if="post.media" class="post-media">
@@ -51,6 +76,20 @@
           <video v-else-if="post.mediaType === 'video'" controls class="post-video">
             <source :src="`http://localhost:3000/${post.media}`" type="video/mp4" />
           </video>
+        </div>
+
+        <div v-if="post.totalRatings > 0" class="rating-statistics">
+          <div class="rating-summary">
+            <div class="average-rating">
+              <span class="rating-number">{{ post.averageRating }}</span>
+              <div class="stars-display">
+                <span v-for="star in 5" :key="star" class="star-icon" :class="{ filled: star <= Math.round(post.averageRating) }">★</span>
+              </div>
+            </div>
+            <div class="rating-count">
+              <span>{{ post.totalRatings }} rating{{ post.totalRatings > 1 ? 's' : '' }}</span>
+            </div>
+          </div>
         </div>
 
         <!-- Post stats -->
@@ -101,6 +140,7 @@
       @share="handleSharePost"
       @comment-count-updated="onCommentCountUpdated"
       @save-status-changed="handleSaveStatusChanged"
+      @rating-updated="handleRatingUpdated"
       
     />
   </div>
@@ -130,6 +170,8 @@ export default {
       // Share modal data
       showShareModal: false,
       postToShare: null,
+
+      expandedPosts: {},
     }
   },
 
@@ -256,9 +298,41 @@ export default {
       this.selectedPost = null;
     },
 
-    handleCommentAdded(comment) {
-      console.log('Comment added:', comment);
-    },
+    handleRatingUpdated(data) {
+    console.log('Rating updated:', data);
+    
+    // Tìm post trong savedPosts và cập nhật rating
+    const postIndex = this.savedPosts.findIndex(p => p._id === data.postId);
+    if (postIndex !== -1) {
+      this.savedPosts[postIndex].totalRatings = data.totalRatings;
+      this.savedPosts[postIndex].averageRating = data.averageRating;
+      
+      // Force Vue to re-render bằng cách tạo new array reference
+      this.savedPosts = [...this.savedPosts];
+    }
+    
+    // Cập nhật selectedPost nếu đang mở modal
+    if (this.selectedPost && this.selectedPost._id === data.postId) {
+      this.selectedPost.totalRatings = data.totalRatings;
+      this.selectedPost.averageRating = data.averageRating;
+    }
+  },
+
+  handleCommentAdded(comment) {
+    console.log('Comment added:', comment);
+    
+    // Nếu comment có rating, fetch lại data để cập nhật
+    if (comment.rating && comment.rating > 0) {
+      this.fetchSavedPosts();
+    }
+  },
+
+  handleCommentDeleted(commentId) {
+    console.log('Comment deleted:', commentId);
+    
+    // Fetch lại để cập nhật rating nếu comment bị xóa có rating
+    this.fetchSavedPosts();
+  },
 
     onCommentCountUpdated(data) {
       this.postCommentCounts[data.postId] = data.count;
@@ -276,9 +350,7 @@ export default {
       return (post?.commentCount || 0) + (post?.replyCommentCount || 0);
     },
 
-    handleCommentDeleted(commentId) {
-      console.log('Comment deleted:', commentId);
-    },
+    
 
     handlePostLiked(data) {
       const post = this.savedPosts.find(p => p._id === data.postId);
@@ -313,6 +385,25 @@ export default {
       alert(message);
     }
   },
+
+  shouldShowReadMore(post) {
+  if (!post || !post.content) return false;
+  const lineCount = post.content.split('\n').length;
+  return lineCount > 10;
+},
+
+getDisplayedContent(post) {
+  if (!post || !post.content) return '';
+  if (!this.shouldShowReadMore(post) || this.expandedPosts[post._id]) {
+    return post.content;
+  }
+  const lines = post.content.split('\n');
+  return lines.slice(0, 10).join('\n');
+},
+
+togglePostContent(postId) {
+  this.expandedPosts[postId] = !this.expandedPosts[postId];
+},
   },
 
   created() {
@@ -508,13 +599,138 @@ export default {
   background: #fdd;
 }
 
-.post-text {
+/* Thay thế .post-text cũ */
+.post-text-container {
   margin: 16px 0;
+}
+
+.post-text {
   font-size: 15px;
   line-height: 1.5;
   white-space: pre-line;
   word-wrap: break-word;
   color: #1c1e21;
+}
+
+.content-collapsed {
+  position: relative;
+  max-height: none;
+  overflow: hidden;
+}
+
+.read-more-btn {
+  background: none;
+  border: none;
+  color: #1877f2;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px 0;
+  margin-top: 4px;
+  display: inline-block;
+  transition: all 0.2s ease;
+  font-style: italic;
+  font-weight: lighter;
+}
+
+.read-more-btn:hover {
+  color: #166fe5;
+  text-decoration: underline;
+}
+
+/* Recipe Content Styles */
+.recipe-content {
+  background: #f8f9fa;
+  border: 1px solid #e3e6ea;
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 12px;
+}
+
+.recipe-title {
+  color: #1c1e21;
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+  border-bottom: 1px solid #e3e6ea;
+  padding-bottom: 8px;
+}
+
+.recipe-section {
+  margin-bottom: 12px;
+}
+
+.recipe-section:last-child {
+  margin-bottom: 0;
+}
+
+.recipe-section strong {
+  color: #1877f2;
+  font-size: 14px;
+  font-weight: 600;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.recipe-text {
+  font-size: 14px;
+  line-height: 1.5;
+  color: #1c1e21;
+  margin: 0;
+  white-space: pre-line;
+  word-wrap: break-word;
+  background: white;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #e3e6ea;
+}
+
+/* Rating Statistics */
+.rating-statistics {
+  background: linear-gradient(135deg, #fff9e6 0%, #ffe9b8 100%);
+  border: 1px solid #ffd966;
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin: 12px 0;
+}
+
+.rating-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.average-rating {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rating-number {
+  font-size: 28px;
+  font-weight: bold;
+  color: #f57c00;
+}
+
+.stars-display {
+  display: flex;
+  gap: 2px;
+}
+
+.star-icon {
+  font-size: 18px;
+  color: #ddd;
+}
+
+.star-icon.filled {
+  color: #ffc107;
+}
+
+.rating-count {
+  font-size: 14px;
+  color: #856404;
+  font-weight: 600;
 }
 
 .post-media {
