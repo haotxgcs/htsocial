@@ -15,7 +15,7 @@ export default {
   },
   computed: {
     showHeader() {
-      // Lấy đường dẫn hiện tại
+      // lấy đường dẫn hiện tại
       const path = this.$route.path
       // Hide header in login, register, and welcome pages
       return !['/login', '/register', '/'].includes(path) &&
