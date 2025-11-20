@@ -1,29 +1,13 @@
 <template>
   <div class="homepage">
-    <!-- Sidebar trái -->
-    <aside class="sidebar-left">
-      <h2 class="profile-name"><img src="../assets/user.png" class="menu-icon-left"/>{{ user?.firstname }} {{ user?.lastname }}</h2>
-      <ul>
-        <li><img src="../assets/sidebar/ai.png" class="menu-icon-left"/>AI</li>
-        <li><img src="../assets/sidebar/friend.png" class="menu-icon-left"/>Friend</li>
-        <li><img src="../assets/sidebar/group.png" class="menu-icon-left"/>Group</li>
-        <li><img src="../assets/sidebar/marketplace.png" class="menu-icon-left"/>Marketplace</li>
-        <li><img src="../assets/sidebar/game.png" class="menu-icon-left"/>Game</li>
-        <li @click="$router.push('/hidden')"><img src="../assets/sidebar/hide-post.png" class="menu-icon-left"/>Hidden Posts</li>
-        <li @click="$router.push('/saved')"><img src="../assets/sidebar/bookmark.png" class="menu-icon-left"/>Saved Posts</li>
-      </ul>
-    </aside>
-
-    <!-- Feed chính -->
     <main class="feed">
       <div class="create-post">
         <h3>Create your post</h3>
-        <input type="text" @click="openCreatePostModal" :placeholder="`What's is on your mind, ${user?.firstname} ${user?.lastname}?`"/>
+        <input type="text" @click="openCreatePostModal" :placeholder="`What's on your mind, ${user?.firstname} ${user?.lastname}?`"/>
       </div>
 
       <div class="post" v-for="post in posts" :key="post._id">
   
-        <!-- ======= BÀI VIẾT GỐC ======= -->
         <div v-if="post.type === 'post'">
           <div class="post-header">
             <div class="post-author-info">
@@ -39,7 +23,6 @@
               </div>
             </div>
 
-            <!-- menu icon -->
             <div class="post-menu-wrapper">
               <img src="../assets/menu.png" class="menu-post-icon" @click="toggleMenu(post._id)" />
               <div v-if="openMenuId === post._id" class="dropdown-menu">
@@ -56,28 +39,28 @@
             </div>
           </div>
 
-         <div class="post-content-wrapper">
-  <p class="post-text" :class="{ 'content-collapsed': shouldShowReadMore(post._id) && !expandedPosts[post._id] }">
-    {{ getDisplayedContent(post) }}
-  </p>
-  <button 
-    v-if="shouldShowReadMore(post._id)" 
-    @click="togglePostContent(post._id)" 
-    class="read-more-btn"
-  >
-    {{ expandedPosts[post._id] ? 'Show Less' : 'Show More' }}
-  </button>
-</div>
-
-          <!-- Media -->
-          <div v-if="post.media" class="post-media">
-            <img v-if="post.mediaType === 'image'" :src="`http://localhost:3000/${post.media}`" class="post-image" />
-            <video v-else-if="post.mediaType === 'video'" controls class="post-video">
-              <source :src="`http://localhost:3000/${post.media}`" type="video/mp4" />
-            </video>
+          <div class="post-content-wrapper">
+            <p class="post-text" :class="{ 'content-collapsed': shouldShowReadMore(post._id) && !expandedPosts[post._id] }">
+              {{ getDisplayedContent(post) }}
+            </p>
+            <button 
+              v-if="shouldShowReadMore(post._id)" 
+              @click="togglePostContent(post._id)" 
+              class="read-more-btn"
+            >
+              {{ expandedPosts[post._id] ? 'Show Less' : 'Show More' }}
+            </button>
           </div>
 
-          <!-- Rating Statistics -->
+          <div v-if="post.media" class="post-media-container">
+            <div class="media-bg">
+              <img v-if="post.mediaType === 'image'" :src="`http://localhost:3000/${post.media}`" class="post-image" />
+              <video v-else-if="post.mediaType === 'video'" controls class="post-video">
+                <source :src="`http://localhost:3000/${post.media}`" type="video/mp4" />
+              </video>
+            </div>
+          </div>
+
           <div v-if="post.totalRatings > 0" class="rating-statistics">
             <div class="rating-summary">
               <div class="average-rating">
@@ -92,7 +75,6 @@
             </div>
           </div>
 
-          <!-- Like/Comment/Share count -->
           <div class="post-stats">
             <span v-if="post.likes?.length > 0">{{ post.likes.length }} liked</span>
             <span v-if="getPostCommentCount(post) > 0">{{ getPostCommentCount(post) }} commented</span>
@@ -100,9 +82,6 @@
             <span v-if="getPostSaveCount(post) > 0">{{ getPostSaveCount(post) }} saved</span>
           </div>
 
-          
-
-          <!-- Actions -->
           <div class="post-actions">
             <button @click="toggleLike(post)">
               <img :src="isLiked(post) ? require('../assets/like.png') : require('../assets/unlike.png')" class="action-icon" />
@@ -119,14 +98,12 @@
             <button @click="toggleSavePost(post)">
               <img :src="isSaved(post) ? require('../assets/saved.png') : require('../assets/save.png')" class="action-icon" />
               <span>{{ isSaved(post) ? 'Saved' : 'Save' }}</span>
-          </button>
+            </button>
           </div>
         </div>
 
-        <!-- ======= BÀI CHIA SẺ ======= -->
         <div v-else-if="post.type === 'share'" class="shared-post">
 
-          <!-- Người chia sẻ -->
           <div class="post-header">
             <div class="post-author-info">
               <img :src="getAvatarUrl(post.username)" alt="avatar" />
@@ -141,7 +118,6 @@
               </div>
             </div>
 
-            <!-- menu share -->
             <div class="post-menu-wrapper">
               <img src="../assets/menu.png" class="menu-post-icon" @click="toggleMenu(post._id)" />
               <div v-if="openMenuId === post._id" class="dropdown-menu">
@@ -159,23 +135,20 @@
           </div>
 
           <div v-if="post.content" class="post-content-wrapper">
-  <p class="post-text" :class="{ 'content-collapsed': shouldShowReadMore(post._id) && !expandedPosts[post._id] }">
-    <i>{{ getDisplayedContent(post) }}</i>
-  </p>
-  <button 
-    v-if="shouldShowReadMore(post._id)" 
-    @click="togglePostContent(post._id)" 
-    class="read-more-btn"
-  >
-    {{ expandedPosts[post._id] ? 'Show Less' : 'Show More' }}
-  </button>
-</div>
+            <p class="post-text" :class="{ 'content-collapsed': shouldShowReadMore(post._id) && !expandedPosts[post._id] }">
+              <i>{{ getDisplayedContent(post) }}</i>
+            </p>
+            <button 
+              v-if="shouldShowReadMore(post._id)" 
+              @click="togglePostContent(post._id)" 
+              class="read-more-btn"
+            >
+              {{ expandedPosts[post._id] ? 'Show Less' : 'Show More' }}
+            </button>
+          </div>
 
-          <!-- ======= BÀI GỐC (bên trong share) ======= -->
-          <!-- Shared post content box -->
           <div class="shared-box">
             <template v-if="post.post">
-              <!-- Nếu viewer không được xem -->
               <template v-if="post.canViewPost === false">
                 <div class="restricted-post-warning">
                   <img :src="getAvatarUrl(post.post.author)" class="avatar-small" />
@@ -192,7 +165,6 @@
                 </div>
               </template>
 
-              <!-- Nếu được phép xem -->
               <template v-else>
                 <div class="post-header">
                   <img :src="getAvatarUrl(post.post.author)" class="avatar-small" />
@@ -206,27 +178,29 @@
                     </p>
                   </div>
                 </div>
+                
                 <div class="post-content-wrapper">
-  <p :class="{ 'content-collapsed': shouldShowReadMore(post.post._id) && !expandedPosts[post.post._id] }">
-    {{ getDisplayedContent(post.post) }}
-  </p>
-  <button 
-    v-if="shouldShowReadMore(post.post._id)" 
-    @click="togglePostContent(post.post._id)" 
-    class="read-more-btn"
-  >
-    {{ expandedPosts[post.post._id] ? 'Show Less' : 'Show More' }}
-  </button>
-</div>
-                <div v-if="post.post.media">
-                  <img v-if="post.post.mediaType === 'image'" :src="`http://localhost:3000/${post.post.media}`" class="post-image" />
-                  <video v-else controls class="post-video">
-                    <source :src="`http://localhost:3000/${post.post.media}`" type="video/mp4" />
-                  </video>
+                  <p :class="{ 'content-collapsed': shouldShowReadMore(post.post._id) && !expandedPosts[post.post._id] }">
+                    {{ getDisplayedContent(post.post) }}
+                  </p>
+                  <button 
+                    v-if="shouldShowReadMore(post.post._id)" 
+                    @click="togglePostContent(post.post._id)" 
+                    class="read-more-btn"
+                  >
+                    {{ expandedPosts[post.post._id] ? 'Show Less' : 'Show More' }}
+                  </button>
                 </div>
                 
+                <div v-if="post.post.media" class="post-media-container">
+                  <div class="media-bg">
+                    <img v-if="post.post.mediaType === 'image'" :src="`http://localhost:3000/${post.post.media}`" class="post-image" />
+                    <video v-else controls class="post-video">
+                      <source :src="`http://localhost:3000/${post.post.media}`" type="video/mp4" />
+                    </video>
+                  </div>
+                </div>
 
-                <!-- Actions -->
                 <div class="post-actions">
                   <button @click="openCommentModal(post.post)">
                     <img src="../assets/arrow.png" class="action-icon" />
@@ -236,7 +210,6 @@
               </template>
             </template>
 
-            <!-- Nếu bài gốc đã xoá -->
             <template v-else>
               <div class="restricted-post-warning">
                 <p class="notice-message">This post is deleted</p>
@@ -247,79 +220,24 @@
       </div>
     </main>
 
-    <!-- Sidebar phải -->
-    <aside class="sidebar-right">
-      <h3>Contacts</h3>
+    </div>
 
-      <template v-if="friends && friends.length > 0">
-        <ul>
-          <li v-for="friend in friends" :key="friend._id">
-            <img :src="getAvatarUrl(friend)" class="menu-icon-right" />
-            <span class="status" :class="{ online: friend.active, offline: !friend.active }"></span>
-            {{ friend.firstname }} {{ friend.lastname }}
-          </li>
-        </ul>
-      </template>
-
-      <template v-else>
-        <p class="no-contacts">You have no contacts</p>
-        <button @click="$router.push('/friend')" class="find-friends-btn">
-          Find Friends
-        </button>
-      </template>
-    </aside>
-  </div>
-
-  <CreatePostModal
-  :is-visible="createPostModalVisible"
-  :user="user"
-  @close="createPostModalVisible = false"
-  @posted="handlePostCreated"
-  />
-          
-  <!-- Modals -->
-  <ConfirmDialog
-    v-if="confirmVisible"
-    :message="confirmMessage"
-    @confirm="handleConfirmedDelete"
-    @cancel="confirmVisible = false"
-  />
-
-  <EditShareModal
-    v-if="showEditShareModal"
-    :share="editedShare"
-    @close="showEditShareModal = false"
-    @updated="fetchPosts"
-  />
-
-  <ShareModal
-    v-if="showShareModal"
-    :post="postToShare"
-    :user="user"
-    @close="showShareModal = false"
-    @shared="fetchPosts"
-  />
-
-  <EditPostModal
-  :is-visible="editModalVisible"
-  :post="editedPost"
-  :user="user"
-  @close="closeEditModal"
-  @updated="handlePostUpdated"
-/>
-
-  <!-- Comment Modal Component -->
-  <CommentModal
-    :is-visible="commentModalVisible"
-    :post="selectedPost"
-    :user="user"
+  <CreatePostModal :is-visible="createPostModalVisible" :user="user" @close="createPostModalVisible = false" @posted="handlePostCreated" />
+  <ConfirmDialog v-if="confirmVisible" :message="confirmMessage" @confirm="handleConfirmedDelete" @cancel="confirmVisible = false" />
+  <EditShareModal v-if="showEditShareModal" :share="editedShare" @close="showEditShareModal = false" @updated="fetchPosts" />
+  <ShareModal v-if="showShareModal" :post="postToShare" :user="user" @close="showShareModal = false" @shared="fetchPosts" />
+  <EditPostModal :is-visible="editModalVisible" :post="editedPost" :user="user" @close="closeEditModal" @updated="handlePostUpdated" />
+  <CommentModal 
+    :is-visible="commentModalVisible" 
+    :post="selectedPost" 
+    :user="user" 
     :initial-save-count="getPostSaveCount(selectedPost)"
-    @close="closeCommentModal"
-    @commented="handleCommentAdded"
-    @comment-deleted="handleCommentDeleted"
-    @liked="handlePostLiked"
-    @share="handleSharePost"
-    @comment-count-updated="onCommentCountUpdated"
+    @close="closeCommentModal" 
+    @commented="handleCommentAdded" 
+    @comment-deleted="handleCommentDeleted" 
+    @liked="handlePostLiked" 
+    @share="handleSharePost" 
+    @comment-count-updated="onCommentCountUpdated" 
     @save-count-updated="handleSaveCountUpdated"
     @save-status-changed="handleSaveStatusChanged"
     @rating-updated="handleRatingUpdated"
@@ -951,13 +869,17 @@ getDisplayedContent(post) {
 </script>
 
 <style scoped>
+/* --- GLOBAL LAYOUT --- */
 .homepage {
   display: flex;
+  justify-content: center; /* Căn giữa nội dung */
   min-height: 100vh;
   background-color: #f0f2f5;
   font-family: Arial, sans-serif;
+  padding-top: 80px; /* Khoảng cách chuẩn để không bị header che */
 }
 
+/* --- SIDEBAR TRÁI --- */
 .sidebar-left {
   position: fixed;
   top: 56px; 
@@ -968,6 +890,7 @@ getDisplayedContent(post) {
   border-right: 1px solid #ddd;
   overflow-y: auto;
   z-index: 2;
+  background-color: #f0f2f5; 
 }
 
 .sidebar-left ul {
@@ -979,21 +902,57 @@ getDisplayedContent(post) {
   padding: 10px 0;
   border-bottom: 1px solid #eee;
   cursor: pointer;
+  display: flex;
+  align-items: center;
 }
 
 .profile-name {
   font-weight: bold;
   font-size: 18px;
   margin-bottom: 20px;
+  display: flex;
+  align-items: center;
 }
 
+/* --- FEED CHÍNH --- */
 .feed {
-  width: 600px;
-  margin: 0 auto;
-  padding: 20px;
-  margin-left: 500px;  
+  width: 100%;
+  max-width: 600px; 
+  padding: 0 16px; 
+  box-sizing: border-box;
+  padding-bottom: 40px;
+  
+  /* Căn lề Desktop */
+  margin-left: 270px; 
+  margin-right: 240px; 
 }
 
+/* --- SIDEBAR PHẢI --- */
+.sidebar-right {
+  position: fixed;
+  top: 56px;
+  right: 0;
+  width: 220px;
+  height: calc(100vh - 56px);
+  padding: 20px;
+  border-left: 1px solid #ddd;
+  overflow-y: auto;
+  z-index: 2;
+  background-color: #f0f2f5;
+}
+
+.sidebar-right ul {
+  list-style: none;
+  padding: 0;
+}
+
+.sidebar-right li {
+  display: flex;
+  align-items: center;
+  margin: 10px 0;
+}
+
+/* --- POST CONTENT STYLES --- */
 .create-post {
   background: white;
   padding: 15px;
@@ -1002,7 +961,8 @@ getDisplayedContent(post) {
 }
 
 .create-post input {
-  width: 95%;
+  width: 100%; 
+  box-sizing: border-box;
   padding: 12px;
   font-size: 15px;
   border: 1px solid #ccc;
@@ -1020,9 +980,9 @@ getDisplayedContent(post) {
 .post-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;  /* Đảm bảo có dòng này */
+  align-items: center;
   position: relative;
-  margin-bottom: 12px;  /* Thêm khoảng cách */
+  margin-bottom: 12px;
 }
 
 .post-header img {
@@ -1045,49 +1005,44 @@ getDisplayedContent(post) {
   word-wrap: break-word; 
 }
 
+/* --- MEDIA (SỬA ĐỔI ĐỂ VUÔNG VỨC 1:1 CHO CẢ ẢNH VÀ VIDEO) --- */
+.post-media-container {
+  width: 100%;
+  aspect-ratio: 1 / 1; /* Tạo khung hình vuông */
+  margin-top: 10px;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: black;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.media-bg {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
 .post-image, .post-video {
   width: 100%;
-  border-radius: 10px;
-  margin-top: 10px;
+  height: 100%;
+  object-fit: cover; /* Cắt ảnh/video để lấp đầy khung vuông */
+  display: block;
+  border: none;
 }
 
-.sidebar-right {
-  position: fixed;
-  top: 56px;
-  right: 0;
-  width: 220px;
-  height: calc(100vh - 56px);
-  padding: 20px;
-  border-left: 1px solid #ddd;
-  overflow-y: auto;
-  z-index: 2;
-}
-
-.sidebar-right ul {
-  list-style: none;
-  padding: 0;
-}
-
-.sidebar-right li {
-  display: flex;
-  align-items: center;
-  margin: 10px 0;
-}
-
+/* --- CÁC STYLE KHÁC (GIỮ NGUYÊN) --- */
 .status {
   width: 10px;
   height: 10px;
   border-radius: 999px;
   margin-right: 8px;
 }
-
-.status.online {
-  background-color: green;
-}
-
-.status.offline {
-  background-color: gray;
-}
+.status.online { background-color: green; }
+.status.offline { background-color: gray; }
 
 .menu-icon-left {
   width: 30px;
@@ -1101,11 +1056,6 @@ getDisplayedContent(post) {
   height: 40px;
   margin-right: 10px;
   vertical-align: middle;
-}
-
-.sidebar-left li {
-  display: flex;
-  align-items: center;
 }
 
 .post-actions {
@@ -1127,14 +1077,8 @@ getDisplayedContent(post) {
   gap: 6px;
 }
 
-.post-actions button:hover {
-  color: #1877f2;
-}
-
-.action-icon {
-  width: 20px;
-  height: 20px;
-}
+.post-actions button:hover { color: #1877f2; }
+.action-icon { width: 20px; height: 20px; }
 
 .menu-post-icon {
   width: 15px;
@@ -1142,9 +1086,7 @@ getDisplayedContent(post) {
   cursor: pointer;
 }
 
-.post-menu-wrapper {
-  position: relative;
-}
+.post-menu-wrapper { position: relative; }
 
 .dropdown-menu {
   position: absolute;
@@ -1168,40 +1110,33 @@ getDisplayedContent(post) {
   cursor: pointer;
   font-size: 15px;
 }
-
-.dropdown-menu button:hover {
-  background-color: #f0f2f5;
-}
+.dropdown-menu button:hover { background-color: #f0f2f5; }
 
 .post-author-info {
   display: flex;
-  align-items: center;  /* Căn giữa theo chiều dọc */
+  align-items: center;
   flex: 1;
 }
-
 .post-author-info img {
   width: 40px;
   height: 40px;
   border-radius: 50%;
   margin-right: 10px;
   object-fit: cover;
-  flex-shrink: 0;  /* Không cho avatar bị co lại */
+  flex-shrink: 0;
 }
-
 .author-details {
   display: flex;
   flex-direction: column;
-  justify-content: center;  /* Căn giữa nội dung */
-  min-width: 0;  /* Cho phép text wrap nếu cần */
+  justify-content: center;
+  min-width: 0;
 }
-
 .author-details strong {
   font-size: 15px;
   font-weight: 600;
   color: #1c1e21;
   line-height: 1.2;
 }
-
 .author-details .time {
   font-size: 12px;
   color: #65676b;
@@ -1225,7 +1160,6 @@ getDisplayedContent(post) {
   padding: 10px;
   border-radius: 10px;
 }
-
 .shared-box {
   background: white;
   padding: 10px;
@@ -1235,6 +1169,7 @@ getDisplayedContent(post) {
   white-space: pre-line;
 }
 
+/* Restricted Post */
 .restricted-post-warning {
   display: flex;
   align-items: flex-start;
@@ -1246,7 +1181,6 @@ getDisplayedContent(post) {
   margin-top: 16px;
   box-shadow: 0 2px 6px rgba(255, 193, 7, 0.1);
 }
-
 .restricted-post-warning .avatar-small {
   width: 36px;
   height: 36px;
@@ -1256,12 +1190,7 @@ getDisplayedContent(post) {
   border: 2px solid #fff;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 }
-
-.restricted-content {
-  flex: 1;
-  min-width: 0;
-}
-
+.restricted-content { flex: 1; min-width: 0; }
 .restricted-content strong {
   font-size: 14px;
   font-weight: 600;
@@ -1269,14 +1198,12 @@ getDisplayedContent(post) {
   margin: 0 0 4px 0;
   display: block;
 }
-
 .restricted-content .time {
   font-size: 12px;
   color: #6c757d;
   margin: 0 0 8px 0;
   font-weight: 500;
 }
-
 .notice-message {
   color: #555;
   font-style: italic;
@@ -1291,7 +1218,6 @@ getDisplayedContent(post) {
   margin-bottom: 12px;
   justify-content: flex-start; 
 }
-
 .shared-box .avatar-small {
   width: 36px;
   height: 36px;
@@ -1300,15 +1226,6 @@ getDisplayedContent(post) {
   flex-shrink: 0; 
   margin-right: 0; 
 }
-
-.shared-box .author-details {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  justify-content: center;
-  min-width: 0;
-}
-
 .shared-box .author-details strong {
   font-size: 14px;
   font-weight: 600;
@@ -1316,7 +1233,6 @@ getDisplayedContent(post) {
   margin: 0;
   line-height: 1.2;
 }
-
 .shared-box .author-details .time {
   font-size: 12px;
   color: #65676b;
@@ -1324,13 +1240,11 @@ getDisplayedContent(post) {
   line-height: 1.2;
 }
 
-/* Right sidebar */
 .no-contacts {
   color: #666;
   font-style: italic;
   margin-top: 8px;
 }
-
 .find-friends-btn {
   margin-top: 10px;
   padding: 6px 12px;
@@ -1340,12 +1254,8 @@ getDisplayedContent(post) {
   border-radius: 6px;
   cursor: pointer;
 }
+.find-friends-btn:hover { background: #166fe5; }
 
-.find-friends-btn:hover {
-  background: #166fe5;
-}
-
-/* Rating Statistics Styles */
 .rating-statistics {
   background: linear-gradient(135deg, #fff9e6 0%, #ffe9b8 100%);
   border: 1px solid #ffd966;
@@ -1353,57 +1263,25 @@ getDisplayedContent(post) {
   padding: 12px 16px;
   margin: 12px 0;
 }
-
 .rating-summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
 }
-
 .average-rating {
   display: flex;
   align-items: center;
   gap: 8px;
 }
+.rating-number { font-size: 28px; font-weight: bold; color: #f57c00; }
+.stars-display { display: flex; gap: 2px; }
+.star-icon { font-size: 18px; color: #ddd; }
+.star-icon.filled { color: #ffc107; }
+.rating-count { font-size: 14px; color: #856404; font-weight: 600; }
 
-.rating-number {
-  font-size: 28px;
-  font-weight: bold;
-  color: #f57c00;
-}
-
-.stars-display {
-  display: flex;
-  gap: 2px;
-}
-
-.star-icon {
-  font-size: 18px;
-  color: #ddd;
-}
-
-.star-icon.filled {
-  color: #ffc107;
-}
-
-.rating-count {
-  font-size: 14px;
-  color: #856404;
-  font-weight: 600;
-}
-
-/* Show More/Less Styles */
-.post-content-wrapper {
-  margin: 10px 0;
-}
-
-.content-collapsed {
-  position: relative;
-  max-height: none;
-  overflow: hidden;
-}
-
+.post-content-wrapper { margin: 10px 0; }
+.content-collapsed { position: relative; max-height: none; overflow: hidden; }
 .read-more-btn {
   background: none;
   border: none;
@@ -1418,9 +1296,24 @@ getDisplayedContent(post) {
   font-style:italic;
   font-weight:lighter;
 }
+.read-more-btn:hover { color: #166fe5; text-decoration: underline; }
 
-.read-more-btn:hover {
-  color: #166fe5;
-  text-decoration: underline;
+/* --- RESPONSIVE QUERIES --- */
+@media (max-width: 1200px) {
+  .sidebar-right { display: none; }
+  .feed {
+    margin-right: auto;
+    margin-left: 270px; 
+  }
+}
+
+@media (max-width: 900px) {
+  .sidebar-left { display: none; }
+  .feed {
+    margin: 0 auto; 
+    width: 100%;
+    padding: 0 10px;
+  }
+  .homepage { justify-content: center; }
 }
 </style>

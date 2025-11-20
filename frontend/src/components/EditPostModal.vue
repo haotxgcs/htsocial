@@ -1,13 +1,11 @@
 <template>
   <div v-if="isVisible" class="edit-post-modal-overlay" @click="closeModal">
     <div class="edit-post-modal-content" @click.stop>
-      <!-- Header modal -->
       <div class="edit-post-modal-header">
         <h3>Edit Post</h3>
         <button class="close-btn" @click="closeModal">&times;</button>
       </div>
 
-      <!-- User info -->
       <div class="post-creator-info">
         <img :src="getAvatarUrl(user)" alt="avatar" class="creator-avatar" />
         <div class="creator-details">
@@ -22,9 +20,7 @@
         </div>
       </div>
 
-      <!-- Recipe content -->
       <div class="post-content-area">
-        <!-- Tên món ăn -->
         <div class="recipe-field">
           <label class="field-label">Recipe Name</label>
           <input 
@@ -32,10 +28,10 @@
             placeholder="Example: Beef Stew, Chicken Curry, Vegan Salad,..."
             class="recipe-input"
             ref="recipeNameInput"
+            @focus="handleFocus('recipeNameInput', 'recipeName')"
           />
         </div>
 
-        <!-- Category -->
         <div class="recipe-field">
           <label class="field-label">Category</label>
           <select v-model="selectedCategory" class="category-select">
@@ -73,7 +69,6 @@
           </select>
         </div>
 
-        <!-- Nguyên liệu -->
         <div class="recipe-field">
           <label class="field-label">Ingredients</label>
           <textarea 
@@ -82,10 +77,10 @@
             class="recipe-textarea ingredients-textarea"
             ref="ingredientsTextarea"
             @input="adjustTextareaHeight($refs.ingredientsTextarea)"
+            @focus="handleFocus('ingredientsTextarea', 'ingredients')"
           ></textarea>
         </div>
 
-        <!-- Cách làm -->
         <div class="recipe-field">
           <label class="field-label">Instructions</label>
           <textarea 
@@ -94,35 +89,37 @@
             class="recipe-textarea instructions-textarea"
             ref="instructionsTextarea"
             @input="adjustTextareaHeight($refs.instructionsTextarea)"
+            @focus="handleFocus('instructionsTextarea', 'instructions')"
           ></textarea>
         </div>
         
         <div class="add-options">
-          <!-- Nút mở Emoji Picker -->
-          <button 
-            @click="showEmojiPicker = !showEmojiPicker" 
-            class="add-option"
-          >
-            <span class="option-icon"><img src="../assets/emoji.png" /></span>
-            <span>Icon</span>
-          </button>
+          <div class="emoji-action-wrapper">
+            <button 
+              @click.stop="toggleEmojiPicker" 
+              class="add-option"
+            >
+              <span class="option-icon"><img src="../assets/emoji.png" /></span>
+              <span>Icon</span>
+            </button>
+            
+            <div v-if="showEmojiPicker" class="emoji-picker-popover" @click.stop>
+              <EmojiPicker 
+                :native="true"
+                @select="insertEmoji"
+                theme="light"
+              />
+            </div>
+          </div>
 
-          <!-- Nút chọn media -->
           <label class="add-option">
             <input type="file" @change="handleMediaSelect" accept="image/*,video/*" style="display: none;" />
             <span class="option-icon"><img src="../assets/media.png" /></span>
             <span>Media</span>
           </label>
-          
-          <!-- Emoji Picker component -->
-          <EmojiPicker 
-            v-if="showEmojiPicker" 
-            @select="insertEmoji"
-          />
         </div>
       </div>
 
-      <!-- Media preview -->
       <div v-if="selectedMedia || editMediaPreview" class="media-preview">
         <div class="media-preview-container">
           <img v-if="isImageFile()" :src="mediaPreviewUrl" class="preview-image" />
@@ -131,7 +128,6 @@
         </div>
       </div>
 
-      <!-- Post button -->
       <div class="post-actions-footer">
         <button 
           @click="submitEditPost" 
@@ -147,7 +143,9 @@
 </template>
 
 <script>
-import EmojiPicker from './Emoji.vue';
+// Import thư viện Emoji
+import EmojiPicker from 'vue3-emoji-picker';
+import 'vue3-emoji-picker/css';
 
 export default {
   name: "EditPostModal",
@@ -179,6 +177,11 @@ export default {
       editMediaPreview: '',
       mediaPreviewUrl: null,
       showEmojiPicker: false,
+      // Lưu vết ô input cuối cùng được focus
+      lastFocusedField: {
+        refName: 'instructionsTextarea',
+        modelKey: 'instructions'
+      }
     }
   },
   computed: {
@@ -208,7 +211,7 @@ export default {
         });
         
         const handleClickOutside = (e) => {
-          if (!e.target.closest('.emoji-picker')) {
+          if (!e.target.closest('.emoji-action-wrapper')) {
             this.showEmojiPicker = false;
           }
         };
@@ -236,7 +239,6 @@ export default {
       const categoryMatch = content.match(/Category:\s*(?:[\u{1F300}-\u{1F9FF}]\s*)?([^\n]+)/iu);
       if (categoryMatch) {
         const categoryText = categoryMatch[1].trim();
-        // Try to match with category values
         this.selectedCategory = this.getCategoryValueFromLabel(categoryText);
       } else {
         this.selectedCategory = this.post.category || '';
@@ -266,6 +268,7 @@ export default {
       // Set privacy
       this.editPrivacy = this.post.audience || 'public';
       this.showEmojiPicker = false;
+      this.lastFocusedField = { refName: 'instructionsTextarea', modelKey: 'instructions' };
     },
 
     getCategoryValueFromLabel(label) {
@@ -374,33 +377,36 @@ export default {
       });
     },
 
+    // Lưu lại ô input đang focus
+    handleFocus(refName, modelKey) {
+      this.lastFocusedField = { refName, modelKey };
+    },
+
+    toggleEmojiPicker() {
+      this.showEmojiPicker = !this.showEmojiPicker;
+    },
+
+    // Chèn Emoji vào đúng vị trí
     insertEmoji(emoji) {
-      const activeElement = document.activeElement;
-      let targetField = null;
-      let targetProperty = null;
+      const { refName, modelKey } = this.lastFocusedField;
+      const targetField = this.$refs[refName];
+      
+      const emojiText = emoji.i;
 
-      if (activeElement === this.$refs.recipeNameInput) {
-        targetField = this.$refs.recipeNameInput;
-        targetProperty = 'recipeName';
-      } else if (activeElement === this.$refs.ingredientsTextarea) {
-        targetField = this.$refs.ingredientsTextarea;
-        targetProperty = 'ingredients';
-      } else if (activeElement === this.$refs.instructionsTextarea) {
-        targetField = this.$refs.instructionsTextarea;
-        targetProperty = 'instructions';
-      }
-
-      if (targetField && targetProperty) {
-        const startPos = targetField.selectionStart;
-        const endPos = targetField.selectionEnd;
+      if (targetField && this[modelKey] !== undefined) {
+        const startPos = targetField.selectionStart || this[modelKey].length;
+        const endPos = targetField.selectionEnd || this[modelKey].length;
         
-        this[targetProperty] = this[targetProperty].substring(0, startPos) + 
-                              emoji + 
-                              this[targetProperty].substring(endPos);
+        const originalText = this[modelKey];
+        
+        this[modelKey] = originalText.substring(0, startPos) + 
+                         emojiText + 
+                         originalText.substring(endPos);
         
         this.$nextTick(() => {
           targetField.focus();
-          targetField.setSelectionRange(startPos + emoji.length, startPos + emoji.length);
+          const newCursorPos = startPos + emojiText.length;
+          targetField.setSelectionRange(newCursorPos, newCursorPos);
           
           if (targetField.tagName === 'TEXTAREA') {
             this.adjustTextareaHeight(targetField);
@@ -741,18 +747,25 @@ ${this.instructions}`;
   background: rgba(0, 0, 0, 0.8);
 }
 
+/* --- Cập nhật phần này để nút Icon và Media đều nhau --- */
 .add-options {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  padding: 0 24px;
+  padding: 0; /* Bỏ padding để thẳng hàng với input */
   margin-bottom: 16px;
   width: 100%;
   box-sizing: border-box;
 }
 
+.emoji-action-wrapper {
+  flex: 1; 
+  position: relative;
+}
+
 .add-option {
-  flex: 1;
+  width: 100%; /* Giãn full chiều rộng cha */
+  flex: 1; /* Để nút Media (label) tự giãn bằng wrapper */
   padding: 10px 12px;
   display: flex;
   align-items: center;
@@ -765,6 +778,8 @@ ${this.instructions}`;
   transition: background-color 0.2s;
   font-size: 14px;
   white-space: nowrap;
+  box-sizing: border-box;
+  margin: 0; 
 }
 
 .add-option:hover {
@@ -775,6 +790,19 @@ ${this.instructions}`;
   width: 20px;
   height: 20px;
 }
+
+/* Emoji Popover Style */
+.emoji-picker-popover {
+  position: absolute;
+  bottom: 100%; 
+  left: 0;
+  z-index: 1001;
+  margin-bottom: 10px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  background: white;
+}
+/* ---------------------------------------------------- */
 
 .post-actions-footer {
   padding: 16px 24px;
