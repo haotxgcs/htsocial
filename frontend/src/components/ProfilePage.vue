@@ -1,111 +1,112 @@
 <template>
-  <div class="profile-container">
-    <!-- Cover Section -->
-    <div class="cover-section">
-      <div class="cover-photo">
+  <div class="profile-wrapper" v-if="user && (user._id || user.id)">
+    
+    <div class="profile-header">
+      <div class="cover-container">
         <img 
           :src="user.coverPhoto ? `http://localhost:3000/${user.coverPhoto}` : defaultCover" 
-          alt="Cover Photo"
           class="cover-image"
         />
-        <button class="edit-cover-btn">Chỉnh sửa ảnh bìa</button>
+        <div class="cover-overlay"></div>
+        <button class="btn-glass edit-cover">
+          📷 Chỉnh sửa ảnh bìa
+        </button>
       </div>
 
-      <div class="profile-info-bar">
-        <div class="profile-main-info">
-          <div class="avatar-container">
-            <img 
-              :src="user.avatar ? `http://localhost:3000/${user.avatar}` : defaultAvatar" 
-              alt="Profile Picture"
-              class="profile-avatar"
-            />
-            <button class="edit-avatar-btn">📷</button>
-          </div>
-
-          <div class="user-info">
-            <h1 class="user-name">{{ user.firstname }} {{ user.lastname }}</h1>
-            <p class="friends-count">{{ user.friends?.length || 0 }} bạn bè</p>
-          </div>
+      <div class="user-identity-card">
+        <div class="avatar-wrapper">
+          <img 
+            :src="getAvatarUrl(user)" 
+            class="profile-avatar"
+          />
+          <button class="edit-avatar">📷</button>
         </div>
+        
+        <div class="identity-content">
+          <h1 class="user-name">{{ user.firstname }} {{ user.lastname }}</h1>
+          <p class="user-bio-short" v-if="user.bio">{{ user.bio }}</p>
+          
+          <div class="stats-row">
+            <div class="stat-item">
+              <span class="stat-val">{{ userPosts.length }}</span>
+              <span class="stat-label">Posts</span>
+            </div>
+            <div class="stat-divider"></div>
+            <div class="stat-item">
+              <span class="stat-val">{{ user.friends?.length || 0 }}</span>
+              <span class="stat-label">Friends</span>
+            </div>
+            <div class="stat-divider"></div>
+            <div class="stat-item">
+              <span class="stat-val">{{ postsWithImages.length }}</span>
+              <span class="stat-label">Photos</span>
+            </div>
+          </div>
 
-        <div class="profile-actions">
-          <button class="btn btn-secondary">Chỉnh sửa trang cá nhân</button>
-          <button class="btn btn-icon">⋯</button>
+          <div class="action-buttons">
+            <button class="btn-primary-gradient">Chỉnh sửa trang cá nhân</button>
+            <button class="btn-glass-dark">⋯</button>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Navigation Tabs -->
-    <div class="profile-nav">
-      <div class="nav-container">
-        <div class="nav-tabs">
-          <button 
-            v-for="tab in tabs" 
-            :key="tab.id"
-            :class="['nav-tab', { active: activeTab === tab.id }]"
-            @click="activeTab = tab.id"
-          >
-            {{ tab.label }}
-          </button>
-        </div>
+    <div class="nav-wrapper">
+      <div class="glass-nav">
+        <button 
+          v-for="tab in tabs" 
+          :key="tab.id"
+          :class="['nav-pill', { active: activeTab === tab.id }]"
+          @click="activeTab = tab.id"
+        >
+          {{ tab.label }}
+        </button>
       </div>
     </div>
 
-    <!-- Profile Content -->
-    <div class="profile-content">
-      <!-- ========== TAB: BÀI VIẾT ========== -->
+    <div class="main-layout">
+      
       <template v-if="activeTab === 'posts'">
-        <!-- Left Column -->
-        <div class="content-left">
-          <!-- Giới thiệu -->
-          <div class="intro-card card">
-            <h3>Bio</h3>
-            <div class="intro-item">
-              <i class="icon-calendar"></i>
-              <span>Joined at {{ joinDateFormatted }}</span>
+        
+        <aside class="layout-sidebar">
+          <div class="widget-card intro-widget">
+            <div class="widget-header"><h3>Intro</h3><span class="see-all" @click="switchTab('about')">See all</span></div>
+            <div class="info-list">
+              <div class="info-row"><span class="icon">Joined date: </span><span>{{ joinDateFormatted }}</span></div>
+              <div class="info-row" v-if="user.location"><span class="icon">Location: </span><span>{{ user.location }}</span></div>
             </div>
           </div>
-
-          <!-- Ảnh -->
-          <div class="photos-card card">
-            <h3>Ảnh</h3>
-            <div class="photos-grid">
-              <div 
-                v-for="photo in postsWithImages" 
-                :key="photo._id"
-                class="photo-item"
-              >
-                <img :src="`http://localhost:3000/${photo.media}`" alt="Post image" />
+          
+          <div class="widget-card photos-widget">
+            <div class="widget-header"><h3>Photos</h3><span class="see-all" @click="switchTab('photos')">See all</span></div>
+            <div class="mini-grid">
+              <div v-for="photo in postsWithImages.slice(0, 9)" :key="photo._id" class="mini-photo">
+                <img :src="`http://localhost:3000/${photo.media}`" />
               </div>
             </div>
           </div>
 
-          <!-- Bạn bè -->
-          <div class="friends-card card">
-            <h3>Bạn bè</h3>
-            <div v-if="user.friends?.length" class="friends-grid">
-              <div v-for="friend in user.friends" :key="friend._id" class="friend-item">
-                <img :src="`http://localhost:3000/${friend.avatar}`" />
-                <span>{{ friend.firstname }} {{ friend.lastname }}</span>
+          <div class="widget-card friends-widget">
+            <div class="widget-header"><h3>Friends</h3><span class="see-all">See all</span></div>
+            <div v-if="user.friends?.length" class="mini-grid-friends">
+              <div v-for="friend in user.friends.slice(0, 9)" :key="friend._id" class="mini-friend">
+                <img :src="getAvatarUrl(friend)" />
+                <span class="friend-name-mini">{{ friend.firstname }}</span>
               </div>
             </div>
-            <p v-else class="no-friends">Bạn chưa có bạn bè nào</p>
           </div>
-        </div>
+        </aside>
 
-        <!--  Right Column -->
-        <div class="content-right">
-          <!-- Create Post -->
+        <main class="layout-feed">
+          
           <div class="create-post">
             <h3>Create your post</h3>
             <input type="text" @click="openCreatePostModal" :placeholder="`What's is on your mind, ${user?.firstname} ${user?.lastname}?`"/>
           </div>
 
-          <!-- User Posts -->
           <div v-if="userPosts.length" class="post-list">
             <div v-for="post in userPosts" :key="post._id" class="post-item card">
 
-              <!-- ===== ORIGINAL POST ===== -->
               <div v-if="post.type === 'post' || post.type === 'original'">
                 <div class="post-header">
                   <div class="post-author-info">
@@ -121,38 +122,25 @@
                     </div>
                   </div>
 
-                  <!-- menu icon -->
                   <div class="post-menu-wrapper">
                     <img src="../assets/menu.png" class="menu-post-icon" @click="toggleMenu(post._id)" />
                     <div v-if="openMenuId === post._id" class="dropdown-menu">
-                      <button v-if="isMyPost(post)" @click="editPost(post)">
-                        <img src="../assets/edit.png" class="menu-icon-left"/> Edit Post
-                      </button>
-                      <button v-if="!isMyPost(post)" @click="hideThisPost(post._id)">
-                        <img src="../assets/hide.png" class="menu-icon-left"/> Hide this Post
-                      </button>
-                      <button v-if="isMyPost(post)" @click="deletePost(post._id)" style="color: red">
-                        <img src="../assets/delete.png" class="menu-icon-left"/> Delete Post
-                      </button>
+                      <button v-if="isMyPost(post)" @click="editPost(post)"><img src="../assets/edit.png" class="menu-icon-left"/> Edit Post</button>
+                      <button v-if="!isMyPost(post)" @click="hideThisPost(post._id)"><img src="../assets/hide.png" class="menu-icon-left"/> Hide Post</button>
+                      <button v-if="isMyPost(post)" @click="deletePost(post._id)" style="color: red"><img src="../assets/delete.png" class="menu-icon-left"/> Delete Post</button>
                     </div>
                   </div>
                 </div>
 
-                <!-- Post Content with Show More/Less -->
                 <div v-if="post.content" class="post-content-wrapper">
                   <p class="post-text" :class="{ 'content-collapsed': shouldShowReadMore(post._id) && !expandedPosts[post._id] }">
                     {{ getDisplayedContent(post) }}
                   </p>
-                  <button 
-                    v-if="shouldShowReadMore(post._id)" 
-                    @click="togglePostContent(post._id)" 
-                    class="read-more-btn"
-                  >
+                  <button v-if="shouldShowReadMore(post._id)" @click="togglePostContent(post._id)" class="read-more-btn">
                     {{ expandedPosts[post._id] ? 'Show Less' : 'Show More' }}
                   </button>
                 </div>
 
-                <!-- Media -->
                 <div v-if="post.media" class="post-media">
                   <img v-if="post.mediaType === 'image'" :src="`http://localhost:3000/${post.media}`" class="post-image" />
                   <video v-else-if="post.mediaType === 'video'" controls class="post-video">
@@ -160,7 +148,6 @@
                   </video>
                 </div>
 
-                <!-- Rating Statistics -->
                 <div v-if="post.totalRatings > 0" class="rating-statistics">
                   <div class="rating-summary">
                     <div class="average-rating">
@@ -175,7 +162,6 @@
                   </div>
                 </div>
 
-                <!-- Post Stats -->
                 <div class="post-stats">
                   <span v-if="post.likes?.length > 0">{{ post.likes.length }} liked</span>
                   <span v-if="(post.commentCount || 0) + (post.replyCommentCount || 0) > 0">
@@ -185,307 +171,169 @@
                   <span v-if="getPostSaveCount(post) > 0">{{ getPostSaveCount(post) }} saved</span>
                 </div>
 
-                <!-- Actions -->
                 <div class="post-actions">
                   <button @click="toggleLike(post)">
-                    <img :src="isLiked(post) ? require('../assets/like.png') : require('../assets/unlike.png')" class="action-icon" />
-                    <span>Like</span>
+                    <img :src="isLiked(post) ? require('../assets/like.png') : require('../assets/unlike.png')" class="action-icon" /> <span>Like</span>
                   </button>
                   <button @click="openCommentModal(post)">
-                    <img src="../assets/comment.png" class="action-icon" />
-                    <span>Comment</span>
+                    <img src="../assets/comment.png" class="action-icon" /> <span>Comment</span>
                   </button>
                   <button @click="openShareModal(post)">
-                    <img src="../assets/share.png" class="action-icon" />
-                    <span>Share</span>
+                    <img src="../assets/share.png" class="action-icon" /> <span>Share</span>
                   </button>
                   <button @click="toggleSavePost(post)">
-                    <img :src="isSaved(post) ? require('../assets/saved.png') : require('../assets/save.png')" class="action-icon" />
-                    <span>{{ isSaved(post) ? 'Saved' : 'Save' }}</span>
+                    <img :src="isSaved(post) ? require('../assets/saved.png') : require('../assets/save.png')" class="action-icon" /> <span>{{ isSaved(post) ? 'Saved' : 'Save' }}</span>
                   </button>
                 </div>
               </div>
 
-              <!-- ===== SHARE POST ===== -->
               <div v-else-if="post.type === 'share'" class="shared-post">
-                <!-- Người chia sẻ -->
                 <div class="post-header">
                   <div class="post-author-info">
                     <img :src="getAvatarUrl(post.username)" alt="avatar" />
                     <div class="author-details">
                       <strong>{{ post.username?.firstname }} {{ post.username?.lastname }}</strong>
                       <p class="time">
-                        {{ formatTime(post.createdAt) }} • Shared a post
-                        <span v-if="post.audience === 'public'" title="Public">🌍</span>
-                        <span v-else-if="post.audience === 'friends'" title="Friends">👥</span>
-                        <span v-else-if="post.audience === 'private'" title="Private">🔒</span>
+                        {{ formatTime(post.createdAt) }} • Shared
+                        <span v-if="post.audience === 'public'">🌍</span>
+                        <span v-else-if="post.audience === 'friends'">👥</span>
+                        <span v-else-if="post.audience === 'private'">🔒</span>
                       </p>
                     </div>
                   </div>
-
-                  <!-- menu share -->
                   <div class="post-menu-wrapper">
                     <img src="../assets/menu.png" class="menu-post-icon" @click="toggleMenu(post._id)" />
                     <div v-if="openMenuId === post._id" class="dropdown-menu">
-                      <button v-if="isMyShare(post)" @click="editShare(post)">
-                        <img src="../assets/edit.png" class="menu-icon-left"/> Edit Share
-                      </button>
-                      <button v-if="!isMyShare(post)" @click="hideThisShare(post._id)">
-                        <img src="../assets/hide.png" class="menu-icon-left"/> Hide Share
-                      </button>
-                      <button v-if="isMyShare(post)" @click="deleteShare(post._id)" style="color: red">
-                        <img src="../assets/delete.png" class="menu-icon-left"/> Delete Share
-                      </button>
+                      <button v-if="isMyShare(post)" @click="editShare(post)"><img src="../assets/edit.png" class="menu-icon-left"/> Edit Share</button>
+                      <button v-if="!isMyShare(post)" @click="hideThisShare(post._id)"><img src="../assets/hide.png" class="menu-icon-left"/> Hide Share</button>
+                      <button v-if="isMyShare(post)" @click="deleteShare(post._id)" style="color: red"><img src="../assets/delete.png" class="menu-icon-left"/> Delete Share</button>
                     </div>
                   </div>
                 </div>
 
-                <!-- Share content with Show More/Less -->
                 <div v-if="post.content" class="post-content-wrapper">
                   <p class="post-text" :class="{ 'content-collapsed': shouldShowReadMore(post._id) && !expandedPosts[post._id] }">
                     <i>{{ getDisplayedContent(post) }}</i>
                   </p>
-                  <button 
-                    v-if="shouldShowReadMore(post._id)" 
-                    @click="togglePostContent(post._id)" 
-                    class="read-more-btn"
-                  >
+                  <button v-if="shouldShowReadMore(post._id)" @click="togglePostContent(post._id)" class="read-more-btn">
                     {{ expandedPosts[post._id] ? 'Show Less' : 'Show More' }}
                   </button>
                 </div>
 
-                <!-- ======= BÀI GỐC (bên trong share) ======= -->
                 <div class="shared-box">
                   <template v-if="post.post">
-                    <!-- Nếu viewer không được xem -->
                     <template v-if="post.canViewPost === false || !canViewSharedPost(post.post)">
                       <div class="restricted-post-warning">
                         <img :src="getAvatarUrl(post.post.author)" class="avatar-small" />
                         <div class="restricted-content">
                           <strong>{{ post.post.author.firstname }} {{ post.post.author.lastname }}</strong>
-                          <p class="time">
-                            {{ formatTime(post.post.createdAt) }}
-                            <span v-if="post.post.audience === 'public'">🌍</span>
-                            <span v-else-if="post.post.audience === 'friends'">👥</span>
-                            <span v-else-if="post.post.audience === 'private'">🔒</span>
-                          </p>
                           <p class="notice-message">{{ getPostAccessMessage(post.post) }}</p>
                         </div>
                       </div>
                     </template>
-
-                    <!-- Nếu được phép xem -->
                     <template v-else>
                       <div class="post-header">
                         <img :src="getAvatarUrl(post.post.author)" class="avatar-small" />
                         <div class="author-details">
                           <strong>{{ post.post.author.firstname }} {{ post.post.author.lastname }}</strong>
-                          <p class="time">
-                            {{ formatTime(post.post.createdAt) }}
-                            <span v-if="post.post.audience === 'public'">🌍</span>
-                            <span v-else-if="post.post.audience === 'friends'">👥</span>
-                            <span v-else-if="post.post.audience === 'private'">🔒</span>
-                          </p>
+                          <p class="time">{{ formatTime(post.post.createdAt) }}</p>
                         </div>
                       </div>
-                      
-                      <!-- Original post content with Show More/Less -->
                       <div v-if="post.post.content" class="post-content-wrapper">
                         <p :class="{ 'content-collapsed': shouldShowReadMore(post.post._id) && !expandedPosts[post.post._id] }">
                           {{ getDisplayedContent(post.post) }}
                         </p>
-                        <button 
-                          v-if="shouldShowReadMore(post.post._id)" 
-                          @click="togglePostContent(post.post._id)" 
-                          class="read-more-btn"
-                        >
+                        <button v-if="shouldShowReadMore(post.post._id)" @click="togglePostContent(post.post._id)" class="read-more-btn">
                           {{ expandedPosts[post.post._id] ? 'Show Less' : 'Show More' }}
                         </button>
                       </div>
-                      
                       <div v-if="post.post.media">
                         <img v-if="post.post.mediaType === 'image'" :src="`http://localhost:3000/${post.post.media}`" class="post-image" />
-                        <video v-else controls class="post-video">
-                          <source :src="`http://localhost:3000/${post.post.media}`" type="video/mp4" />
-                        </video>
+                        <video v-else controls class="post-video"><source :src="`http://localhost:3000/${post.post.media}`" type="video/mp4" /></video>
                       </div>
-
-                      <!-- Actions -->
                       <div class="post-actions">
-                        <button @click="openCommentModal(post.post)">
-                          <img src="../assets/arrow.png" class="action-icon" />
-                          <span>Open Origin Post</span>
-                        </button>
+                        <button @click="openCommentModal(post.post)"><img src="../assets/arrow.png" class="action-icon" /> <span>Open Origin Post</span></button>
                       </div>
                     </template>
                   </template>
-
-                  <!-- Nếu bài gốc đã xoá -->
                   <template v-else>
-                    <div class="restricted-post-warning">
-                      <p class="notice-message">This post is deleted</p>
-                    </div>
+                    <div class="restricted-post-warning"><p class="notice-message">This post is deleted</p></div>
                   </template>
                 </div>
               </div>
+
             </div>
           </div>
-
-          <!-- Nếu không có bài -->
+          
           <p v-else class="no-posts">No Posts</p>
+        </main>
+      </template>
+
+      <template v-else-if="activeTab === 'about'">
+        <div class="about-container-modern">
+          <div class="about-card">
+            <h2>About Me</h2>
+            <div class="bio-large">{{ user.bio || "No bio yet." }}</div>
+            <div class="details-grid">
+              <div class="detail-box"><span class="label">Email</span><span class="value">{{ user.email }}</span></div>
+              <div class="detail-box"><span class="label">Username</span><span class="value">@{{ user.username }}</span></div>
+              <div class="detail-box"><span class="label">Gender</span><span class="value">{{ formatGender(user.gender) }}</span></div>
+              <div class="detail-box"><span class="label">Birthday</span><span class="value">{{ formatBirthday(user.birthday) }}</span></div>
+              <div class="detail-box"><span class="label">Joined date</span><span class="value">{{ joinDateFormatted }}</span></div>
+              <div class="detail-box"><span class="label">Location</span><span class="value">{{ user.location }}</span></div>
+            </div>
+          </div>
         </div>
       </template>
 
-      <!-- ========== TAB: ABOUT ========== -->
-    <template v-else-if="activeTab === 'about'">
-      <div class="about-page">
-        <div class="card">
-          <h2>About</h2>
-          
-          <!-- Basic Information -->
-          <div class="info-section">
-            <h3>Basic Information</h3>
-            <div class="info-item">
-              <strong>Full Name:</strong>
-              <span>{{ user.firstname }} {{ user.lastname }}</span>
+      <template v-else-if="activeTab === 'photos'">
+        <div class="photos-container-modern" style="grid-column: 1 / -1;">
+          <div class="card">
+            <h2>Photos</h2>
+            
+            <div v-if="postsWithImages.length > 0" class="photos-grid-large">
+              <div 
+                v-for="post in postsWithImages" 
+                :key="post._id" 
+                class="photo-card"
+                @click="openCommentModal(post)"
+              >
+                <img :src="`http://localhost:3000/${post.media}`" class="photo-large"/>
+                
+                <div class="photo-overlay">
+                  <div class="overlay-stat">
+                    <span>❤️</span> {{ post.likes?.length || 0 }}
+                  </div>
+                  <div class="overlay-stat">
+                    <span>💬</span> {{ (post.commentCount || 0) + (post.replyCommentCount || 0) }}
+                  </div>
+                </div>
+              </div>
             </div>
-            <div class="info-item">
-              <strong>Email:</strong>
-              <span>{{ user.email || 'Not updated' }}</span>
-            </div>
-            <div class="info-item">
-              <strong>Username:</strong>
-              <span>@{{ user.username }}</span>
-            </div>
-            <div class="info-item">
-              <strong>Gender:</strong>
-              <span>{{ formatGender(user.gender) || 'Not specified' }}</span>
-            </div>
-            <div class="info-item">
-              <strong>Birthday:</strong>
-              <span>{{ user.birthday ? formatBirthday(user.birthday) : 'Not specified' }}</span>
-            </div>
-            <div class="info-item">
-              <strong>Location:</strong>
-              <span>{{ user.location || 'Not specified' }}</span>
-            </div>
-            <div class="info-item">
-              <strong>Joined Date:</strong>
-              <span>{{ joinDateFormatted }}</span>
-            </div>
-            <div class="info-item">
-              <strong>Friends:</strong>
-              <span>{{ user.friends?.length || 0 }} people</span>
-            </div>
-          </div>
 
-          <!-- About Me / Bio -->
-          <div class="info-section">
-            <h3>About Me</h3>
-            <div class="bio-section">
-              <p v-if="user.bio" class="bio-content">{{ user.bio }}</p>
-              <p v-else class="bio-content empty">No bio added yet</p>
-            </div>
-          </div>
-
-          <!-- Activity Statistics -->
-          <div class="info-section">
-            <h3>Activity</h3>
-            <div class="info-item">
-              <strong>Total Posts:</strong>
-              <span>{{ userPosts.length }} posts</span>
-            </div>
-            <div class="info-item">
-              <strong>Posts with Images:</strong>
-              <span>{{ postsWithImages.length }} posts</span>
+            <div v-else class="empty-state">
+              <p>No photos to show.</p>
             </div>
           </div>
         </div>
-      </div>
-    </template>
+      </template>
 
-      <!-- ========== TAB: BẠN BÈ ========== -->
       <template v-else-if="activeTab === 'friends'">
-        <div class="friends-page">
-          <div class="card">
-            <div class="friends-header">
-              <h2>Bạn bè</h2>
-              <p class="friends-count-large">{{ user.friends?.length || 0 }} người bạn</p>
-            </div>
-
-            <div v-if="user.friends?.length" class="friends-grid-large">
-              <div v-for="friend in user.friends" :key="friend._id" class="friend-card">
-                <img :src="`http://localhost:3000/${friend.avatar}`" class="friend-avatar-large" />
-                <div class="friend-info">
-                  <strong>{{ friend.firstname }} {{ friend.lastname }}</strong>
-                  <p class="friend-mutual">{{ friend.mutualFriends || 0 }} bạn chung</p>
-                </div>
-                <button class="btn-message">Nhắn tin</button>
-              </div>
-            </div>
-            
-            <div v-else class="no-friends-large">
-              <p>Bạn chưa có bạn bè nào</p>
-              <button @click="$router.push('/friend')" class="btn btn-primary">
-                Tìm bạn bè
-              </button>
-            </div>
+        <div class="friends-container-modern">
+          <div v-for="friend in user.friends" :key="friend._id" class="friend-card-modern">
+            <img :src="getAvatarUrl(friend)" />
+            <div class="info"><h4>{{ friend.firstname }} {{ friend.lastname }}</h4><button>Message</button></div>
           </div>
         </div>
       </template>
     </div>
 
-    <!-- Modals -->
-    <CreatePostModal
-      v-if="createPostModalVisible"
-      :is-visible="createPostModalVisible"
-      :user="user"
-      @close="closeCreatePostModal"
-      @posted="handlePostCreated"
-    />
-
-    <ConfirmDialog
-      v-if="confirmVisible"
-      :message="confirmMessage"
-      @confirm="handleConfirmedDelete"
-      @cancel="confirmVisible = false"
-    />
-
-    <EditPostModal
-      v-if="editModalVisible"
-      :is-visible="editModalVisible"
-      :post="editPostData"
-      :user="user"
-      @close="closeEditModal"
-      @updated="handlePostUpdated"
-    />
-
-    <CommentModal
-      v-if="commentModalVisible"
-      :is-visible="commentModalVisible"
-      :post="selectedPost"
-      :user="user"
-      @close="closeCommentModal"
-      @liked="handlePostLiked"
-      @share="openShareModal"
-      @comment-count-updated="handleCommentCountUpdated"
-      @rating-updated="handleRatingUpdated"
-    />
-
-    <ShareModal
-      v-if="shareModalVisible"
-      :post="sharedPost"
-      :user="user"
-      @close="closeShareModal"
-      @shared="handlePostShared"
-    />
-
-    <EditShareModal
-      v-if="showEditShareModal"
-      :share="editedShare"
-      @close="showEditShareModal = false"
-      @updated="fetchUserPosts"
-    />
+    <CreatePostModal v-if="createPostModalVisible" :is-visible="createPostModalVisible" :user="user" @close="closeCreatePostModal" @posted="handlePostCreated" />
+    <ConfirmDialog v-if="confirmVisible" :message="confirmMessage" @confirm="handleConfirmedDelete" @cancel="confirmVisible = false" />
+    <EditPostModal v-if="editModalVisible" :is-visible="editModalVisible" :post="editPostData" :user="user" @close="closeEditModal" @updated="handlePostUpdated" />
+    <CommentModal v-if="commentModalVisible" :is-visible="commentModalVisible" :post="selectedPost" :user="user" @close="closeCommentModal" @liked="handlePostLiked" @share="openShareModal" @comment-count-updated="handleCommentCountUpdated" @rating-updated="handleRatingUpdated" />
+    <ShareModal v-if="shareModalVisible" :post="sharedPost" :user="user" @close="closeShareModal" @shared="handlePostShared" />
+    <EditShareModal v-if="showEditShareModal" :share="editedShare" @close="showEditShareModal = false" @updated="fetchUserPosts" />
   </div>
 </template>
 
@@ -525,7 +373,8 @@ export default {
       tabs: [
         { id: "posts", label: "Posts" },
         { id: "about", label: "About" },
-        { id: "friends", label: "Friends" }
+        { id: "friends", label: "Friends" },
+        { id: "photos", label: "Photos" }
       ],
       defaultAvatar: "uploads/user.png",
       defaultCover: "uploads/cover.png",
@@ -998,7 +847,17 @@ export default {
       }
       
       return post.content;
+    },
+
+    switchTab(tabId) {
+    this.activeTab = tabId;
+    // Cuộn nhẹ lên phần menu nav để người dùng biết đã chuyển tab
+    const navElement = this.$el.querySelector('.profile-nav') || this.$el.querySelector('.nav-wrapper');
+    if (navElement) {
+      navElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
+  }
+
   },
   mounted() {
     this.fetchUserProfile();
@@ -1008,842 +867,248 @@ export default {
 };
 </script>
 
-
-
-
 <style scoped>
-/* ===== General Profile Layout ===== */
-.profile-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  background: #f0f2f5;
+/* --- 1. GLOBAL & HEADER NEW STYLE --- */
+:root {
+  --primary-color: #6366f1;
+  --bg-color: #f3f4f6;
+}
+
+.profile-wrapper {
+  background-color: #f3f4f6;
   min-height: 100vh;
-  font-family: Arial, sans-serif;
+  font-family: 'Inter', sans-serif;
+  padding-bottom: 60px;
 }
 
-/* ===== Cover Section ===== */
-.cover-section {
+/* HEADER GLASSMORPHISM */
+.profile-header {
   background: white;
-  border-radius: 0 0 8px 8px;
-  overflow: hidden;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  margin-bottom: 16px;
-}
-
-.cover-photo {
+  padding-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
   position: relative;
-  height: 360px;
+  margin-bottom: 20px;
 }
 
-.cover-image {
+.cover-container {
+  height: 350px;
+  position: relative;
+  overflow: hidden;
+}
+.cover-image { width: 100%; height: 100%; object-fit: cover; }
+.cover-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(to bottom, transparent 70%, rgba(0,0,0,0.5)); }
+.edit-cover { position: absolute; bottom: 20px; right: 30px; z-index: 5; }
+
+.user-identity-card {
+  display: flex; flex-direction: column; align-items: center;
+  margin-top: -75px; position: relative; z-index: 10; padding: 0 20px;
+}
+.avatar-wrapper { position: relative; }
+.profile-avatar {
+  width: 160px; height: 160px; border-radius: 50%; border: 5px solid white;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15); object-fit: cover; background: white;
+}
+.edit-avatar {
+  position: absolute; bottom: 10px; right: 10px; background: #f3f4f6; border: 2px solid white;
+  width: 36px; height: 36px; border-radius: 50%; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; font-size: 18px;
+}
+
+.identity-content { text-align: center; margin-top: 12px; max-width: 700px; }
+.user-name { font-size: 32px; font-weight: 800; color: #111827; margin: 0 0 4px 0; }
+.user-bio-short { color: #6b7280; margin: 0 auto 20px; font-size: 16px; }
+
+.stats-row {
+  display: inline-flex; justify-content: center; align-items: center; gap: 24px;
+  margin-bottom: 24px; background: white; padding: 12px 32px;
+  border-radius: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); border: 1px solid #f3f4f6;
+}
+.stat-item { text-align: center; display: flex; flex-direction: column; }
+.stat-val { font-weight: 800; font-size: 20px; color: #111827; }
+.stat-label { font-size: 12px; color: #9ca3af; text-transform: uppercase; font-weight: 600; }
+.stat-divider { width: 1px; height: 30px; background: #e5e7eb; }
+.action-buttons { display: flex; gap: 12px; justify-content: center; }
+
+/* BUTTONS NEW */
+.btn-glass { background: rgba(255, 255, 255, 0.25); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.4); color: white; padding: 10px 20px; border-radius: 12px; cursor: pointer; font-weight: 600; }
+.btn-primary-gradient { background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: white; border: none; padding: 10px 28px; border-radius: 24px; font-weight: 600; cursor: pointer; }
+.btn-glass-dark { background: white; color: #374151; border: 1px solid #e5e7eb; padding: 10px 24px; border-radius: 24px; font-weight: 600; cursor: pointer; }
+
+/* NAV NEW */
+.nav-wrapper { display: flex; justify-content: center; margin-bottom: 32px; position: sticky; top: 60px; z-index: 90; padding: 10px 0; }
+.glass-nav { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(16px); padding: 6px; border-radius: 100px; display: flex; gap: 6px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); border: 1px solid rgba(255,255,255,0.6); }
+.nav-pill { padding: 10px 28px; border-radius: 40px; border: none; background: transparent; color: #6b7280; font-weight: 600; cursor: pointer; transition: all 0.3s; }
+.nav-pill.active { background: #111827; color: white; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+
+/* MAIN LAYOUT */
+.main-layout { display: grid; grid-template-columns: 360px 1fr; gap: 28px; max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+.layout-sidebar { position: sticky; top: 130px; height: fit-content; display: flex; flex-direction: column; gap: 24px; }
+
+/* WIDGETS NEW */
+.widget-card { background: white; border-radius: 20px; padding: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); border: 1px solid rgba(243, 244, 246, 0.8); }
+.widget-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.widget-header h3 { font-size: 18px; font-weight: 800; margin: 0; color: #111827; }
+.see-all { color: #6366f1; font-size: 14px; font-weight: 600; cursor: pointer; }
+.info-row { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; color: #4b5563; font-size: 15px; }
+.mini-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; border-radius: 12px; overflow: hidden; }
+.mini-photo img { width: 100%; aspect-ratio: 1; object-fit: cover; cursor: pointer; }
+.mini-grid-friends { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.mini-friend { text-align: center; cursor: pointer; }
+.mini-friend img { width: 100%; aspect-ratio: 1; border-radius: 12px; object-fit: cover; margin-bottom: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+.friend-name-mini { font-size: 12px; font-weight: 600; display: block; color: #374151; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* --- 2. CLASSIC FEED STYLES (RESTORED FROM OLD CODE) --- */
+
+/* Create Post Box */
+.create-post {
+  background: white; padding: 15px; border-radius: 10px; margin-bottom: 20px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1); /* Thêm shadow nhẹ cho hợp với nền mới */
+}
+.create-post input {
+  width: 100%; padding: 12px; font-size: 15px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box;
+  background: #f9fafb; /* Nền input hơi xám nhẹ */
+}
+
+/* Post Item */
+.post-item {
+  background: white; padding: 15px; border-radius: 10px; margin-bottom: 20px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+/* Post Header */
+/* Tìm đoạn này trong <style scoped> */
+.post-header {
+  display: flex;
+  align-items: center;
+  
+  /* SỬA DÒNG NÀY: Chuyển từ space-between (hoặc mặc định) thành flex-start */
+  justify-content: flex-start !important; 
+  
+  /* Thêm khoảng cách giữa Avatar và Tên */
+  gap: 12px; 
+  
+  margin-bottom: 12px;
+}
+.post-author-info { display: flex; align-items: flex-start; flex: 1; gap: 10px; }
+.post-author-info img, .avatar-small { width: 40px; height: 40px; border-radius: 50%; margin-right: 0px; object-fit: cover; flex-shrink: 0; }
+.author-details { display: flex; flex-direction: column; justify-content: center; min-width: 0; }
+.author-details strong { font-size: 15px; font-weight: 600; color: #1c1e21; line-height: 1.2; }
+.author-details .time { font-size: 12px; color: #65676b; margin-top: 2px; line-height: 1.2; }
+
+/* Menu Dropdown */
+.post-menu-wrapper { position: relative; display: flex; align-items: center; }
+.menu-post-icon { width: 24px; height: 24px; cursor: pointer; padding: 8px; border-radius: 50%; transition: background 0.2s; }
+.menu-post-icon:hover { background: #f0f2f5; }
+.dropdown-menu { position: absolute; top: 40px; right: 0; background: white; border: 1px solid #ccc; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); z-index: 1000; min-width: 240px; }
+.dropdown-menu button { display: block; width: 100%; padding: 12px 16px; background: none; border: none; text-align: left; cursor: pointer; font-size: 15px; }
+.dropdown-menu button:hover { background-color: #f0f2f5; }
+.menu-icon-left { width: 20px; height: 20px; margin-right: 10px; vertical-align: middle; }
+
+/* Content */
+.post-content-wrapper { margin: 10px 0; }
+.post-text { margin: 10px 0; font-size: 14px; white-space: pre-line; word-wrap: break-word; color: #1c1e21; line-height: 1.4; }
+.read-more-btn { background: none; border: none; color: #1877f2; font-weight: 600; font-size: 14px; cursor: pointer; padding: 4px 0; }
+/* ===== Post Media ===== */
+/* Giữ nguyên cho container và ảnh */
+.post-media,
+.post-image {
+  width: 100%;
+  border-radius: 10px;
+  margin-top: 10px;
+}
+
+/* CSS MỚI RIÊNG CHO VIDEO ĐỂ TẠO KHUNG VUÔNG GỌN GÀNG */
+.post-video {
+  width: 100%;
+  height:100%;
+  /* aspect-ratio: 1 / 1; giúp tạo khung hình vuông */
+  aspect-ratio: 1 / 1; 
+  
+  /* object-fit: contain; đảm bảo video hiển thị đầy đủ không bị cắt, 
+     nếu tỷ lệ video khác vuông sẽ có viền đen trên dưới hoặc 2 bên */
+  object-fit: cover;
+  
+  background-color: black; /* Nền đen cho phần viền thừa (nếu có) */
+  border-radius: 10px;
+  margin-top: 10px;
+  
+  /* Đảm bảo chiều cao không vượt quá khung vuông */
+  height: auto; 
+  max-height: 500px; /* Giới hạn chiều cao tối đa nếu màn hình quá rộng */
+}
+
+/* Rating */
+.rating-statistics { background: linear-gradient(135deg, #fff9e6 0%, #ffe9b8 100%); border: 1px solid #ffd966; border-radius: 12px; padding: 12px 16px; margin: 12px 0; }
+.rating-summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.average-rating { display: flex; align-items: center; gap: 8px; }
+.rating-number { font-size: 28px; font-weight: bold; color: #f57c00; }
+.stars-display { display: flex; gap: 2px; }
+.star-icon { font-size: 18px; color: #ddd; }
+.star-icon.filled { color: #ffc107; }
+.rating-count { font-size: 14px; color: #856404; font-weight: 600; }
+
+/* Stats & Actions */
+.post-stats { display: flex; gap: 16px; margin: 16px 0 12px 0; font-size: 14px; color: #65676b; }
+.post-actions { display: flex; justify-content: space-around; margin-top: 10px; border-top: 1px solid #ddd; padding-top: 10px; }
+.post-actions button { background: none; border: none; color: #555; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 6px; flex: 1; justify-content: center; padding: 8px; border-radius: 6px; transition: all 0.2s; }
+.post-actions button:hover { background: #f2f2f2; }
+.action-icon { width: 20px; height: 20px; }
+
+/* Shared Post */
+.shared-post { background-color: #f5f5f5; border: 1px solid #ddd; padding: 10px; border-radius: 10px; }
+.shared-box { background: white; padding: 10px; border-left: 3px solid #ccc; margin-top: 10px; border-radius: 6px; white-space: pre-line; }
+.restricted-post-warning { display: flex; align-items: flex-start; gap: 8px; padding: 16px; background: #fef2f2; border-radius: 12px; margin-top: 16px; }
+.notice-message { color: #555; font-style: italic; margin-top: 4px; }
+
+/* Other Tabs (About/Friends) - NEW STYLE */
+.about-container-modern { grid-column: 1 / -1; }
+.about-card { background: white; border-radius: 24px; padding: 40px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); }
+.about-card h2 { font-size: 24px; font-weight: 800; margin-bottom: 32px; }
+.bio-large { font-size: 20px; color: #374151; margin-bottom: 40px; background: #f9fafb; padding: 24px; border-radius: 16px; border-left: 4px solid #6366f1; }
+.details-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; }
+.detail-box { background: #ffffff; border: 1px solid #e5e7eb; padding: 20px; border-radius: 16px; }
+.detail-box .label { display: block; font-size: 12px; color: #9ca3af; margin-bottom: 6px; font-weight: 700; text-transform: uppercase; }
+.detail-box .value { font-size: 16px; font-weight: 600; color: #111827; }
+
+.friends-container-modern { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; }
+.friend-card-modern { background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.03); text-align: center; padding-bottom: 20px; border: 1px solid rgba(243, 244, 246, 0.8); }
+.friend-card-modern img { width: 100%; height: 220px; object-fit: cover; }
+.friend-card-modern .info { padding: 16px; }
+.friend-card-modern h4 { margin: 0 0 12px; font-size: 18px; font-weight: 700; }
+.friend-card-modern button { background: #e0e7ff; color: #4f46e5; border: none; padding: 8px 24px; border-radius: 30px; font-weight: 600; cursor: pointer; }
+
+.photos-grid-large {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.photo-card {
+  border-radius: 12px;
+  overflow: hidden;
+  aspect-ratio: 1 / 1;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.photo-card:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.photo-large {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.edit-cover-btn {
-  position: absolute;
-  bottom: 16px;
-  right: 16px;
-  background: rgba(255,255,255,0.9);
-  border: none;
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-/* ===== Profile Info ===== */
-.profile-info-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  padding: 16px 24px;
-  position: relative;
-}
-
-.profile-main-info {
-  display: flex;
-  align-items: flex-end;
-  gap: 16px;
-}
-
-.avatar-container {
-  position: relative;
-  margin-top: -50px;
-}
-
-.profile-avatar {
-  width: 168px;
-  height: 168px;
-  border-radius: 50%;
-  border: 4px solid white;
-  object-fit: cover;
-}
-
-.edit-avatar-btn {
-  position: absolute;
-  bottom: 8px;
-  right: 8px;
-  background: #e4e6ea;
-  border: none;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.user-info {
-  padding-bottom: 8px;
-}
-
-.user-name {
-  font-size: 28px;
-  font-weight: bold;
-  margin: 0;
-  color: #1c1e21;
-}
-
-.friends-count {
-  color: #65676b;
-  margin: 4px 0;
-  font-size: 15px;
-}
-
-/* ===== Profile Actions ===== */
-.profile-actions {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.btn {
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-  border: none;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.btn-primary {
-  background: #1877f2;
-  color: white;
-}
-
-.btn-secondary,
-.btn-icon {
-  background: #e4e6ea;
-  color: #1c1e21;
-}
-
-.btn-icon {
-  padding: 8px;
-  width: 36px;
-  height: 36px;
-  justify-content: center;
-}
-
-/* ===== Navigation Tabs ===== */
-.profile-nav {
-  background: white;
-  border-top: 1px solid #dadde1;
-  border-bottom: 1px solid #dadde1;
-}
-
-.nav-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  display: flex;
-}
-
-.nav-tabs {
-  display: flex;
-}
-
-.nav-tab {
-  background: none;
-  border: none;
-  padding: 16px 24px;
-  font-weight: 600;
-  color: #65676b;
-  cursor: pointer;
-  border-bottom: 3px solid transparent;
-  transition: all 0.2s;
-}
-
-.nav-tab.active {
-  color: #1877f2;
-  border-bottom-color: #1877f2;
-}
-
-.nav-tab:hover {
-  background: #f2f2f2;
-}
-
-/* ===== Main Content Layout ===== */
-.profile-content {
-  display: grid;
-  grid-template-columns: 360px 1fr;
-  gap: 16px;
-  padding: 16px 24px;
-}
-
-/* Single column layout for About and Friends tabs */
-.about-page,
-.friends-page {
-  grid-column: 1 / -1;
-}
-
-.card {
-  background: white;
-  border-radius: 8px;
-  padding: 16px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  margin-bottom: 16px;
-}
-
-/* ===== Photos Section ===== */
-.photos-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 4px;
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.photo-item img {
-  width: 100%;
-  height: 100px;
-  object-fit: cover;
-  cursor: pointer;
-}
-
-/* ===== Friends Section ===== */
-.friends-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
-}
-
-.friend-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px;
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.friend-item:hover {
-  background: #f2f2f2;
-}
-
-.friend-item img {
-  width: 60px;
-  height: 60px;
-  border-radius: 8px;
-  object-fit: cover;
-}
-
-/* ===== Create Post ===== */
-.create-post {
-  background: white;
-  padding: 15px;
-  border-radius: 10px;
-  margin-bottom: 20px;
-}
-
-.create-post input {
-  width: 95%;
-  padding: 12px;
-  font-size: 15px;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-}
-
-/* ===== Post Item ===== */
-.post-item {
-  background: white;
-  padding: 15px;
-  border-radius: 10px;
-  margin-bottom: 20px;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-}
-
-.post-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  position: relative;
-  margin-bottom: 12px;
-}
-
-.post-author-info {
-  display: flex;
-  align-items: flex-start;
-  flex: 1;
-  gap: 10px;
-}
-
-.post-author-info img {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  margin-right: 0px;
-  object-fit: cover;
-  flex-shrink: 0;
-}
-
-.author-details {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  min-width: 0;
-}
-
-.author-details strong {
-  font-size: 15px;
-  font-weight: 600;
-  color: #1c1e21;
-  line-height: 1.2;
-}
-
-.author-details .time {
-  font-size: 12px;
-  color: #65676b;
-  margin-top: 2px;
-  line-height: 1.2;
-}
-
-/* ===== Post Content ===== */
-.post-content-wrapper {
-  margin: 10px 0;
-}
-
-.post-text {
-  margin: 10px 0;
-  font-size: 14px;
-  white-space: pre-line;
-  word-wrap: break-word;
-  color: #1c1e21;
-  line-height: 1.4;
-}
-
-.content-collapsed {
-  position: relative;
-  max-height: none;
-  overflow: hidden;
-}
-
-.read-more-btn {
-  background: none;
-  border: none;
-  color: #1877f2;
-  font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
-  padding: 4px 0;
-  margin-top: 4px;
-  display: inline-block;
-  transition: all 0.2s ease;
-  font-style: italic;
-  font-weight: lighter;
-}
-
-.read-more-btn:hover {
-  color: #166fe5;
-  text-decoration: underline;
-}
-
-/* ===== Post Media ===== */
-.post-media,
-.post-image,
-.post-video {
-  width: 100%;
-  border-radius: 10px;
-  margin-top: 10px;
-}
-
-/* ===== Rating Statistics ===== */
-.rating-statistics {
-  background: linear-gradient(135deg, #fff9e6 0%, #ffe9b8 100%);
-  border: 1px solid #ffd966;
-  border-radius: 12px;
-  padding: 12px 16px;
-  margin: 12px 0;
-}
-
-.rating-summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.average-rating {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.rating-number {
-  font-size: 28px;
-  font-weight: bold;
-  color: #f57c00;
-}
-
-.stars-display {
-  display: flex;
-  gap: 2px;
-}
-
-.star-icon {
-  font-size: 18px;
-  color: #ddd;
-}
-
-.star-icon.filled {
-  color: #ffc107;
-}
-
-.rating-count {
-  font-size: 14px;
-  color: #856404;
-  font-weight: 600;
-}
-
-/* ===== Post Stats ===== */
-.post-stats {
-  display: flex;
-  gap: 16px;
-  margin: 16px 0 12px 0;
-  font-size: 14px;
-  color: #65676b;
-}
-
-/* ===== Post Actions ===== */
-.post-actions {
-  display: flex;
-  justify-content: space-around;
-  margin-top: 10px;
-  border-top: 1px solid #ddd;
-  padding-top: 10px;
-}
-
-.post-actions button {
-  background: none;
-  border: none;
-  color: #555;
-  cursor: pointer;
-  font-weight: bold;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex: 1;
-  justify-content: center;
-  padding: 8px;
-  border-radius: 6px;
-  transition: all 0.2s;
-}
-
-.post-actions button:hover {
-  color: #1877f2;
-}
-
-.action-icon {
-  width: 20px;
-  height: 20px;
-}
-
-/* ===== Shared Post ===== */
-.shared-post {
-  background-color: #f5f5f5;
-  border: 1px solid #ddd;
-  padding: 10px;
-  border-radius: 10px;
-}
-
-.shared-box {
-  background: white;
-  padding: 10px;
-  border-left: 3px solid #ccc;
-  margin-top: 10px;
-  border-radius: 6px;
-  white-space: pre-line;
-}
-
-.shared-box .post-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
-  justify-content: flex-start;
-}
-
-.shared-box .post-author-info img,
-.shared-box img.avatar-small {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  object-fit: cover;
-  flex-shrink: 0;
-  margin-right: 0;
-}
-
-.shared-box .author-details {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  justify-content: center;
-  min-width: 0;
-}
-
-.shared-box .author-details strong {
-  font-size: 14px;
-  font-weight: 600;
-  color: #1c1e21;
-  margin: 0;
-  line-height: 1.2;
-}
-
-.shared-box .author-details .time {
-  font-size: 12px;
-  color: #65676b;
-  margin: 0;
-  line-height: 1.2;
-}
-
-/* ===== Restricted Warning ===== */
-.restricted-post-warning {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 16px;
-  background: #fef2f2;
-  border-radius: 12px;
-  border: 1px solid #fef2f2;
-  margin-top: 16px;
-  box-shadow: 0 2px 6px rgba(255, 193, 7, 0.1);
-}
-
-.restricted-post-warning .avatar-small,
-.restricted-post-warning img {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  object-fit: cover;
-  flex-shrink: 0;
-  border: 2px solid #fff;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-}
-
-.restricted-content {
-  flex: 1;
-  min-width: 0;
-}
-
-.restricted-content strong {
-  font-size: 14px;
-  font-weight: 600;
-  color: #1c1e21;
-  margin: 0 0 4px 0;
-  display: block;
-}
-
-.restricted-content .time {
-  font-size: 12px;
-  color: #6c757d;
-  margin: 0 0 8px 0;
-  font-weight: 500;
-}
-
-.notice-message {
-  color: #555;
-  font-style: italic;
-  font-size: 14px;
-  margin-top: 4px;
-}
-
-/* ===== Menu Dropdown ===== */
-.post-menu-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.menu-post-icon {
-  width: 24px;
-  height: 24px;
-  cursor: pointer;
-  padding: 8px;
-  border-radius: 50%;
-  transition: background 0.2s;
-}
-
-.menu-post-icon:hover {
-  background: #f0f2f5;
-}
-
-.dropdown-menu {
-  position: absolute;
-  top: 40px;
-  right: 0;
-  background: white;
-  border: 1px solid #ccc;
-  border-radius: 10px;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-  z-index: 1000;
-  min-width: 240px;
-}
-
-.dropdown-menu button {
-  display: block;
-  width: 100%;
-  padding: 12px 16px;
-  background: none;
-  border: none;
-  text-align: left;
-  cursor: pointer;
-  font-size: 15px;
-}
-
-.dropdown-menu button:hover {
-  background-color: #f0f2f5;
-}
-
-.menu-icon-left {
-  width: 20px;
-  height: 20px;
-  margin-right: 10px;
-  vertical-align: middle;
-}
-
-/* ===== Empty States ===== */
-.no-posts,
-.no-friends {
-  text-align: center;
-  color: #65676b;
-  padding: 40px 20px;
-  font-style: italic;
-}
-
-/* ===== About Page ===== */
-.about-page {
-  width: 100%;
-  max-width: 100%;
-  margin: 0;
-  padding: 0;
-}
-
-.about-page .card {
-  padding: 24px;
-  margin: 0 auto;
-  max-width: 1100px;
-}
-
-.about-page .card h2 {
-  font-size: 24px;
-  font-weight: bold;
-  margin-bottom: 24px;
-  padding-bottom: 16px;
-  border-bottom: 2px solid #e4e6eb;
-  color: #1c1e21;
-}
-
-.info-section {
-  margin: 32px 0;
-  padding: 0;
-}
-
-.info-section:first-of-type {
-  margin-top: 0;
-}
-
-.info-section h3 {
-  font-size: 18px;
-  font-weight: bold;
-  margin-bottom: 20px;
-  color: #1c1e21;
-  background: #f7f8fa;
-  padding: 12px 16px;
-  border-radius: 8px;
-}
-
-.info-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 0;
-  font-size: 15px;
-  border-bottom: 1px solid #e4e6eb;
-}
-
-.info-item:last-child {
-  border-bottom: none;
-}
-
-.info-item strong {
-  color: #65676b;
-  font-weight: 600;
-  font-size: 15px;
-}
-
-.info-item span {
-  color: #1c1e21;
-  text-align: right;
-  font-weight: 500;
-  font-size: 15px;
-}
-
-/* Bio Section in About Page */
-.bio-section {
-  padding: 16px 0;
-}
-
-.bio-content {
-  color: #1c1e21;
-  font-size: 15px;
-  line-height: 1.6;
-  white-space: pre-line;
-  word-wrap: break-word;
-}
-
-.bio-content.empty {
-  color: #65676b;
-  font-style: italic;
-}
-/* ===== Friends Page ===== */
-.friends-page {
-  width: 100%;
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 0 16px;
-}
-
-.friends-page .card {
-  padding: 24px;
-}
-
-.friends-header {
-  margin-bottom: 24px;
-  padding-bottom: 20px;
-  border-bottom: 2px solid #e4e6eb;
-}
-
-.friends-header h2 {
-  font-size: 24px;
-  font-weight: bold;
-  margin-bottom: 8px;
-  color: #1c1e21;
-}
-
-.friends-count-large {
-  font-size: 15px;
-  color: #65676b;
-  margin: 0;
-  font-weight: 500;
-}
-
-.friends-grid-large {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  margin-top: 20px;
-}
-
-.friend-card {
-  display: flex;
-  align-items: center;
-  padding: 16px;
-  background: white;
-  border: 1px solid #e4e6eb;
-  border-radius: 8px;
-  gap: 12px;
-  transition: all 0.2s;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-}
-
-.friend-card:hover {
-  background: #f7f8fa;
-  border-color: #d0d4da;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  transform: translateY(-2px);
-}
-
-.friend-avatar-large {
-  width: 80px;
-  height: 80px;
-  border-radius: 8px;
-  object-fit: cover;
-  flex-shrink: 0;
-}
-
-.friend-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.friend-info strong {
-  font-size: 15px;
-  font-weight: 600;
-  display: block;
-  margin-bottom: 6px;
-  color: #1c1e21;
-}
-
-.friend-mutual {
-  font-size: 13px;
-  color: #65676b;
-  margin: 0;
-}
-
-.btn-message {
-  background: #e4e6eb;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-  font-size: 14px;
-  color: #1c1e21;
-  transition: all 0.2s;
-}
-
-.btn-message:hover {
-  background: #d8dadf;
-}
-
-.no-friends-large {
-  text-align: center;
-  padding: 80px 20px;
-  background: #f7f8fa;
-  border-radius: 8px;
-  margin-top: 20px;
-}
-
-.no-friends-large p {
-  font-size: 17px;
-  color: #65676b;
-  margin-bottom: 20px;
-  font-weight: 500;
-}
-
-.no-friends-large .btn {
-  padding: 10px 24px;
-  font-size: 15px;
-}
-
 /* Responsive */
-@media (max-width: 768px) {
-  .friends-grid-large {
-    grid-template-columns: 1fr;
-  }
+@media (max-width: 1024px) { .main-layout { grid-template-columns: 300px 1fr; gap: 20px; } }
+@media (max-width: 900px) {
+  .main-layout { grid-template-columns: 1fr; }
+  .layout-sidebar { display: none; }
+  .profile-avatar { width: 120px; height: 120px; }
+  .user-identity-card { margin-top: -60px; }
 }
 </style>
 

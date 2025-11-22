@@ -124,7 +124,26 @@
                       <span class="edit-rating-value">{{ editingRating }} stars</span>
                     </div>
                   </div>
-                  <textarea v-model="editedContent" class="edit-textarea" @keyup.enter="saveComment(comment._id)"></textarea>
+                  
+                  <div class="edit-input-wrapper">
+                    <textarea 
+                      :ref="'editCommentInput-' + comment._id"
+                      v-model="editedContent" 
+                      class="edit-textarea-with-emoji" 
+                      @keyup.enter="saveComment(comment._id)"
+                      @focus="trackFocus('editCommentInput-' + comment._id, 'editedContent', null)"
+                    ></textarea>
+                    
+                    <div class="emoji-wrapper-edit">
+                        <button @click.stop="toggleEmojiPicker('edit-comment-' + comment._id)" class="emoji-btn-small">
+                          <img src="../assets/emoji.png" class="icon-emoji-img"/>
+                        </button>
+                        <div v-if="activeEmojiPicker === 'edit-comment-' + comment._id" class="emoji-popover-up" @click.stop>
+                          <EmojiPicker :native="true" @select="insertEmoji" theme="light" />
+                        </div>
+                    </div>
+                  </div>
+                  
                   <div class="edit-actions">
                     <button @click="saveComment(comment._id)" class="save-btn">Save</button>
                     <button @click="cancelEdit" class="cancel-btn">Cancel</button>
@@ -198,7 +217,25 @@
                     <img :src="getAvatarUrl(reply.author)" class="user-avatar-small" alt="avatar" />
                     <div class="reply-content">
                       <div v-if="editingReplyId === reply._id" class="edit-reply-container">
-                        <textarea v-model="editedReplyContent" class="edit-reply-input" @keyup.enter="saveReply(comment._id, reply._id)"></textarea>
+                        <div class="edit-input-wrapper">
+                          <textarea 
+                            :ref="'editReplyInput-' + reply._id"
+                            v-model="editedReplyContent" 
+                            class="edit-reply-input-with-emoji" 
+                            @keyup.enter="saveReply(comment._id, reply._id)"
+                            @focus="trackFocus('editReplyInput-' + reply._id, 'editedReplyContent', null)"
+                          ></textarea>
+
+                          <div class="emoji-wrapper-edit">
+                              <button @click.stop="toggleEmojiPicker('edit-reply-' + reply._id)" class="emoji-btn-small">
+                                <img src="../assets/emoji.png" class="icon-emoji-img"/>
+                              </button>
+                              <div v-if="activeEmojiPicker === 'edit-reply-' + reply._id" class="emoji-popover-up" @click.stop>
+                                <EmojiPicker :native="true" @select="insertEmoji" theme="light" />
+                              </div>
+                          </div>
+                        </div>
+
                         <div class="edit-actions">
                           <button @click="saveReply(comment._id, reply._id)" class="save-btn">Save</button>
                           <button @click="cancelEditReply" class="cancel-btn">Cancel</button>
@@ -534,7 +571,10 @@ export default {
         currentValue = this.replyInputs[key] || '';
       } else if (modelType === 'replyInputsReply') {
         currentValue = this.replyInputsReply[key] || '';
-      }
+      } else if (modelType === 'editedContent') 
+        currentValue = this.editedContent;
+        else if (modelType === 'editedReplyContent') 
+        currentValue = this.editedReplyContent;
 
       // Chèn ký tự tại vị trí con trỏ
       const start = inputRef.selectionStart;
@@ -548,7 +588,10 @@ export default {
         this.replyInputs[key] = newValue;
       } else if (modelType === 'replyInputsReply') {
         this.replyInputsReply[key] = newValue;
-      }
+      } else if (modelType === 'editedContent') 
+        this.editedContent = newValue;
+        else if (modelType === 'editedReplyContent') 
+        this.editedReplyContent = newValue;
 
       // Đặt lại con trỏ ngay sau emoji vừa chèn
       this.$nextTick(() => {
@@ -1280,6 +1323,15 @@ export default {
 .edit-comment-container { width: 100%; margin-top: 8px; }
 .edit-comment-container .edit-textarea { width: 100%; min-height: 80px; padding: 12px 16px; border: 1px solid #ddd; border-radius: 12px; resize: vertical; font-family: inherit; font-size: 14px; line-height: 1.4; box-sizing: border-box; background-color: white; color: #1c1e21; }
 .edit-comment-container .edit-textarea:focus { outline: none; border-color: #1877f2; box-shadow: 0 0 0 2px rgba(24, 119, 242, 0.2); }
+.edit-rating-value {
+  margin-left: 8px;
+  font-size: 13px;
+  
+  /* SỬA Ở ĐÂY: Đổi từ màu cũ sang màu cam #f57c00 */
+  color: #856404; 
+  
+  font-weight: 700; /* Tăng độ đậm một chút cho rõ */
+}
 .comment-author { font-size: 13px; font-weight: 600; color: #1c1e21; display: inline-flex; margin-bottom: 2px; align-items: center; }
 .comment-text { font-size: 14px; color: #1c1e21; margin: 0; line-height: 1.4; word-wrap: break-word; }
 .comment-actions { display: flex; align-items: center; gap: 12px; margin-top: 4px; margin-left: 12px; font-size: 12px; color: #65676b; }
@@ -1456,10 +1508,45 @@ export default {
 .rating-text { font-size: 12px; color: #65676b; margin-left: 6px; align-self: center; }
 
 /* Rating Stats */
-.rating-statistics { background: linear-gradient(135deg, #fff9e6 0%, #ffe9b8 100%); border: 1px solid #ffd966; border-radius: 12px; padding: 10px 16px; margin: 12px 0; }
-.rating-summary { display: flex; align-items: center; justify-content: space-between; }
+.rating-statistics {
+  background: linear-gradient(135deg, #fff9e6 0%, #ffe9b8 100%);
+  border: 1px solid #ffd966;
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin: 12px 0;
+}
+.rating-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.average-rating {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .rating-number { font-size: 24px; font-weight: bold; color: #f57c00; margin-right: 8px; }
-.stars-display { display: flex; gap: 1px; }
+/* --- Tìm và thay thế đoạn này trong <style scoped> --- */
+
+/* 1. Ngôi sao trong comment */
+.star-display {
+  font-size: 14px;
+  color: #ddd;      /* Màu xám cho sao rỗng */
+  margin-right: 1px;
+}
+
+.star-display.filled {
+  color: #ffc107;   /* MÀU VÀNG (Gold) cho sao đã chọn */
+}
+
+/* 2. Chữ hiển thị số sao (Ví dụ: 5 stars) */
+.rating-text-display {
+  margin-left: 6px;
+  font-size: 13px;
+  color: #856404;   /* MÀU CAM (Orange) giống phần tổng hợp ở trên */
+  font-weight: 700; /* Chữ đậm */
+}
 .star-icon { font-size: 16px; color: #ddd; }
 .star-icon.filled { color: #ffc107; }
 .rating-count { font-size: 13px; color: #856404; font-weight: 600; }
@@ -1472,7 +1559,7 @@ export default {
 .user-avatar-small { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
 
 .replies-section { margin-top: 12px; padding-left: 20px; border-left: 2px solid #f0f2f5; }
-.toggle-replies-btn { background: none; border: none; color: #65676b; cursor: pointer; font-size: 12px; font-weight: 600; margin-bottom: 8px; }
+.toggle-replies-btn { background: none; border: none; color: #1877f2; cursor: pointer; font-size: 12px; font-weight: 600; margin-bottom: 8px; }
 .reply-item { display: flex; gap: 8px; margin-top: 8px; }
 .reply-content { flex: 1; }
 .reply-bubble { background-color: #f0f2f5; padding: 6px 10px; border-radius: 12px; display: inline-block; max-width: 75%; word-wrap: break-word; }
@@ -1482,6 +1569,47 @@ export default {
 .author-label { background-color: #1876f2; color: white; font-size: 11px; font-weight: bold; padding: 2px 6px; margin-left: 6px; border-radius: 4px; }
 .reply-actions { display: flex; gap: 8px; margin-top: 2px; font-size: 11px; color: #65676b; margin-left: 10px; }
 .reply-time { color: #65676b; font-size: 11px; }
+
+.edit-input-wrapper {
+  display: flex;
+  align-items: flex-start; /* Căn trên cùng */
+  background: #ffffff;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  padding: 8px;
+  position: relative;
+  transition: border-color 0.2s;
+}
+
+.edit-input-wrapper:focus-within {
+  border-color: #1877f2;
+  box-shadow: 0 0 0 2px rgba(24, 119, 242, 0.2);
+}
+
+.edit-textarea-with-emoji,
+.edit-reply-input-with-emoji {
+  flex: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.4;
+  resize: vertical;
+  min-height: 60px;
+  padding-right: 8px;
+  color: #1c1e21;
+}
+
+/* Nút Emoji trong Edit (đặt ở góc dưới hoặc phải) */
+.emoji-wrapper-edit {
+  position: relative;
+  display: flex;
+  align-items: center;
+  align-self: flex-end; /* Nằm ở đáy khung */
+  margin-left: 4px;
+  margin-bottom: 4px; /* Cách đáy một chút */
+}
 
 /* Edit Reply */
 .edit-reply-container { width: 100%; margin-top: 8px; }
