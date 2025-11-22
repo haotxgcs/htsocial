@@ -184,7 +184,7 @@
                       :ref="'replyInput-' + comment._id"
                       v-model="replyInputs[comment._id]"
                       @keyup.enter="submitReply(comment._id)"
-                      :placeholder="`Reply to ${replyingTo[comment._id]?.firstname}...`"
+                      :placeholder="`Reply to ${replyingTo[comment._id]?.firstname} ${replyingTo[comment._id]?.lastname}...`"
                       class="reply-input"
                       @focus="trackFocus('replyInput-' + comment._id, 'replyInputs', comment._id)"
                     />
@@ -245,7 +245,7 @@
                         <strong>{{ reply.author?.firstname }} {{ reply.author?.lastname }}</strong>
                         <span v-if="isPostAuthor(reply.author)" class="author-label">Author</span>
                         <p>
-                          <span v-if="reply?.replyTo" class="reply-to-name">@{{ reply?.replyTo?.firstname }}</span>
+                          <span v-if="reply?.replyTo" class="reply-to-name">@{{ reply?.replyTo?.firstname }} {{ reply?.replyTo?.lastname }}</span>
                           {{ reply.content }}
                         </p>
                       </div>
@@ -274,7 +274,7 @@
                           <input
                             :ref="'replyToReplyInput-' + reply._id"
                             v-model="replyInputsReply[reply._id]"
-                            :placeholder="`Reply to ${replyingToReply[reply._id]?.firstname}...`"
+                            :placeholder="`Reply to ${replyingToReply[reply._id]?.firstname} ${replyingToReply[reply._id]?.lastname}...`"
                             class="reply-input"
                             @keypress.enter="submitReplyToReply(comment._id, reply._id)"
                             @focus="trackFocus('replyToReplyInput-' + reply._id, 'replyInputsReply', reply._id)"

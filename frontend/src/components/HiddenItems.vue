@@ -271,6 +271,7 @@ export default {
   margin: 0 auto;
   padding: 20px;
   min-height: 100vh;
+  margin-top:40px;
 }
 
 .header-section {

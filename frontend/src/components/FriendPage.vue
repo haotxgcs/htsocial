@@ -1,96 +1,94 @@
 <template>
-  <div class="friend-page">
-    <div class="sidebar">
-      <div class="sidebar-header">
-        <h2>Friends</h2>
-        <div class="settings-icon">⚙️</div>
-      </div>
-      
-      <div class="sidebar-menu">
-        <div class="menu-item" :class="{ active: currentView === 'home' }" @click="currentView = 'home'">
-          <span class="icon">🏠</span>
-          <span>Home</span>
-        </div>
-        <div class="menu-item" :class="{ active: currentView === 'requests' }" @click="currentView = 'requests'">
-          <span class="icon">👥</span>
-          <span>Friend Requests</span>
-          <span class="badge" v-if="friendRequests.length > 0">{{ friendRequests.length }}</span>
-          <span class="arrow">›</span>
-        </div>
-        <div class="menu-item" :class="{ active: currentView === 'sent' }" @click="currentView = 'sent'">
-          <span class="icon">📤</span>
-          <span>Sent Requests</span>
-          <span class="badge" v-if="sentRequests.length > 0">{{ sentRequests.length }}</span>
-          <span class="arrow">›</span>
-        </div>
-        <div class="menu-item" :class="{ active: currentView === 'suggestions' }" @click="currentView = 'suggestions'">
-          <span class="icon">💡</span>
-          <span>Suggestions</span>
-          <span class="arrow">›</span>
-        </div>
-        <div class="menu-item" :class="{ active: currentView === 'friends' }" @click="currentView = 'friends'">
-          <span class="icon">👫</span>
-          <span>All friends</span>
-          <span class="arrow">›</span>
-        </div>
+  <div class="friend-page-wrapper">
+    
+    <div class="page-header">
+      <h1>Friends & Connections</h1>
+      <p class="subtitle">Manage your network and discover new people</p>
+    </div>
+
+    <div class="nav-wrapper">
+      <div class="glass-nav">
+        <button 
+          :class="['nav-pill', { active: currentView === 'friends' || currentView === 'home' }]"
+          @click="currentView = 'friends'"
+        >
+          <span class="icon"></span>My Friends
+          <span class="badge" v-if="allFriends.length">{{ allFriends.length }}</span>
+        </button>
+
+        <button 
+          :class="['nav-pill', { active: currentView === 'suggestions' }]"
+          @click="currentView = 'suggestions'"
+        >
+          <span class="icon"></span>Discover
+        </button>
+
+        <button 
+          :class="['nav-pill', { active: currentView === 'requests' }]"
+          @click="currentView = 'requests'"
+        >
+          <span class="icon"></span>Requests
+          <span class="badge red" v-if="friendRequests.length">{{ friendRequests.length }}</span>
+        </button>
+
+        <button 
+          :class="['nav-pill', { active: currentView === 'sent' }]"
+          @click="currentView = 'sent'"
+        >
+          <span class="icon"></span>Sent
+          <span class="badge" v-if="sentRequests.length">{{ sentRequests.length }}</span>
+        </button>
       </div>
     </div>
 
-    <div class="main-content">
-      <!-- Friend Requests Section -->
-      <div v-if="currentView === 'requests'">
-        <div class="content-header">
-          <h3>Friend Requests</h3>
-          <span class="count">{{ friendRequests.length }} request{{ friendRequests.length !== 1 ? 's' : '' }}</span>
+    <div class="main-container">
+      
+      <div v-if="currentView === 'requests'" class="content-section">
+        <div class="section-header">
+          <h2>Friend Requests</h2>
+          <span class="counter">{{ friendRequests.length }} pending</span>
         </div>
 
-        <div class="friend-requests-grid" v-if="friendRequests.length > 0">
-          <div class="friend-card" v-for="request in friendRequests" :key="request._id">
-            <div class="friend-image">
-              <img :src="getImageUrl(request.avatar)" :alt="request.firstname" />
+        <div v-if="friendRequests.length > 0" class="modern-grid">
+          <div v-for="request in friendRequests" :key="request._id" class="modern-card">
+            <div class="card-image-wrapper">
+              <img :src="getImageUrl(request.avatar)" class="card-img" />
+              <div class="status-badge" v-if="request.active">Online</div>
             </div>
-            <div class="friend-info">
+            <div class="card-body">
               <h4>{{ request.firstname }} {{ request.lastname }}</h4>
               <p class="username">@{{ request.username }}</p>
-              <div class="status-indicator" v-if="request.active">
-                <span class="online-dot"></span>
-                <span>Online</span>
+              <div class="action-group">
+                <button class="btn-primary" @click="acceptFriendRequest(request._id)">Confirm</button>
+                <button class="btn-secondary" @click="declineFriendRequest(request._id)">Delete</button>
               </div>
-            </div>
-            <div class="friend-actions">
-              <button class="confirm-btn" @click="acceptFriendRequest(request._id)">Confirm</button>
-              <button class="delete-btn" @click="declineFriendRequest(request._id)">Delete</button>
             </div>
           </div>
         </div>
-
+        
         <div v-else class="empty-state">
-          <p>No friend requests at this time</p>
+          <div class="empty-icon"></div>
+          <p>No new friend requests</p>
         </div>
       </div>
 
-      <!-- Sent Requests Section -->
-      <div v-if="currentView === 'sent'">
-        <div class="content-header">
-          <h3>Sent Requests</h3>
-          <span class="count">{{ sentRequests.length }} pending</span>
+      <div v-if="currentView === 'sent'" class="content-section">
+        <div class="section-header">
+          <h2>Sent Requests</h2>
+          <span class="counter">{{ sentRequests.length }} sent</span>
         </div>
 
-        <div class="friend-requests-grid" v-if="sentRequests.length > 0">
-          <div class="friend-card" v-for="request in sentRequests" :key="request._id">
-            <div class="friend-image">
-              <img :src="getImageUrl(request.avatar)" :alt="request.firstname" />
+        <div v-if="sentRequests.length > 0" class="modern-grid">
+          <div v-for="request in sentRequests" :key="request._id" class="modern-card">
+            <div class="card-image-wrapper">
+              <img :src="getImageUrl(request.avatar)" class="card-img" />
             </div>
-            <div class="friend-info">
+            <div class="card-body">
               <h4>{{ request.firstname }} {{ request.lastname }}</h4>
               <p class="username">@{{ request.username }}</p>
-              <div class="status-indicator" v-if="request.active">
-                <span class="online-dot"></span>
-                <span>Online</span>
-              </div>
-            </div>
-            <div class="friend-actions">
-              <button class="delete-btn full-width" @click="cancelFriendRequest(request._id)">Cancel Request</button>
+              <button class="btn-secondary full-width" @click="cancelFriendRequest(request._id)">
+                Cancel Request
+              </button>
             </div>
           </div>
         </div>
@@ -100,36 +98,30 @@
         </div>
       </div>
 
-      <!-- Suggestions Section (All Users) -->
-      <div v-if="currentView === 'suggestions'">
-        <div class="content-header">
-          <h3>People You May Know</h3>
-          <div class="search-box">
+      <div v-if="currentView === 'suggestions'" class="content-section">
+        <div class="section-header">
+          <h2>People You May Know</h2>
+          <div class="search-wrapper">
             <input 
               type="text" 
               v-model="searchQuery" 
-              placeholder="Search users..." 
+              placeholder="Search for new friends..." 
               @input="filterUsers"
+              class="glass-input"
             />
           </div>
         </div>
 
-        <div class="friend-requests-grid" v-if="suggestedUsers.length > 0">
-          <div class="friend-card" v-for="user in suggestedUsers" :key="user._id">
-            <div class="friend-image">
-              <img :src="getImageUrl(user.avatar)" :alt="user.firstname" />
+        <div v-if="suggestedUsers.length > 0" class="modern-grid">
+          <div v-for="user in suggestedUsers" :key="user._id" class="modern-card">
+            <div class="card-image-wrapper">
+              <img :src="getImageUrl(user.avatar)" class="card-img" />
             </div>
-            <div class="friend-info">
+            <div class="card-body">
               <h4>{{ user.firstname }} {{ user.lastname }}</h4>
               <p class="username">@{{ user.username }}</p>
-              <div class="status-indicator" v-if="user.active">
-                <span class="online-dot"></span>
-                <span>Online</span>
-              </div>
-            </div>
-            <div class="friend-actions">
               <button 
-                class="confirm-btn full-width" 
+                class="btn-primary full-width" 
                 @click="sendFriendRequest(user._id)"
                 :disabled="isRequestSent(user._id)"
               >
@@ -144,30 +136,35 @@
         </div>
       </div>
 
-      <!-- All Friends Section -->
-      <div v-if="currentView === 'friends' || currentView === 'home'">
-        <div class="content-header">
-          <h3>All Friends</h3>
-          <span class="count">{{ allFriends.length }} friend{{ allFriends.length !== 1 ? 's' : '' }}</span>
+      <div v-if="currentView === 'friends' || currentView === 'home'" class="content-section">
+        <div class="section-header">
+          <h2>Your Friends</h2>
+          <span class="counter">{{ allFriends.length }} friends</span>
         </div>
 
-        <div class="friends-grid" v-if="allFriends.length > 0">
-          <div class="existing-friend-card" v-for="friend in allFriends" :key="friend._id">
-            <img :src="getImageUrl(friend.avatar)" :alt="friend.firstname" />
-            <div class="friend-name">{{ friend.firstname }} {{ friend.lastname }}</div>
-            <p class="username">@{{ friend.username }}</p>
-            <div class="status-indicator" v-if="friend.active">
-              <span class="online-dot"></span>
-              <span>Online</span>
+        <div v-if="allFriends.length > 0" class="friends-list-grid">
+          <div v-for="friend in allFriends" :key="friend._id" class="friend-row-card">
+            <div class="friend-left">
+              <img :src="getImageUrl(friend.avatar)" class="friend-avatar-small" />
+              <div class="friend-info">
+                <h4>{{ friend.firstname }} {{ friend.lastname }}</h4>
+                <p>@{{ friend.username }}</p>
+                <span class="status-text" v-if="friend.active">● Online</span>
+              </div>
             </div>
-            <button class="unfriend-btn" @click="unfriend(friend._id)">Unfriend</button>
+            <div class="friend-actions">
+              <button class="btn-icon" title="Message"><img src="../assets/message.png" class="icon"></button>
+              <button class="btn-icon text-red" @click="unfriend(friend._id)" title="Unfriend"><img src="../assets/unfriend.png" class="icon"></button>
+            </div>
           </div>
         </div>
 
         <div v-else class="empty-state">
-          <p>You don't have any friends yet</p>
+          <p>You don't have any friends yet.</p>
+          <button class="btn-primary mt-4" @click="currentView = 'suggestions'">Find Friends</button>
         </div>
       </div>
+
     </div>
   </div>
 </template>
@@ -178,234 +175,229 @@ export default {
   data() {
     return {
       currentUser: null,
-      currentView: 'home', // home, requests, sent, suggestions, friends
-      friendRequests: [], // Lời mời kết bạn nhận được
-      sentRequests: [], // Lời mời kết bạn đã gửi
-      allFriends: [], // Danh sách bạn bè
-      allUsers: [], // Tất cả người dùng
-      suggestedUsers: [], // Gợi ý kết bạn (users chưa là bạn)
-      searchQuery: '', // Tìm kiếm người dùng
-      defaultAvatar: require('../assets/user.png'),
+      // Thay đổi: Mặc định vào tab 'friends' thay vì 'home' cho hợp lý
+      currentView: 'friends', 
+      
+      friendRequests: [], 
+      sentRequests: [], 
+      allFriends: [], 
+      allUsers: [], 
+      suggestedUsers: [], 
+      searchQuery: '', 
+      
+      defaultAvatar: "uploads/user.png", // Đảm bảo đường dẫn đúng với backend
     };
+  },
+  computed: {
+    // Tabs động để cập nhật số lượng badge realtime
+    tabs() {
+      return [
+        { 
+          id: 'friends', 
+          label: 'My Friends',  
+          count: this.allFriends.length 
+        },
+        { 
+          id: 'suggestions', 
+          label: 'Discover', 
+          count: 0 
+        },
+        { 
+          id: 'requests', 
+          label: 'Requests', 
+          count: this.friendRequests.length 
+        },
+        { 
+          id: 'sent', 
+          label: 'Sent', 
+          count: this.sentRequests.length 
+        },
+      ];
+    }
   },
   mounted() {
     this.loadUserData();
   },
   methods: {
-    // Load dữ liệu người dùng từ localStorage
-    loadUserData() {
+    // Load dữ liệu người dùng
+    async loadUserData() {
       const user = JSON.parse(localStorage.getItem("user"));
       if (!user) {
         this.$router.push("/login");
         return;
       }
       this.currentUser = user;
-      this.loadFriendRequests();
-      this.loadSentRequests();
-      this.loadAllFriends();
-      this.loadAllUsers();
+      
+      // Gọi song song các API để tăng tốc độ load trang
+      await Promise.all([
+        this.loadFriendRequests(),
+        this.loadSentRequests(),
+        this.loadAllFriends(),
+        this.loadAllUsers()
+      ]);
     },
 
-    // Lấy danh sách lời mời kết bạn nhận được
+    getImageUrl(avatar) {
+      if (!avatar) return `http://localhost:3000/${this.defaultAvatar}`;
+      if (avatar.startsWith('http')) return avatar;
+      return `http://localhost:3000/${avatar}`;
+    },
+
+    // --- API CALLS ---
+
     async loadFriendRequests() {
       try {
         const res = await fetch(`http://localhost:3000/users/${this.currentUser.id}`);
         const userData = await res.json();
         
-        if (userData.requestReceived && userData.requestReceived.length > 0) {
-          const requests = await Promise.all(
+        if (userData.requestReceived?.length > 0) {
+          this.friendRequests = await Promise.all(
             userData.requestReceived.map(id =>
               fetch(`http://localhost:3000/users/${id}`).then(r => r.json())
             )
           );
-          this.friendRequests = requests;
         } else {
           this.friendRequests = [];
         }
-      } catch (err) {
-        console.error("Load friend requests error:", err);
-      }
+      } catch (err) { console.error(err); }
     },
 
-    // Lấy danh sách lời mời kết bạn đã gửi
     async loadSentRequests() {
       try {
         const res = await fetch(`http://localhost:3000/users/${this.currentUser.id}`);
         const userData = await res.json();
         
-        if (userData.requestSent && userData.requestSent.length > 0) {
-          const requests = await Promise.all(
+        if (userData.requestSent?.length > 0) {
+          this.sentRequests = await Promise.all(
             userData.requestSent.map(id =>
               fetch(`http://localhost:3000/users/${id}`).then(r => r.json())
             )
           );
-          this.sentRequests = requests;
         } else {
           this.sentRequests = [];
         }
-      } catch (err) {
-        console.error("Load sent requests error:", err);
-      }
+      } catch (err) { console.error(err); }
     },
 
-    // Lấy danh sách tất cả bạn bè
     async loadAllFriends() {
       try {
         const res = await fetch(`http://localhost:3000/users/${this.currentUser.id}/friends`);
-        const friends = await res.json();
-        this.allFriends = friends;
-      } catch (err) {
-        console.error("Load all friends error:", err);
-      }
+        this.allFriends = await res.json();
+        this.filterSuggestedUsers(); // Cập nhật lại gợi ý sau khi load bạn bè
+      } catch (err) { console.error(err); }
     },
 
-    // Chấp nhận lời mời kết bạn
+    async loadAllUsers() {
+      try {
+        const res = await fetch('http://localhost:3000/users');
+        this.allUsers = await res.json();
+        this.filterSuggestedUsers();
+      } catch (err) { console.error(err); }
+    },
+
+    // --- ACTIONS ---
+
     async acceptFriendRequest(requesterId) {
       try {
         const res = await fetch("http://localhost:3000/users/friend-request/accept", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            userId: this.currentUser.id, 
-            requesterId 
-          })
+          body: JSON.stringify({ userId: this.currentUser.id, requesterId })
         });
         
-        const result = await res.json();
-        
         if (res.ok) {
-          alert("Đã chấp nhận lời mời kết bạn!");
-          this.loadFriendRequests();
-          this.loadAllFriends();
-          this.filterSuggestedUsers();
-        } else {
-          alert(result.msg || "Lỗi khi chấp nhận kết bạn");
+          // Cập nhật lại state ngay lập tức mà không cần reload trang
+          this.friendRequests = this.friendRequests.filter(r => r._id !== requesterId);
+          await this.loadAllFriends(); // Load lại list bạn bè mới
+          alert("Accepted friend request!");
         }
-      } catch (err) {
-        console.error("Accept friend error:", err);
-        alert("Lỗi kết nối server");
-      }
+      } catch (err) { console.error(err); }
     },
 
-    // Từ chối lời mời kết bạn (thực chất là cancel từ phía người nhận)
     async declineFriendRequest(requesterId) {
+      if(!confirm("Delete this request?")) return;
       try {
         const res = await fetch("http://localhost:3000/users/friend-request/cancel", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            fromUserId: requesterId,
-            toUserId: this.currentUser.id
-          })
+          body: JSON.stringify({ fromUserId: requesterId, toUserId: this.currentUser.id })
         });
         
-        const result = await res.json();
-        
         if (res.ok) {
-          alert("Đã xóa lời mời kết bạn!");
-          this.loadFriendRequests();
-          this.filterSuggestedUsers();
-        } else {
-          alert(result.msg || "Lỗi khi xóa lời mời");
+          this.friendRequests = this.friendRequests.filter(r => r._id !== requesterId);
         }
-      } catch (err) {
-        console.error("Decline friend error:", err);
-        alert("Lỗi kết nối server");
-      }
+      } catch (err) { console.error(err); }
     },
 
-    // Hủy lời mời kết bạn đã gửi
     async cancelFriendRequest(toUserId) {
+      if(!confirm("Cancel sent request?")) return;
       try {
         const res = await fetch("http://localhost:3000/users/friend-request/cancel", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            fromUserId: this.currentUser.id,
-            toUserId 
-          })
+          body: JSON.stringify({ fromUserId: this.currentUser.id, toUserId })
         });
         
-        const result = await res.json();
-        
         if (res.ok) {
-          alert("Đã hủy lời mời kết bạn!");
-          this.loadSentRequests();
-          this.filterSuggestedUsers();
-        } else {
-          alert(result.msg || "Lỗi khi hủy lời mời");
+          this.sentRequests = this.sentRequests.filter(r => r._id !== toUserId);
+          this.filterSuggestedUsers(); // Người này lại trở thành gợi ý
         }
-      } catch (err) {
-        console.error("Cancel friend request error:", err);
-        alert("Lỗi kết nối server");
-      }
+      } catch (err) { console.error(err); }
     },
 
-    // Hủy kết bạn
-    async unfriend(friendId) {
-      if (!confirm("Bạn có chắc muốn hủy kết bạn?")) return;
+    async sendFriendRequest(toUserId) {
+      try {
+        const res = await fetch("http://localhost:3000/users/friend-request/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fromUserId: this.currentUser.id, toUserId })
+        });
+        
+        if (res.ok) {
+          await this.loadSentRequests();
+          this.filterSuggestedUsers(); // Loại bỏ khỏi danh sách gợi ý
+          alert("Friend request sent!");
+        }
+      } catch (err) { console.error(err); }
+    },
 
+    async unfriend(friendId) {
+      if (!confirm("Unfriend this person?")) return;
       try {
         const res = await fetch("http://localhost:3000/users/unfriend", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            userId: this.currentUser.id, 
-            friendId 
-          })
+          body: JSON.stringify({ userId: this.currentUser.id, friendId })
         });
         
-        const result = await res.json();
-        
         if (res.ok) {
-          alert("Đã hủy kết bạn!");
-          this.loadAllFriends();
+          this.allFriends = this.allFriends.filter(f => f._id !== friendId);
           this.filterSuggestedUsers();
-        } else {
-          alert(result.msg || "Lỗi khi hủy kết bạn");
         }
-      } catch (err) {
-        console.error("Unfriend error:", err);
-        alert("Lỗi kết nối server");
-      }
+      } catch (err) { console.error(err); }
     },
 
-    // Get image URL
-    getImageUrl(avatar) {
-      if (!avatar) return this.defaultAvatar;
-      if (avatar.startsWith('http')) return avatar;
-      return `http://localhost:3000/${avatar}`;
-    },
+    // --- FILTERS ---
 
-    // Lấy tất cả người dùng
-    async loadAllUsers() {
-      try {
-        const res = await fetch('http://localhost:3000/users');
-        const users = await res.json();
-        this.allUsers = users;
-        this.filterSuggestedUsers();
-      } catch (err) {
-        console.error("Load all users error:", err);
-      }
-    },
-
-    // Lọc gợi ý kết bạn (loại bỏ bạn bè hiện tại và requests đã nhận, giữ lại requests đã gửi)
     filterSuggestedUsers() {
       const friendIds = this.allFriends.map(f => f._id);
+      const sentIds = this.sentRequests.map(r => r._id);
       const receivedIds = this.friendRequests.map(r => r._id);
 
+      // Lọc ra những người chưa là bạn, chưa gửi/nhận request và không phải chính mình
       this.suggestedUsers = this.allUsers.filter(user => {
         return user._id !== this.currentUser.id &&
                !friendIds.includes(user._id) &&
+               !sentIds.includes(user._id) &&
                !receivedIds.includes(user._id);
       });
 
+      // Nếu đang có từ khóa tìm kiếm thì lọc tiếp
       if (this.searchQuery) {
         this.filterUsers();
       }
     },
 
-    // Tìm kiếm người dùng
     filterUsers() {
       if (!this.searchQuery.trim()) {
         this.filterSuggestedUsers();
@@ -413,51 +405,13 @@ export default {
       }
 
       const query = this.searchQuery.toLowerCase();
-      const friendIds = this.allFriends.map(f => f._id);
-      const sentIds = this.sentRequests.map(r => r._id);
-      const receivedIds = this.friendRequests.map(r => r._id);
-
-      this.suggestedUsers = this.allUsers.filter(user => {
+      this.suggestedUsers = this.suggestedUsers.filter(user => {
         const fullName = `${user.firstname} ${user.lastname}`.toLowerCase();
         const username = user.username.toLowerCase();
-        const matchesSearch = fullName.includes(query) || username.includes(query);
-
-        return user._id !== this.currentUser.id &&
-               !friendIds.includes(user._id) &&
-               !sentIds.includes(user._id) &&
-               !receivedIds.includes(user._id) &&
-               matchesSearch;
+        return fullName.includes(query) || username.includes(query);
       });
     },
 
-    // Gửi lời mời kết bạn
-    async sendFriendRequest(toUserId) {
-      try {
-        const res = await fetch("http://localhost:3000/users/friend-request/send", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            fromUserId: this.currentUser.id, 
-            toUserId 
-          })
-        });
-        
-        const result = await res.json();
-        
-        if (res.ok) {
-          alert("Đã gửi lời mời kết bạn!");
-          this.loadSentRequests();
-          this.filterSuggestedUsers();
-        } else {
-          alert(result.msg || "Lỗi khi gửi lời mời");
-        }
-      } catch (err) {
-        console.error("Send friend request error:", err);
-        alert("Lỗi kết nối server");
-      }
-    },
-
-    // Kiểm tra xem đã gửi request chưa
     isRequestSent(userId) {
       return this.sentRequests.some(r => r._id === userId);
     }
@@ -466,364 +420,436 @@ export default {
 </script>
 
 <style scoped>
-.friend-page {
-  display: flex;
+/* --- GLOBAL VARIABLES & WRAPPER --- */
+:root {
+  --primary-color: #6366f1; /* Indigo */
+  --bg-color: #f3f4f6;
+  --text-main: #111827;
+  --text-sub: #6b7280;
+}
+
+.friend-page-wrapper {
+  background-color: #f3f4f6;
   min-height: 100vh;
-  background-color: #f0f2f5;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  padding: 40px 20px;
+  padding-top: 20px;
 }
 
-/* Sidebar */
-.sidebar {
-  width: 320px;
-  background: white;
-  padding: 20px 0;
-  border-right: 1px solid #e4e6ea;
-  position: fixed;
-  height: 100vh;
-  overflow-y: auto;
+/* --- 1. HEADER SECTION --- */
+.page-header {
+  text-align: center;
+  margin-bottom: 32px;
+  margin-top: 40px;
 }
 
-.sidebar-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 16px 20px;
+.page-header h1 {
+  font-size: 32px;
+  font-weight: 800;
+  color: #111827;
+  margin: 0 0 8px;
+  letter-spacing: -0.5px;
 }
 
-.sidebar-header h2 {
-  font-size: 24px;
-  font-weight: 700;
-  color: #1c1e21;
+.subtitle {
+  color: #6b7280;
+  font-size: 16px;
   margin: 0;
 }
 
-.settings-icon {
-  width: 36px;
-  height: 36px;
-  background: #e4e6ea;
-  border-radius: 50%;
+.icon { width: 20px; height: 20px; }
+/* --- 2. NAVIGATION (PILLS) --- */
+.nav-wrapper {
   display: flex;
-  align-items: center;
   justify-content: center;
-  cursor: pointer;
-  font-size: 16px;
+  position: sticky;
+  top: 80px; /* Cách header chính của web */
+  z-index: 90;
+  margin-bottom: 40px;
+  padding: 10px 0;
 }
 
-.settings-icon:hover {
-  background: #d8dadf;
-}
-
-.sidebar-menu {
-  padding: 0 8px;
-}
-
-.menu-item {
+.glass-nav {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 6px;
+  border-radius: 100px;
   display: flex;
-  align-items: center;
-  padding: 8px 8px;
-  margin: 2px 0;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  position: relative;
+  gap: 6px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.05);
+  border: 1px solid rgba(255,255,255,0.6);
+  overflow-x: auto; /* Cho phép cuộn ngang trên mobile */
+  max-width: 100%;
 }
 
-.menu-item:hover {
-  background-color: #f2f2f2;
-}
-
-.menu-item.active {
-  background-color: #e7f3ff;
-  color: #1877f2;
+.nav-pill {
+  padding: 10px 24px;
+  border-radius: 40px;
+  border: none;
+  background: transparent;
+  color: #6b7280;
   font-weight: 600;
-}
-
-.menu-item .icon {
-  width: 36px;
-  height: 36px;
-  background: #e4e6ea;
-  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   align-items: center;
-  justify-content: center;
-  margin-right: 12px;
-  font-size: 16px;
+  gap: 8px;
+  font-size: 14px;
+  white-space: nowrap;
 }
 
-.menu-item.active .icon {
-  background: #1877f2;
+.nav-pill:hover {
+  background: rgba(0,0,0,0.04);
+  color: #111827;
+}
+
+.nav-pill.active {
+  background: #111827;
   color: white;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 }
 
-.menu-item span:not(.icon):not(.arrow):not(.badge) {
-  flex: 1;
-  font-size: 15px;
-  font-weight: 500;
+.nav-pill .icon {
+  font-size: 16px;
 }
 
 .badge {
-  background: #e41e3f;
+  background: #ef4444; /* Màu đỏ thông báo */
   color: white;
+  font-size: 11px;
   padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 600;
-  margin-left: 8px;
+  border-radius: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.badge.red { background: #ef4444; }
+
+/* --- 3. MAIN CONTENT --- */
+.main-container {
+  max-width: 1100px;
+  margin: 0 auto;
 }
 
-.arrow {
-  color: #65676b;
-  font-size: 16px;
-  margin-left: 8px;
+.content-section {
+  animation: fadeIn 0.4s ease-out;
 }
 
-/* Main Content */
-.main-content {
-  margin-left: 320px;
-  padding: 20px;
-  width: calc(100% - 320px);
-}
-
-.content-header {
+.section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  padding: 0 4px;
+  margin-bottom: 24px;
+  padding: 0 8px;
+  flex-wrap: wrap;
+  gap: 16px;
 }
 
-.content-header h3 {
-  font-size: 20px;
-  font-weight: 700;
-  color: #1c1e21;
+.section-header h2 {
+  font-size: 22px;
+  font-weight: 800;
+  color: #111827;
   margin: 0;
 }
 
-.count {
-  color: #65676b;
-  font-size: 15px;
-}
-
-.search-box {
-  flex: 0 0 300px;
-}
-
-.search-box input {
-  width: 100%;
-  padding: 8px 12px;
-  border: 1px solid #e4e6ea;
+.counter {
+  color: #6b7280;
+  font-weight: 600;
+  font-size: 14px;
+  background: #e5e7eb;
+  padding: 4px 12px;
   border-radius: 20px;
-  font-size: 15px;
-  outline: none;
-  transition: border-color 0.2s;
 }
 
-.search-box input:focus {
-  border-color: #1877f2;
-}
-
-/* Friend Requests Grid */
-.friend-requests-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 16px;
-  margin-bottom: 32px;
-}
-
-.friend-card {
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
-  transition: box-shadow 0.2s;
-}
-
-.friend-card:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-}
-
-.friend-image {
+/* Search Box */
+.search-wrapper {
+  position: relative;
   width: 100%;
-  height: 280px;
-  overflow: hidden;
-  background: #f0f2f5;
+  max-width: 300px;
 }
 
-.friend-image img {
+.glass-input {
+  width: 100%;
+  padding: 10px 16px;
+  border-radius: 30px;
+  border: 1px solid #e5e7eb;
+  background: white;
+  outline: none;
+  font-size: 14px;
+  transition: all 0.2s;
+  box-sizing: border-box;
+}
+
+.glass-input:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.1);
+}
+
+/* --- GRID LAYOUT (MODERN CARDS) --- */
+/* Dùng cho Requests, Sent, Suggestions */
+.modern-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 24px;
+}
+
+.modern-card {
+  background: white;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+  border: 1px solid rgba(243, 244, 246, 0.8);
+  transition: transform 0.2s, box-shadow 0.2s;
+  display: flex;
+  flex-direction: column;
+}
+
+.modern-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 30px rgba(0,0,0,0.08);
+}
+
+.card-image-wrapper {
+  position: relative;
+  width: 100%;
+  height: 240px; /* Ảnh vuông/dọc lớn */
+}
+
+.card-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  background-color: #f3f4f6;
 }
 
-.friend-info {
-  padding: 12px;
+.status-badge {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  background: #10b981; /* Màu xanh online */
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 6px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.friend-info h4 {
+.card-body {
+  padding: 20px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.card-body h4 {
+  margin: 0 0 4px;
   font-size: 17px;
-  font-weight: 600;
-  color: #1c1e21;
-  margin: 0 0 4px 0;
+  font-weight: 700;
+  color: #111827;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .username {
-  color: #65676b;
+  color: #6b7280;
   font-size: 13px;
-  margin: 0 0 8px 0;
+  margin: 0 0 16px;
+  font-weight: 500;
 }
 
-.status-indicator {
-  display: flex;
-  align-items: center;
-  color: #42b72a;
-  font-size: 13px;
-  margin-top: 8px;
-}
-
-.online-dot {
-  width: 8px;
-  height: 8px;
-  background: #42b72a;
-  border-radius: 50%;
-  margin-right: 6px;
-}
-
-.friend-actions {
-  padding: 0 12px 12px;
-  display: flex;
-  gap: 8px;
-}
-
-.confirm-btn, .delete-btn {
-  flex: 1;
-  padding: 8px 16px;
-  border: none;
-  border-radius: 6px;
-  font-weight: 600;
-  font-size: 15px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.full-width {
-  flex: 1;
-  width: 100%;
-}
-
-.confirm-btn {
-  background: #1877f2;
-  color: white;
-}
-
-.confirm-btn:hover {
-  background: #166fe5;
-}
-
-.confirm-btn:disabled {
-  background: #e4e6ea;
-  color: #65676b;
-  cursor: not-allowed;
-}
-
-.delete-btn {
-  background: #e4e6ea;
-  color: #1c1e21;
-}
-
-.delete-btn:hover {
-  background: #d8dadf;
-}
-
-/* All Friends Grid */
-.friends-grid {
+.action-group {
+  margin-top: auto;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: 1fr 1fr; /* Chia đôi 2 nút */
+  gap: 10px;
+}
+
+/* --- LIST LAYOUT (FRIENDS ROW) --- */
+/* Dùng cho tab All Friends */
+.friends-list-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
   gap: 16px;
 }
 
-.existing-friend-card {
+.friend-row-card {
   background: white;
-  border-radius: 8px;
   padding: 16px;
-  text-align: center;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-  transition: box-shadow 0.2s;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+  border: 1px solid #f3f4f6;
+  transition: all 0.2s;
 }
 
-.existing-friend-card:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+.friend-row-card:hover {
+  border-color: #d1d5db;
+  transform: translateX(4px);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
 }
 
-.existing-friend-card img {
-  width: 80px;
-  height: 80px;
+.friend-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+  min-width: 0;
+}
+
+.friend-avatar-small {
+  width: 60px;
+  height: 60px;
   border-radius: 50%;
   object-fit: cover;
-  margin-bottom: 12px;
-  background: #f0f2f5;
+  border: 2px solid #f3f4f6;
 }
 
-.friend-name {
-  font-size: 15px;
-  font-weight: 600;
-  color: #1c1e21;
-  margin-bottom: 4px;
+.friend-info {
+  flex: 1;
+  min-width: 0;
 }
 
-.unfriend-btn {
-  background: #e4e6ea;
-  color: #1c1e21;
-  border: none;
-  padding: 6px 12px;
-  border-radius: 6px;
-  font-weight: 600;
+.friend-info h4 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.friend-info p {
+  margin: 2px 0 4px;
   font-size: 13px;
+  color: #6b7280;
+}
+
+.status-text {
+  font-size: 11px;
+  color: #10b981;
+  font-weight: 600;
+}
+
+/* --- BUTTONS --- */
+.btn-primary {
+  background: #4f46e5;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 14px;
   cursor: pointer;
-  transition: background-color 0.2s;
-  margin-top: 8px;
+  transition: background 0.2s;
+  width: 100%;
 }
 
-.unfriend-btn:hover {
-  background: #d8dadf;
+.btn-primary:hover:not(:disabled) {
+  background: #4338ca;
 }
 
-/* Empty State */
-.empty-state {
-  text-align: center;
-  padding: 40px;
-  color: #65676b;
+.btn-primary:disabled {
+  background: #e5e7eb;
+  color: #9ca3af;
+  cursor: not-allowed;
 }
 
-.empty-state p {
+.btn-secondary {
+  background: #f3f4f6;
+  color: #374151;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s;
+  width: 100%;
+}
+
+.btn-secondary:hover {
+  background: #e5e7eb;
+}
+
+.btn-icon {
+  background: #f3f4f6;
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
   font-size: 16px;
 }
 
-/* Responsive */
-@media (max-width: 1200px) {
-  .sidebar {
-    width: 280px;
-  }
-  
-  .main-content {
-    margin-left: 280px;
-    width: calc(100% - 280px);
-  }
+.btn-icon:hover {
+  background: #e5e7eb;
+  transform: scale(1.1);
 }
 
+.text-red {
+  color: #ef4444;
+}
+.text-red:hover {
+  background: #fee2e2;
+}
+
+.full-width {
+  width: 100%;
+}
+
+/* --- EMPTY STATE --- */
+.empty-state {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 80px 0;
+  color: #9ca3af;
+}
+
+.empty-icon {
+  font-size: 48px;
+  display: block;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+/* --- ANIMATION --- */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* --- RESPONSIVE --- */
 @media (max-width: 768px) {
-  .sidebar {
-    display: none;
+  .nav-wrapper {
+    justify-content: flex-start; /* Cuộn ngang trên mobile */
+    padding: 10px 16px;
   }
   
-  .main-content {
-    margin-left: 0;
-    width: 100%;
-    padding: 16px;
+  .glass-nav {
+    border-radius: 12px; /* Bo góc ít hơn trên mobile */
+  }
+
+  .modern-grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); /* Thẻ nhỏ hơn trên mobile */
+    gap: 12px;
   }
   
-  .friend-requests-grid {
-    grid-template-columns: 1fr;
+  .card-image-wrapper {
+    height: 160px;
+  }
+
+  .card-body {
+    padding: 12px;
+  }
+  
+  .action-group {
+    flex-direction: column; /* Nút xếp dọc trên mobile */
   }
 }
 </style>
