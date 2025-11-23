@@ -6,6 +6,16 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 
+const createTransporter = () => {
+  return nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.EMAIL_USER, // Load from .env
+      pass: process.env.EMAIL_PASS  // Load from .env
+    }
+  });
+};
+
 // ===== 1. Đăng ký (Register) =====
 exports.register = async (req, res) => {
   const { username, email, password, firstname, lastname, role = "user" } = req.body;
@@ -42,16 +52,10 @@ exports.register = async (req, res) => {
     // Gửi email xác minh
     const verificationLink = `http://localhost:8080/verify/${newUser._id}`;
 
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: "htsocial1st@gmail.com",
-        pass: "njvb btnp cfek wfmu"
-      }
-    });
+    const transporter = nodemailer.createTransport();
 
     await transporter.sendMail({
-      from: '"HT Social" <htsocial1st@gmail.com>',
+      from: '"HT Social" <' + process.env.EMAIL_USER + '>',
       to: email,
       subject: "Account Verification",
       html: `<p>Click the link to verify your account:</p><a href="${verificationLink}">${verificationLink}</a>`
@@ -204,8 +208,7 @@ exports.getUserById = async (req, res) => {
   }
 };
 
-// Helper function to calculate next allowed date and format it
-// Returns: { allowed: boolean, nextDate: Date, formattedDate: String }
+
 const checkChangeLimit = (lastChangeDate, daysLimit = 30) => {
   if (!lastChangeDate) return { allowed: true };
 
@@ -331,6 +334,152 @@ exports.deleteUser = async (req, res) => {
   }
 };
 
+// ===== 9. Request Email Change (Send OTP) =====
+exports.requestEmailChange = async (req, res) => {
+  const { userId, newEmail } = req.body;
+
+  try {
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ msg: "User not found" });
+
+    const emailExists = await User.findOne({ email: newEmail });
+    if (emailExists) return res.status(400).json({ msg: "Email is already taken" });
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    user.email_otp = otp;
+    user.email_otp_expire = Date.now() + 5 * 60 * 1000; // 5 minutes
+    await user.save();
+
+    const transporter = createTransporter();
+    // ... đoạn code tạo OTP phía trên giữ nguyên ...
+
+    // Cấu hình nội dung Email đẹp hơn
+    const brandColor = "#ff5757"; // Màu đỏ/hồng giống logo của bạn
+
+    await transporter.sendMail({
+          from: '"HT Social Security" <' + process.env.EMAIL_USER + '>',
+          to: user.email,
+          subject: "🔐 Verification Code for Email Change",
+          html: `
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <meta charset="utf-8">
+              <style>
+              @import url('https://fonts.googleapis.com/css2?family=berkshire+swash&display=swap');
+              </style>
+            </head>
+            <body style="margin: 0; padding: 0; background-color: #f9f9f9; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;">
+              
+              <div style="max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+                
+                <div style="background-color: ${brandColor}; padding: 30px 20px; text-align: center;">
+                  <h1 style="
+                    color: #ffffff; 
+                    margin: 0; 
+                    font-size: 36px; 
+                    font-weight: 400; 
+                    font-family: 'Berkshire Swash', cursive, serif; /* Font của bạn */
+                  ">
+                    HT Social
+                  </h1>
+                </div>
+        
+                <div style="padding: 40px 30px; color: #333333;">
+                  <h2 style="margin-top: 0; color: #333; font-size: 20px; font-weight: 600;">Confirm your email change</h2>
+                  
+                  <p style="font-size: 16px; line-height: 1.6; color: #555;">
+                    Hello <b>${user.firstname} ${user.lastname}</b>,
+                    <br><br>
+                    We received a request to change the email address associated with your account to:
+                    <a href="mailto:${newEmail}" style="color: ${brandColor}; text-decoration: none; font-weight: bold;">${newEmail}</a>
+                  </p>
+        
+                  <p style="font-size: 16px; line-height: 1.6; color: #555;">
+                    Please use the verification code below to confirm this change.
+                  </p>
+        
+                  <div style="margin: 30px 0; text-align: center;">
+                    <span style="
+                      display: inline-block;
+                      font-size: 32px;
+                      font-weight: bold;
+                      letter-spacing: 5px;
+                      color: ${brandColor};
+                      background-color: #fff0f1;
+                      border: 2px dashed ${brandColor};
+                      padding: 15px 40px;
+                      border-radius: 8px;
+                    ">
+                      ${otp}
+                    </span>
+                  </div>
+        
+                  <p style="font-size: 14px; color: #777; text-align: center;">
+                    This code will expire in <b>5 minutes</b>.
+                  </p>
+        
+                  <div style="border-top: 1px solid #eee; margin-top: 30px; padding-top: 20px;">
+                    <p style="font-size: 14px; color: #999; line-height: 1.5;">
+                      <strong>Security Notice:</strong> If you did not request this change, please ignore this email.
+                    </p>
+                  </div>
+                </div>
+        
+                <div style="background-color: #f4f4f4; padding: 20px; text-align: center; font-size: 12px; color: #888;">
+                  <p style="margin: 0;">&copy; ${new Date().getFullYear()} HT Social. All rights reserved.</p>
+                </div>
+              </div>
+            </body>
+            </html>
+          `
+        });
+
+    res.status(200).json({ msg: "OTP sent to your current email" });
+  } catch (err) {
+    console.error("Request email change error:", err);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
+
+
+
+// ===== 10. Verify and Change Email (Đã sửa lỗi so sánh) =====
+exports.verifyAndChangeEmail = async (req, res) => {
+  const { userId, otp, newEmail } = req.body;
+
+  try {
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ msg: "User not found" });
+
+    // --- SỬA ĐOẠN NÀY ---
+    // 1. Ép kiểu về String và xóa khoảng trắng thừa (trim)
+    const inputOtp = String(otp).trim();
+    const dbOtp = String(user.email_otp).trim();
+
+    if (inputOtp !== dbOtp) {
+      return res.status(400).json({ msg: "Invalid OTP" });
+    }
+    // --------------------
+
+    if (Date.now() > user.email_otp_expire) {
+      return res.status(400).json({ msg: "OTP has expired" });
+    }
+
+    user.email = newEmail;
+    user.email_otp = null;
+    user.email_otp_expire = null;
+    await user.save();
+
+    const updatedUser = user.toObject();
+    delete updatedUser.password;
+
+    res.status(200).json({ msg: "Email changed successfully", user: updatedUser });
+  } catch (err) {
+    console.error("Verify email change error:", err);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
 
 // ===== 9. Gửi lời mời kết bạn (Send Friend Request) =====
 exports.sendFriendRequest = async (req, res) => {

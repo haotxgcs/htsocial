@@ -40,5 +40,9 @@ router.get("/:userId/friends", AuthController.getFriends);
 // View hidden posts
 router.post('/:userId/hide-post/:postId', AuthController.hidePost);
 
+// Đổi Email
+router.post("/change-email/request", AuthController.requestEmailChange);
+router.post("/change-email/verify", AuthController.verifyAndChangeEmail);
+
 
 module.exports = router;
