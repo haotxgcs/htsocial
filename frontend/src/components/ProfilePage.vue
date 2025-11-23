@@ -44,9 +44,11 @@
           </div>
 
           <div class="action-buttons">
-            <button class="btn-primary-gradient">Chỉnh sửa trang cá nhân</button>
-            <button class="btn-glass-dark">⋯</button>
-          </div>
+          <button class="btn-primary-gradient" @click="openEditProfileModal">
+            Edit Profile
+          </button>
+          <button class="btn-glass-dark">⋯</button>
+        </div>
         </div>
       </div>
     </div>
@@ -334,6 +336,13 @@
     <CommentModal v-if="commentModalVisible" :is-visible="commentModalVisible" :post="selectedPost" :user="user" @close="closeCommentModal" @liked="handlePostLiked" @share="openShareModal" @comment-count-updated="handleCommentCountUpdated" @rating-updated="handleRatingUpdated" />
     <ShareModal v-if="shareModalVisible" :post="sharedPost" :user="user" @close="closeShareModal" @shared="handlePostShared" />
     <EditShareModal v-if="showEditShareModal" :share="editedShare" @close="showEditShareModal = false" @updated="fetchUserPosts" />
+    <EditProfileModal
+  v-if="editProfileModalVisible"
+  :is-visible="editProfileModalVisible"
+  :user="user"
+  @close="closeEditProfileModal"
+  @save="handleProfileSave"
+/>
   </div>
 </template>
 
@@ -344,6 +353,7 @@ import CommentModal from './CommentModal.vue';
 import ShareModal from './ShareModal.vue';
 import EditPostModal from './EditPostModal.vue';
 import CreatePostModal from './CreatePostModal.vue'; // ✅ IMPORT CreatePostModal
+import EditProfileModal from './EditProfileModal.vue';
 
 export default {
   name: "ProfilePage",
@@ -353,7 +363,8 @@ export default {
     CommentModal,
     ShareModal,
     EditPostModal,
-    CreatePostModal // ✅ REGISTER CreatePostModal
+    CreatePostModal,
+    EditProfileModal 
   },
   data() {
     return {
@@ -396,7 +407,9 @@ export default {
 
       // Expand posts functionality
       expandedPosts: {},
-      postLineCounts: {}
+      postLineCounts: {},
+
+      editProfileModalVisible: false,
     };
   },
   computed: {
@@ -855,6 +868,42 @@ export default {
     const navElement = this.$el.querySelector('.profile-nav') || this.$el.querySelector('.nav-wrapper');
     if (navElement) {
       navElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  },
+
+  openEditProfileModal() {
+    this.editProfileModalVisible = true;
+  },
+
+  closeEditProfileModal() {
+    this.editProfileModalVisible = false;
+  },
+
+  async handleProfileSave(updatedData) {
+    try {
+      const savedUser = JSON.parse(localStorage.getItem("user"));
+      
+      // Gọi API Update User (Lưu ý: Backend cần có route PUT /users/:id)
+      const res = await fetch(`http://localhost:3000/users/${savedUser.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedData)
+      });
+
+      if (res.ok) {
+        const newUser = await res.json();
+        this.user = newUser; // Cập nhật lại giao diện
+        // Cập nhật localStorage nếu cần thiết để đồng bộ header
+        localStorage.setItem("user", JSON.stringify({ ...savedUser, ...newUser }));
+        
+        this.closeEditProfileModal();
+        alert("Cập nhật thông tin thành công!");
+      } else {
+        alert("Lỗi khi cập nhật thông tin");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Lỗi server");
     }
   }
 

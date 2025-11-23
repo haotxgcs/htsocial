@@ -11,31 +11,27 @@
         <button 
           :class="['nav-pill', { active: currentView === 'friends' || currentView === 'home' }]"
           @click="currentView = 'friends'"
-        >
-          <span class="icon"></span>My Friends
+        >My Friends
           <span class="badge" v-if="allFriends.length">{{ allFriends.length }}</span>
         </button>
 
         <button 
           :class="['nav-pill', { active: currentView === 'suggestions' }]"
           @click="currentView = 'suggestions'"
-        >
-          <span class="icon"></span>Discover
+        >Discover
         </button>
 
         <button 
           :class="['nav-pill', { active: currentView === 'requests' }]"
           @click="currentView = 'requests'"
-        >
-          <span class="icon"></span>Requests
+        >Requests
           <span class="badge red" v-if="friendRequests.length">{{ friendRequests.length }}</span>
         </button>
 
         <button 
           :class="['nav-pill', { active: currentView === 'sent' }]"
           @click="currentView = 'sent'"
-        >
-          <span class="icon"></span>Sent
+        >Sent
           <span class="badge" v-if="sentRequests.length">{{ sentRequests.length }}</span>
         </button>
       </div>
@@ -494,7 +490,7 @@ export default {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   font-size: 14px;
   white-space: nowrap;
 }

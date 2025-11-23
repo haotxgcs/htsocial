@@ -204,38 +204,116 @@ exports.getUserById = async (req, res) => {
   }
 };
 
-// ===== 7. Cập nhật user (Update User) =====
+// Helper function to calculate next allowed date and format it
+// Returns: { allowed: boolean, nextDate: Date, formattedDate: String }
+const checkChangeLimit = (lastChangeDate, daysLimit = 30) => {
+  if (!lastChangeDate) return { allowed: true };
+
+  const now = new Date();
+  const lastChange = new Date(lastChangeDate);
+  
+  // Calculate the unlock date (last change + 30 days)
+  const nextAllowedDate = new Date(lastChange);
+  nextAllowedDate.setDate(lastChange.getDate() + daysLimit);
+
+  // Check if current time is past the allowed date
+  const isAllowed = now >= nextAllowedDate;
+
+  // Format: "HH:mm, DD/MM/YYYY" (e.g., "14:30, 25/12/2025")
+  const formattedDate = nextAllowedDate.toLocaleString('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour12: false // Use 24h format
+  }).replace(',', ''); // Adjust format if needed
+
+  return { allowed: isAllowed, formattedDate: formattedDate };
+};
+
+// ===== 7. Update User (Enhanced Security & Specific Time) =====
 exports.updateUser = async (req, res) => {
-  const { firstname, lastname, username, email, avatar, role, bio, coverPhoto, gender, location, birthday} = req.body;
+  const userId = req.params.id;
+  const { 
+    firstname, lastname, username, email, 
+    avatar, bio, gender, location, birthday 
+  } = req.body;
 
   try {
-    const updatedUser = await User.findByIdAndUpdate(
-      req.params.id,
-      {
-        firstname,
-        lastname,
-        username,
-        email,
-        avatar,
-        role,
-        bio,
-        coverPhoto,
-        gender,
-        location,
-        birthday
-      },
-      { new: true, runValidators: true, fields: "-password" }
-    );
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ msg: "User not found" });
+    }
 
-    if (!updatedUser) return res.status(404).json({ msg: "User not found" });
+    const now = new Date();
+
+    // ---------------------------------------------------------
+    // A. SECURITY CHECK: FIRSTNAME / LASTNAME (30 Days)
+    // ---------------------------------------------------------
+    if ((firstname && firstname !== user.firstname) || (lastname && lastname !== user.lastname)) {
+      const check = checkChangeLimit(user.last_name_change);
+
+      if (!check.allowed) {
+        return res.status(403).json({ 
+          msg: `You cannot change your name right now. Please wait until ${check.formattedDate}.` 
+        });
+      }
+
+      // If allowed, apply changes
+      if (firstname) user.firstname = firstname;
+      if (lastname) user.lastname = lastname;
+      user.last_name_change = now;
+    }
+
+    // ---------------------------------------------------------
+    // B. SECURITY CHECK: USERNAME (30 Days) - NEW
+    // ---------------------------------------------------------
+    if (username && username !== user.username) {
+      // Check if username is already taken by another user
+      const existingUser = await User.findOne({ username });
+      if (existingUser) {
+        return res.status(400).json({ msg: "Username is already taken." });
+      }
+
+      const check = checkChangeLimit(user.last_username_change);
+
+      if (!check.allowed) {
+        return res.status(403).json({ 
+          msg: `You cannot change your username right now. Please wait until ${check.formattedDate}.` 
+        });
+      }
+
+      // If allowed, apply changes
+      user.username = username;
+      user.last_username_change = now;
+    }
+
+    // ---------------------------------------------------------
+    // C. UPDATE PUBLIC INFO (No Restrictions)
+    // ---------------------------------------------------------
+    if (bio !== undefined) user.bio = bio;
+    if (gender !== undefined) user.gender = gender;
+    if (location !== undefined) user.location = location;
+    if (birthday !== undefined) user.birthday = birthday;
+    if (avatar !== undefined) user.avatar = avatar;
+    if (email && email !== user.email) user.email = email; // Note: Should use OTP for email
+
+    // Save all changes
+    await user.save();
+
+    // Return updated user without password
+    const userResponse = user.toObject();
+    delete userResponse.password;
 
     res.status(200).json({
-      msg: "User updated",
-      user: updatedUser
+      msg: "User profile updated successfully",
+      user: userResponse
     });
+
   } catch (err) {
     console.error("Update user error:", err);
-    res.status(500).json({ msg: "Server error" });
+    res.status(500).json({ msg: "Server error", error: err.message });
   }
 };
 
@@ -397,4 +475,22 @@ exports.getFriends = async (req, res) => {
     console.error("Get friends error:", err);
     res.status(500).json({ msg: "Server error" });
   }
-}
+};
+
+// ===== 14. Ẩn bài viết (Hide Post) =====
+exports.hidePost = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    if (!user.hiddenPosts.includes(req.params.postId)) {
+      user.hiddenPosts.push(req.params.postId);
+      await user.save();
+    }
+
+    res.status(200).json({ message: 'Post hidden successfully' });
+  } catch (err) {
+    console.error("Hide post error:", err);
+    res.status(500).json({ message: 'Error hiding post' });
+  }
+};

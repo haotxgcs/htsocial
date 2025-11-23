@@ -39,7 +39,10 @@ const userSchema = new mongoose.Schema(
     hiddenShares: [{ type: mongoose.Schema.Types.ObjectId, ref: "Share" }],
 
     // Saved posts
-    savedPosts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post'}]
+    savedPosts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post'}],
+
+    last_name_change: { type: Date, default: null },
+    last_username_change: { type: Date, default: null }
   },
   {
     timestamps: true,
