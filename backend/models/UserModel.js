@@ -45,7 +45,14 @@ const userSchema = new mongoose.Schema(
     last_username_change: { type: Date, default: null },
 
     email_otp: { type: String, default: null },
-    email_otp_expire: { type: Date, default: null }
+    email_otp_expire: { type: Date, default: null },
+    last_otp_sent_at: { type: Date, default: null },
+
+    password_otp: { type: String, default: null },
+    password_otp_expire: { type: Date, default: null },
+    last_password_otp_sent_at: { type: Date, default: null },
+
+    token_version: { type: Number, default: 0 }
   },
   {
     timestamps: true,

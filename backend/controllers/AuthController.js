@@ -117,7 +117,7 @@ exports.login = async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ msg: "Invalid credentials" });
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || "default_secret", { expiresIn: "1h" });
+    const token = jwt.sign({ id: user._id , v: user.token_version || 0 }, process.env.JWT_SECRET || "default_secret", { expiresIn: "1h" });
 
     user.active = true;
     await user.save();
@@ -345,21 +345,43 @@ exports.requestEmailChange = async (req, res) => {
     const emailExists = await User.findOne({ email: newEmail });
     if (emailExists) return res.status(400).json({ msg: "Email is already taken" });
 
+    // --- [START] RATE LIMIT CHECK (5 MINUTES) ---
+    if (user.last_otp_sent_at) {
+      const now = new Date();
+      const lastSent = new Date(user.last_otp_sent_at);
+      
+      // Tính khoảng cách thời gian (miliseconds)
+      const diffMs = now - lastSent;
+      const diffMinutes = diffMs / (1000 * 60); // Đổi ra phút
+
+      // Nếu chưa đủ 5 phút
+      if (diffMinutes < 5) {
+        const waitTime = Math.ceil(5 - diffMinutes); // Làm tròn số phút phải đợi
+        return res.status(429).json({ 
+          msg: `Please wait ${waitTime} minute(s) before requesting a new OTP.` 
+        });
+      }
+    }
+    // --- [END] RATE LIMIT CHECK ---
+
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     user.email_otp = otp;
     user.email_otp_expire = Date.now() + 5 * 60 * 1000; // 5 minutes
+    
+    // Cập nhật thời gian gửi mới nhất
+    user.last_otp_sent_at = Date.now(); 
+    
     await user.save();
 
     const transporter = createTransporter();
-    // ... đoạn code tạo OTP phía trên giữ nguyên ...
-
+    
     // Cấu hình nội dung Email đẹp hơn
     const brandColor = "#ff5757"; // Màu đỏ/hồng giống logo của bạn
 
     await transporter.sendMail({
           from: '"HT Social Security" <' + process.env.EMAIL_USER + '>',
           to: user.email,
-          subject: "🔐 Verification Code for Email Change",
+          subject: "Verification Code for Email Change",
           html: `
             <!DOCTYPE html>
             <html>
@@ -435,7 +457,7 @@ exports.requestEmailChange = async (req, res) => {
           `
         });
 
-    res.status(200).json({ msg: "OTP sent to your current email" });
+    res.status(200).json({ msg: `OTP sent to your current email: ${user.email}. Please check your inbox.` });
   } catch (err) {
     console.error("Request email change error:", err);
     res.status(500).json({ msg: "Server error" });
@@ -444,7 +466,7 @@ exports.requestEmailChange = async (req, res) => {
 
 
 
-// ===== 10. Verify and Change Email (Đã sửa lỗi so sánh) =====
+// ===== 10. Verify and Change Email (Link to Login) =====
 exports.verifyAndChangeEmail = async (req, res) => {
   const { userId, otp, newEmail } = req.body;
 
@@ -452,36 +474,293 @@ exports.verifyAndChangeEmail = async (req, res) => {
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ msg: "User not found" });
 
-    // --- SỬA ĐOẠN NÀY ---
-    // 1. Ép kiểu về String và xóa khoảng trắng thừa (trim)
-    const inputOtp = String(otp).trim();
-    const dbOtp = String(user.email_otp).trim();
-
-    if (inputOtp !== dbOtp) {
-      return res.status(400).json({ msg: "Invalid OTP" });
+    // 1. Kiểm tra OTP
+    if (String(user.email_otp).trim() !== String(otp).trim()) {
+      return res.status(400).json({ msg: "Invalid OTP code" });
     }
-    // --------------------
-
+    
+    // 2. Kiểm tra thời hạn
     if (Date.now() > user.email_otp_expire) {
       return res.status(400).json({ msg: "OTP has expired" });
     }
 
+    // 3. Cập nhật Email mới
     user.email = newEmail;
     user.email_otp = null;
     user.email_otp_expire = null;
     await user.save();
 
+    // 4. Gửi Email Thông Báo Thành Công
+    const transporter = createTransporter();
+    const brandColor = "#ff5757"; 
+
+    // --- CẤU HÌNH LINK LOGIN ---
+    // Thay đổi port 8080 thành port frontend thực tế của bạn nếu khác
+    const loginLink = "http://localhost:8080/login"; 
+
+    transporter.sendMail({
+      from: '"HT Social Security" <' + process.env.EMAIL_USER + '>',
+      to: newEmail,
+      subject: "Email Changed Successfully",
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=berkshire+swash&display=swap');
+          </style>
+        </head>
+        <body style="margin: 0; padding: 0; background-color: #f9f9f9; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;">
+          
+          <div style="max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+            
+            <div style="background-color: ${brandColor}; padding: 30px 20px; text-align: center;">
+              <h1 style="
+                color: #ffffff; 
+                margin: 0; 
+                font-size: 32px; 
+                font-weight: 700; 
+                letter-spacing: 1px;
+                font-family: 'Berkshire Swash', cursive, serif;
+              ">
+                HT Social
+              </h1>
+            </div>
+    
+            <div style="padding: 40px 30px; color: #333;">
+              
+              <div style="text-align: center; margin-bottom: 20px;">
+                <h2 style="color: #ff5757; margin: 0; font-size: 24px;">Email Updated</h2>
+              </div>
+              
+              <p style="font-size: 16px; line-height: 1.6; color: #555;">
+                Hello <b>${user.firstname} ${user.lastname}</b>,
+              </p>
+              
+              <p style="font-size: 16px; line-height: 1.6; color: #555;">
+                Your <b>HT Social</b> account email has been successfully changed to:
+              </p>
+              
+              <div style="margin: 25px 0; text-align: center;">
+                <span style="
+                  display: inline-block;
+                  font-size: 18px;
+                  font-weight: bold;
+                  color: ${brandColor};
+                  background-color: #fff0f1;
+                  padding: 12px 24px;
+                  border-radius: 50px;
+                  text-decoration: none;
+                ">
+                  ${newEmail}
+                </span>
+              </div>
+
+              <p style="font-size: 15px; color: #555; text-align: center;">
+                Please use this email address to 
+                <a href="${loginLink}" style="color: ${brandColor}; text-decoration: none; font-weight: bold;">log in</a> 
+                from now on.
+              </p>
+              
+              <div style="border-top: 1px solid #eee; margin-top: 30px; padding-top: 20px;">
+                <p style="font-size: 13px; color: #999; line-height: 1.5; text-align: center;">
+                  If you did not make this change, please contact our support team immediately.
+                </p>
+              </div>
+            </div>
+
+            <div style="background-color: #f4f4f4; padding: 20px; text-align: center; font-size: 12px; color: #888;">
+              <p style="margin: 0;">&copy; ${new Date().getFullYear()} HT Social. All rights reserved.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `
+    }).catch(err => console.error("Send success email error:", err));
+
+    // 5. Trả về kết quả
     const updatedUser = user.toObject();
     delete updatedUser.password;
+    delete updatedUser.email_otp;
 
-    res.status(200).json({ msg: "Email changed successfully", user: updatedUser });
+    res.status(200).json({ 
+      msg: "Email changed successfully. A confirmation email has been sent.", 
+      user: updatedUser 
+    });
+
   } catch (err) {
     console.error("Verify email change error:", err);
     res.status(500).json({ msg: "Server error" });
   }
 };
 
-// ===== 9. Gửi lời mời kết bạn (Send Friend Request) =====
+// ===== 11. Yêu cầu Đổi Mật khẩu (Gửi OTP) =====
+exports.requestPasswordChange = async (req, res) => {
+  const { userId } = req.body; // Hoặc dùng email nếu là tính năng "Quên mật khẩu"
+
+  try {
+    // 1. Tìm user
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ msg: "User not found" });
+
+    // 2. Kiểm tra Rate Limit (5 phút)
+    if (user.last_password_otp_sent_at) {
+      const diffMinutes = (Date.now() - new Date(user.last_password_otp_sent_at)) / (1000 * 60);
+      if (diffMinutes < 5) {
+        const waitTime = Math.ceil(5 - diffMinutes);
+        return res.status(429).json({ msg: `Please wait ${waitTime} minute(s) before requesting new OTP.` });
+      }
+    }
+
+    // 3. Tạo OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    user.password_otp = otp;
+    user.password_otp_expire = Date.now() + 5 * 60 * 1000; // 5 phút
+    user.last_password_otp_sent_at = Date.now();
+    await user.save();
+
+    // 4. Gửi Email OTP (Template đẹp)
+    const transporter = createTransporter();
+    const brandColor = "#ff5757";
+
+    await transporter.sendMail({
+      from: '"HT Social Security" <' + process.env.EMAIL_USER + '>',
+      to: user.email,
+      subject: "Verification Code for Password Change",
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head><meta charset="utf-8"></head>
+        <style>
+              @import url('https://fonts.googleapis.com/css2?family=berkshire+swash&display=swap');
+        </style>
+        <body style="margin: 0; padding: 0; background-color: #f9f9f9; font-family: Helvetica, Arial, sans-serif;">
+          <div style="max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+            <div style="background-color: ${brandColor}; padding: 30px 20px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 32px; font-weight: 700; font-family: 'Berkshire Swash', cursive, serif; letter-spacing: 1px;">HT Social</h1>
+            </div>
+            <div style="padding: 40px 30px; color: #333;">
+              <h2 style="margin-top: 0; font-size: 20px;">Request to Change Password</h2>
+              <p>Hello <b>${user.firstname}</b>,</p>
+              <p>We received a request to reset or change your password.</p>
+              <p>Please use the code below to proceed:</p>
+              
+              <div style="margin: 30px 0; text-align: center;">
+                <span style="display: inline-block; font-size: 32px; font-weight: bold; letter-spacing: 5px; color: ${brandColor}; background-color: #fff0f1; border: 2px dashed ${brandColor}; padding: 15px 40px; border-radius: 8px;">
+                  ${otp}
+                </span>
+              </div>
+              
+              <p style="font-size: 14px; color: #777; text-align: center;">This code expires in <b>5 minutes</b>.</p>
+              <div style="border-top: 1px solid #eee; margin-top: 30px; padding-top: 20px;">
+                <p style="font-size: 14px; color: #999;"><strong>Security Notice:</strong> If you did not request this, someone may be trying to access your account. Do not share this code.</p>
+              </div>
+            </div>
+            <div style="background-color: #f4f4f4; padding: 20px; text-align: center; color: #888; font-size: 12px;">
+              <p>&copy; ${new Date().getFullYear()} HT Social. All rights reserved.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `
+    });
+
+    res.status(200).json({ msg: `OTP sent to ${user.email}` });
+
+  } catch (err) {
+    console.error("Request password change error:", err);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
+
+// ===== 12. Xác thực OTP và Đổi Mật khẩu =====
+exports.verifyAndChangePassword = async (req, res) => {
+  const { userId, otp, newPassword } = req.body;
+
+  try {
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ msg: "User not found" });
+
+    // 1. Kiểm tra OTP
+    if (String(user.password_otp).trim() !== String(otp).trim()) {
+      return res.status(400).json({ msg: "Invalid OTP code" });
+    }
+    if (Date.now() > user.password_otp_expire) {
+      return res.status(400).json({ msg: "OTP has expired" });
+    }
+
+    // 2. Mã hóa mật khẩu mới
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(newPassword, salt);
+
+    // 3. Xóa OTP
+    user.password_otp = null;
+    user.password_otp_expire = null;
+
+    // Tăng version lên => Token cũ (version thấp hơn) sẽ sai và bị từ chối
+    user.token_version = (user.token_version || 0) + 1;
+    // (Tuỳ chọn) Set trạng thái về offline để UI các máy khác cập nhật
+    user.active = false;
+
+    await user.save();
+
+    // 4. Gửi Email Thông Báo Thành Công
+    const transporter = createTransporter();
+    const brandColor = "#ff5757";
+    const loginLink = "http://localhost:8080/login"; // Check lại port frontend của bạn
+
+    transporter.sendMail({
+      from: '"HT Social Security" <' + process.env.EMAIL_USER + '>',
+      to: user.email,
+      subject: "Password Changed Successfully",
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head><meta charset="utf-8"></head>
+        <style>
+              @import url('https://fonts.googleapis.com/css2?family=berkshire+swash&display=swap');
+        </style>
+        <body style="margin: 0; padding: 0; background-color: #f9f9f9; font-family: Helvetica, Arial, sans-serif;">
+          <div style="max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+            <div style="background-color: ${brandColor}; padding: 30px 20px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 32px; font-weight: 700; font-family: 'Berkshire Swash', cursive, serif; letter-spacing: 1px;">HT Social</h1>
+            </div>
+            <div style="padding: 40px 30px; color: #333;">
+              <div style="text-align: center; margin-bottom: 20px;">
+                <h2 style="color: #ff5757; margin: 0; font-size: 24px;">Password Updated!</h2>
+              </div>
+              <p>Hello <b>${user.firstname}</b>,</p>
+              <p>Your password has been successfully changed. You can now log in with your new password.</p>
+              
+              <div style="margin: 30px 0; text-align: center;">
+                 <a href="${loginLink}" style="background-color: ${brandColor}; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                   Login Now
+                 </a>
+              </div>
+
+              <div style="border-top: 1px solid #eee; margin-top: 30px; padding-top: 20px;">
+                <p style="font-size: 13px; color: #999; text-align: center;">If you did not make this change, please contact support immediately.</p>
+              </div>
+            </div>
+            <div style="background-color: #f4f4f4; padding: 20px; text-align: center; color: #888; font-size: 12px;">
+              <p>&copy; ${new Date().getFullYear()} HT Social. All rights reserved.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `
+    }).catch(err => console.error("Send password success email error:", err));
+
+    res.status(200).json({ msg: "Password changed successfully!" });
+
+  } catch (err) {
+    console.error("Verify password change error:", err);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
+
+// ===== 13. Gửi lời mời kết bạn (Send Friend Request) =====
 exports.sendFriendRequest = async (req, res) => {
   const { fromUserId, toUserId } = req.body;
 
@@ -511,7 +790,7 @@ exports.sendFriendRequest = async (req, res) => {
 };
 
 
-// ===== 10. Chấp nhận lời mời kết bạn (Accept Friend Request) =====
+// ===== 14. Chấp nhận lời mời kết bạn (Accept Friend Request) =====
 exports.acceptFriendRequest = async (req, res) => {
   const { userId, requesterId } = req.body;
 
@@ -540,7 +819,7 @@ exports.acceptFriendRequest = async (req, res) => {
 };
 
 
-// ===== 11. Huỷ lời mời kết bạn (Cancel Friend Request) =====
+// ===== 15. Huỷ lời mời kết bạn (Cancel Friend Request) =====
 exports.cancelFriendRequest = async (req, res) => {
   const { fromUserId, toUserId } = req.body;
 
@@ -564,7 +843,7 @@ exports.cancelFriendRequest = async (req, res) => {
 };
 
 
-// ===== 12. Huỷ kết bạn (Unfriend) =====
+// ===== 16. Huỷ kết bạn (Unfriend) =====
 exports.unFriend = async (req, res) => {
   const { userId, friendId } = req.body;
 
@@ -592,7 +871,7 @@ exports.unFriend = async (req, res) => {
 };
 
 
-// ===== 13. Cập nhật trạng thái online (Set Active Status) =====
+// ===== 17. Cập nhật trạng thái online (Set Active Status) =====
 exports.setActiveStatus = async (req, res) => {
   const { userId, active } = req.body;
 
@@ -611,7 +890,7 @@ exports.setActiveStatus = async (req, res) => {
   }
 };
 
-// Lấy danh sách bạn bè của user
+// 18. Lấy danh sách bạn bè của user
 exports.getFriends = async (req, res) => {
   const userId = req.params.userId;
 
@@ -626,7 +905,7 @@ exports.getFriends = async (req, res) => {
   }
 };
 
-// ===== 14. Ẩn bài viết (Hide Post) =====
+// ===== 19. Ẩn bài viết (Hide Post) =====
 exports.hidePost = async (req, res) => {
   try {
     const user = await User.findById(req.params.userId);
@@ -643,3 +922,4 @@ exports.hidePost = async (req, res) => {
     res.status(500).json({ message: 'Error hiding post' });
   }
 };
+

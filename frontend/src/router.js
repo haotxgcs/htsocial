@@ -6,7 +6,6 @@ import VerifyLinkPage from './components/VerifyLinkPage.vue';
 import HomePage from './components/HomePage.vue';
 import FriendPage from './components/FriendPage.vue';
 import MarketplacePage from './components/MarketplacePage.vue';
-import GroupPage from './components/GroupPage.vue';
 import GamePage from './components/GamePage.vue';
 import MessagePage from './components/MessagePage.vue';
 import NotificationPage from './components/NotificationPage.vue';
@@ -22,8 +21,7 @@ const routes = [
   { path: '/verify/:id', component: VerifyLinkPage },
   { path: '/home', component: HomePage },
   { path: '/friend', component: FriendPage },
-  { path: '/marketplace', component: MarketplacePage },
-  { path: '/group', component: GroupPage },
+  { path: '/marketplace', component: MarketplacePage }, 
   { path: '/game', component: GamePage },
   { path: '/message', component: MessagePage },
   { path: '/notification', component: NotificationPage },

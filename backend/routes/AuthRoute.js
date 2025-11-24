@@ -44,5 +44,8 @@ router.post('/:userId/hide-post/:postId', AuthController.hidePost);
 router.post("/change-email/request", AuthController.requestEmailChange);
 router.post("/change-email/verify", AuthController.verifyAndChangeEmail);
 
+// Đổi Mật khẩu
+router.post("/change-password/request", AuthController.requestPasswordChange);
+router.post("/change-password/verify", AuthController.verifyAndChangePassword);
 
 module.exports = router;
