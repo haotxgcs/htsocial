@@ -488,7 +488,7 @@ export default {
 
     isMyPost(post) {
       const savedUser = JSON.parse(localStorage.getItem("user"));
-      return savedUser && post.author._id === savedUser.id;
+      return savedUser && post.author && post.author._id === savedUser.id;
     },
 
     // ===== CREATE POST =====
@@ -598,7 +598,7 @@ export default {
 
     isMyShare(share) {
       const savedUser = JSON.parse(localStorage.getItem("user"));
-      return savedUser && share.username._id === savedUser.id;
+      return savedUser && share.username && share.username._id === savedUser.id;
     },
 
     async deleteShare(shareId) {
@@ -670,7 +670,7 @@ export default {
 
     isLiked(post) {
       const savedUser = JSON.parse(localStorage.getItem("user"));
-      return post.likes && post.likes.includes(savedUser.id);
+      return savedUser && post.likes && post.likes.includes(savedUser.id);
     },
 
     // ===== SAVE POST METHODS =====

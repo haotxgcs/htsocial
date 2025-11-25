@@ -206,14 +206,36 @@ export default {
     }
   },
   mounted() {
-    const user = JSON.parse(localStorage.getItem("user"));
-    if (user) {
-      this.currentUser.name = `${user.firstname} ${user.lastname}`;
-      this.currentUser.email = user.email;
+    // 1. Lấy chuỗi JSON từ localStorage trước
+    const userStr = localStorage.getItem("user");
+
+    // 2. Chỉ chạy logic User nếu chuỗi này tồn tại (Tức là ĐÃ ĐĂNG NHẬP)
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        
+        if (user) {
+          // Cập nhật thông tin hiển thị trên Header
+          this.currentUser.name = `${user.firstname || ''} ${user.lastname || ''}`.trim() || 'User';
+          this.currentUser.email = user.email || 'user@example.com';
+
+          // 3. Gọi API lấy danh sách bạn bè (QUAN TRỌNG: Chỉ gọi khi có user)
+          // Nếu không check, hàm này chạy với user=null sẽ gây lỗi crash trang
+          if (typeof this.fetchFriends === 'function') {
+            this.fetchFriends(); 
+          }
+        }
+      } catch (e) {
+        console.error("Lỗi dữ liệu LocalStorage:", e);
+        // Nếu dữ liệu lỗi, nên xóa đi để tránh lỗi lặp lại
+        localStorage.removeItem("user");
+      }
     }
+
+    // 4. Các sự kiện UI (Click, Resize) thì giữ nguyên, vì không phụ thuộc User
     document.addEventListener('click', this.handleClickOutside);
     window.addEventListener('resize', this.handleResize);
-    this.handleResize();
+    this.handleResize(); 
   },
   beforeUnmount() {
     document.removeEventListener('click', this.handleClickOutside);

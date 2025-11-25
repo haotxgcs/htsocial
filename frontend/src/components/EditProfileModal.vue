@@ -1,8 +1,10 @@
 <template>
   <div>
+    <!-- EDIT PROFILE MODAL -->
     <div v-if="isVisible" class="modal-overlay" @click="closeModal">
       <div class="modal-content" @click.stop>
         
+        <!-- HEADER -->
         <div class="modal-header-tabs">
           <button :class="['tab-btn', { active: currentTab === 'public' }]" @click="currentTab = 'public'">
             Public Info
@@ -13,8 +15,10 @@
           <button class="close-btn" @click="closeModal">&times;</button>
         </div>
 
+        <!-- BODY -->
         <div class="modal-body">
           
+          <!-- TAB 1: PUBLIC INFO (Thông tin hiển thị - Sửa thoải mái) -->
           <div v-if="currentTab === 'public'" class="tab-content fade-in">
             <div class="form-group">
               <label>Bio</label>
@@ -40,23 +44,59 @@
             </div>
           </div>
 
+          <!-- TAB 2: SECURITY (Thông tin định danh - Có giới hạn) -->
           <div v-if="currentTab === 'security'" class="tab-content fade-in">
             
-            <div class="section-title">Name Change</div>
+            <!-- 1. Name Change -->
+            <div class="section-title">Full Name</div>
             <div class="form-group-row">
               <div class="form-group">
                 <label>First Name</label>
-                <input v-model="formData.firstname" type="text" class="glass-input" :disabled="!canChangeName" :class="{ 'disabled-input': !canChangeName }"/>
+                <input 
+                  v-model="formData.firstname" 
+                  type="text" 
+                  class="glass-input" 
+                  :disabled="!canChangeName" 
+                  :class="{ 'disabled-input': !canChangeName }"
+                />
               </div>
               <div class="form-group">
                 <label>Last Name</label>
-                <input v-model="formData.lastname" type="text" class="glass-input" :disabled="!canChangeName" :class="{ 'disabled-input': !canChangeName }"/>
+                <input 
+                  v-model="formData.lastname" 
+                  type="text" 
+                  class="glass-input" 
+                  :disabled="!canChangeName" 
+                  :class="{ 'disabled-input': !canChangeName }"
+                />
               </div>
             </div>
-            <div v-if="!canChangeName" class="warning-text">⚠️ You can change your name again after {{ nextNameChangeDate }}.</div>
-            
+            <!-- Hiển thị trạng thái cho Tên -->
+            <p v-if="!canChangeName" class="warning-text">⚠️ Bạn có thể đổi tên lại sau ngày <strong>{{ nextNameChangeDate }}</strong>.</p>
+            <p v-else class="hint-text">✅ Bạn có thể đổi tên ngay bây giờ (Giới hạn 30 ngày/lần).</p>
+
             <div class="divider"></div>
 
+            <!-- 2. Username Change (MỚI THÊM) -->
+            <div class="section-title">Username</div>
+            <div class="form-group">
+              <label>Username (@)</label>
+              <input 
+                v-model="formData.username" 
+                type="text" 
+                class="glass-input"
+                :disabled="!canChangeUsername"
+                :class="{ 'disabled-input': !canChangeUsername }"
+                placeholder="username"
+              />
+            </div>
+            <!-- Hiển thị trạng thái cho Username -->
+            <p v-if="!canChangeUsername" class="warning-text">⚠️ Bạn có thể đổi username lại sau ngày <strong>{{ nextUsernameChangeDate }}</strong>.</p>
+            <p v-else class="hint-text">✅ Username là định danh duy nhất (Giới hạn 30 ngày/lần).</p>
+
+            <div class="divider"></div>
+
+            <!-- 3. Email Change -->
             <div class="section-title">Email Address</div>
             <div class="form-group">
               <div class="email-wrapper">
@@ -67,8 +107,8 @@
 
             <div class="divider"></div>
 
+            <!-- 4. Password Change -->
             <div class="section-title">Password</div>
-            
             <div class="form-group">
               <button class="btn-outline-danger full-width" @click="requestPasswordChange">
                 🔒 Change Password
@@ -79,13 +119,16 @@
           </div>
         </div>
 
+        <!-- FOOTER -->
         <div class="modal-footer">
           <button class="btn-cancel" @click="closeModal">Close</button>
-          <button v-if="currentTab === 'public' || canChangeName" class="btn-save" @click="saveProfile">Save Changes</button>
+          <!-- Luôn hiện nút Save để lưu các thay đổi (nếu có) -->
+          <button class="btn-save" @click="saveProfile">Save Changes</button>
         </div>
       </div>
     </div>
 
+    <!-- SECURITY MODAL -->
     <SecurityModal 
       ref="securityModal"
       :is-visible="securityModalVisible"
@@ -95,16 +138,30 @@
       @submit-email-request="handleSubmitEmailRequest"
       @submit-email-verify="handleSubmitEmailVerify"
       @submit-password-verify="handleSubmitPasswordVerify"
+      @resend-otp="handleResendOtp"
+    />
+
+    <!-- NOTIFICATION MODAL -->
+    <NotificationModal 
+      :is-visible="notificationVisible"
+      :type="notificationData.type"
+      :title="notificationData.title"
+      :message="notificationData.message"
+      :sub-message="notificationData.subMessage"
+      :button-text="notificationData.buttonText"
+      @confirm="handleNotificationConfirm"
     />
   </div>
 </template>
 
+
 <script>
 import SecurityModal from './SecurityModal.vue';
+import NotificationModal from './NotificationModal.vue';
 
 export default {
   name: "EditProfileModal",
-  components: { SecurityModal },
+  components: { SecurityModal, NotificationModal },
   props: {
     isVisible: { type: Boolean, default: false },
     user: { type: Object, required: true }
@@ -112,17 +169,43 @@ export default {
   data() {
     return {
       currentTab: 'public',
+      
+      // Name Check Logic
       canChangeName: false,
       nextNameChangeDate: '',
       
-      // Dữ liệu form chỉnh sửa thông tin
+      // Username Check Logic (NEW)
+      canChangeUsername: false,
+      nextUsernameChangeDate: '',
+      
+      // Dữ liệu form
       formData: {
-        firstname: '', lastname: '', bio: '', location: '', birthday: '', gender: ''
+        firstname: '', 
+        lastname: '', 
+        username: '', // Thêm trường này
+        bio: '', 
+        location: '', 
+        birthday: '', 
+        gender: ''
       },
 
-      // State điều khiển Security Modal
+      // Security Modal State
       securityModalVisible: false,
-      securityType: 'email', // 'email' hoặc 'password'
+      securityType: 'email',
+
+      // Notification Modal State
+      notificationVisible: false,
+      notificationData: {
+        type: 'success',
+        title: '',
+        message: '',
+        subMessage: '',
+        buttonText: ''
+      },
+      onNotificationAction: null,
+      
+      // Email Change Temp Data
+      pendingNewEmail: '',
     };
   },
   mounted() {
@@ -146,28 +229,45 @@ export default {
         this.formData = {
           firstname: this.user.firstname || '',
           lastname: this.user.lastname || '',
+          username: this.user.username || '', // Load username
           bio: this.user.bio || '',
           location: this.user.location || '',
           gender: this.user.gender || 'other',
           birthday: this.formatDateForInput(this.user.birthday)
         };
         
-        // Logic kiểm tra ngày đổi tên (30 ngày)
-        const lastChange = this.user.last_name_change ? new Date(this.user.last_name_change) : null;
-        if (!lastChange) {
-          this.canChangeName = true;
+        // 1. Check Name Change Limit (30 days)
+        this.checkChangeLimit(this.user.last_name_change, (allowed, dateStr) => {
+            this.canChangeName = allowed;
+            this.nextNameChangeDate = dateStr;
+        });
+
+        // 2. Check Username Change Limit (30 days)
+        this.checkChangeLimit(this.user.last_username_change, (allowed, dateStr) => {
+            this.canChangeUsername = allowed;
+            this.nextUsernameChangeDate = dateStr;
+        });
+      }
+    },
+
+    // Helper function để kiểm tra ngày (dùng chung cho cả Tên và Username)
+    checkChangeLimit(lastChangeDate, callback) {
+        if (!lastChangeDate) {
+            callback(true, ''); // Chưa đổi bao giờ -> Cho phép
+            return;
+        }
+        
+        const lastChange = new Date(lastChangeDate);
+        const now = new Date();
+        const diffDays = Math.ceil(Math.abs(now - lastChange) / (1000 * 60 * 60 * 24));
+        
+        if (diffDays >= 30) {
+            callback(true, '');
         } else {
-          const diffDays = Math.ceil(Math.abs(new Date() - lastChange) / (1000 * 60 * 60 * 24));
-          if (diffDays >= 30) {
-            this.canChangeName = true;
-          } else {
-            this.canChangeName = false;
             const nextDate = new Date(lastChange);
             nextDate.setDate(lastChange.getDate() + 30);
-            this.nextNameChangeDate = nextDate.toLocaleDateString();
-          }
+            callback(false, nextDate.toLocaleDateString());
         }
-      }
     },
 
     formatDateForInput(dateString) {
@@ -179,37 +279,63 @@ export default {
       this.$emit('close');
     },
 
-    // --- 1. KÍCH HOẠT MODAL ĐỔI EMAIL ---
-    startEmailChangeProcess() {
-      this.securityType = 'email';
-      this.securityModalVisible = true;
+    // --- NOTIFICATION HELPER ---
+    showSuccess(title, message, subMessage, buttonText, actionCallback) {
+      this.notificationData = { type: 'success', title, message, subMessage, buttonText };
+      this.onNotificationAction = actionCallback;
+      this.notificationVisible = true;
     },
 
-    // --- 2. KÍCH HOẠT MODAL ĐỔI MẬT KHẨU ---
-    async requestPasswordChange() {
-      if (!confirm("Gửi mã xác thực (OTP) đến email để đổi mật khẩu?")) return;
-      
-      try {
-        // Gọi API gửi OTP trước
-        await this.$axios.post('/users/change-password/request', {
-          userId: this.user._id || this.user.id
-        });
-        
-        // Mở modal ở chế độ Password (tự động nhảy vào bước nhập OTP)
-        this.securityType = 'password';
-        this.securityModalVisible = true;
-      } catch (err) {
-        alert(err.response?.data?.msg || "Lỗi khi gửi mã OTP");
+    showError(message) {
+      this.notificationData = { 
+        type: 'error', 
+        title: 'Error', 
+        message: message, 
+        subMessage: 'Please try again.', 
+        buttonText: 'Close' 
+      };
+      this.onNotificationAction = null;
+      this.notificationVisible = true;
+    },
+
+    handleNotificationConfirm() {
+      this.notificationVisible = false;
+      if (this.onNotificationAction) {
+        this.onNotificationAction();
       }
     },
 
-    // --- CÁC HÀM XỬ LÝ SỰ KIỆN TỪ SECURITY MODAL ---
+    // --- SECURITY FLOWS ---
+    
+    // 1. Start Email Change
+    startEmailChangeProcess() {
+      this.securityType = 'email';
+      this.pendingNewEmail = '';
+      this.securityModalVisible = true;
+    },
 
-    // Xử lý: Gửi yêu cầu đổi email (Bước 1 - Nhập mail mới)
+    // 2. Start Password Change
+    async requestPasswordChange() {
+      try {
+        await this.$axios.post('/users/change-password/request', {
+          userId: this.user._id || this.user.id
+        });
+        this.securityType = 'password';
+        this.securityModalVisible = true;
+      } catch (err) {
+        this.showError(err.response?.data?.msg || "Error sending OTP");
+      }
+    },
+
+    // --- HANDLE SECURITY MODAL EVENTS ---
+
+    // Email Step 1: Request OTP
     async handleSubmitEmailRequest(newEmail) {
-      if (newEmail === this.user.email) return alert("Email mới không được trùng email hiện tại.");
+      if (!newEmail) return this.showError("Please enter an email address.");
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(newEmail)) return this.showError("Invalid email format.");
+      if (newEmail === this.user.email) return this.showError("New email cannot be the same as current email.");
       
-      // Gọi loading bên modal con
       const modal = this.$refs.securityModal;
       if(modal) modal.setLoading(true);
 
@@ -217,16 +343,17 @@ export default {
         await this.$axios.post('/users/change-email/request', {
           userId: this.user._id || this.user.id, newEmail
         });
-        // Chuyển sang bước 2 (Nhập OTP)
+        
+        this.pendingNewEmail = newEmail; 
         if(modal) modal.nextStep();
       } catch (err) {
-        alert(err.response?.data?.msg || "Lỗi gửi yêu cầu đổi email");
+        this.showError(err.response?.data?.msg || "Error sending request");
       } finally {
         if(modal) modal.setLoading(false);
       }
     },
 
-    // Xử lý: Xác thực OTP đổi Email (Bước 2)
+    // Email Step 2: Verify OTP
     async handleSubmitEmailVerify({ otp, newEmail }) {
       const modal = this.$refs.securityModal;
       if(modal) modal.setLoading(true);
@@ -237,48 +364,82 @@ export default {
         });
         
         this.securityModalVisible = false;
-        alert("Đổi email thành công! Vui lòng đăng nhập lại.");
-        
-        // Logout để user đăng nhập bằng email mới
-        localStorage.removeItem("user");
-        localStorage.removeItem("token");
-        window.location.href = "/login";
-        
+        this.showSuccess(
+          "Email Changed!",
+          "Your email has been updated successfully.",
+          "Please login again with your new email.",
+          "Login Again",
+          () => {
+            localStorage.removeItem("user");
+            localStorage.removeItem("token");
+            window.location.href = "/login";
+          }
+        );
       } catch (err) {
-        alert(err.response?.data?.msg || "Mã OTP không đúng hoặc đã hết hạn");
+        this.showError(err.response?.data?.msg || "Invalid OTP");
       } finally {
         if(modal) modal.setLoading(false);
       }
     },
 
-    // Xử lý: Xác thực OTP đổi Mật khẩu
+    // Password Change: Verify OTP & Update
     async handleSubmitPasswordVerify({ otp, newPassword }) {
       const modal = this.$refs.securityModal;
-      if(modal) modal.setLoading(true);
+      if (modal) modal.setLoading(true);
 
       try {
         await this.$axios.post('/users/change-password/verify', {
-          userId: this.user._id || this.user.id, otp, newPassword
+          userId: this.user._id || this.user.id,
+          otp,
+          newPassword
         });
         
         this.securityModalVisible = false;
-        this.closeModal(); // Đóng modal chính
-        
-        alert("Đổi mật khẩu thành công! Hệ thống sẽ đăng xuất các thiết bị khác.");
-        // Reload để kích hoạt cơ chế tự động logout (401 Interceptor) nếu cần thiết
-        window.location.reload();
-        
+        this.closeModal(); 
+
+        this.showSuccess(
+          "Password Updated!",
+          "Your password has been changed securely.",
+          "All other devices have been logged out.",
+          "Re-login Now",
+          () => {
+            localStorage.removeItem("user");
+            localStorage.removeItem("token");
+            window.location.href = "/login";
+          }
+        );
       } catch (err) {
-        alert(err.response?.data?.msg || "Lỗi đổi mật khẩu. Vui lòng kiểm tra OTP.");
+        this.showError(err.response?.data?.msg || "Error changing password");
       } finally {
-        if(modal) modal.setLoading(false);
+        if (modal) modal.setLoading(false);
       }
     },
 
-    // Lưu thông tin cơ bản (Bio, Tên,...)
+    // Resend OTP Handler
+    async handleResendOtp() {
+      try {
+        if (this.securityType === 'password') {
+          await this.$axios.post('/users/change-password/request', {
+            userId: this.user._id || this.user.id
+          });
+          alert("New OTP sent for password change!");
+        } else {
+          if (!this.pendingNewEmail) return alert("Session expired. Please start over.");
+          await this.$axios.post('/users/change-email/request', {
+            userId: this.user._id || this.user.id, 
+            newEmail: this.pendingNewEmail 
+          });
+          alert(`New OTP sent to ${this.user.email}!`);
+        }
+      } catch (err) {
+        alert(err.response?.data?.msg || "Error resending OTP");
+      }
+    },
+
+    // Save Public Profile Info
     async saveProfile() {
-      // Nếu đang ở tab Security mà chưa được phép đổi tên thì backend sẽ chặn
-      // Nhưng frontend cứ gửi hết formData lên
+      // Gửi tất cả data (bao gồm cả username, firstname...) lên server
+      // Backend sẽ tự check logic 30 ngày và quyết định cho sửa hay không
       this.$emit('save', this.formData);
     }
   }

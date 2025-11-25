@@ -694,12 +694,12 @@ handleRatingUpdated(data) {
 
     isMyPost(post) {
       const savedUser = JSON.parse(localStorage.getItem("user"));
-      return savedUser && post.author._id === savedUser.id;
+      return savedUser && post.author._id === savedUser?.id;
     },
 
     isLiked(post) {
       const savedUser = JSON.parse(localStorage.getItem("user"));
-      return post.likes && post.likes.includes(savedUser.id);
+      return savedUser && post.likes && post.likes.includes(savedUser.id);
     },
 
     formatTime(dateStr) {

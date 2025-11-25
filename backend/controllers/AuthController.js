@@ -342,41 +342,45 @@ exports.requestEmailChange = async (req, res) => {
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ msg: "User not found" });
 
+    // --- [START] MISSING VALIDATION LOGIC ---
+    
+    // 1. Check empty
+    if (!newEmail) {
+      return res.status(400).json({ msg: "Please provide a new email address." });
+    }
+
+    // 2. Check format (Regex)
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newEmail)) {
+      return res.status(400).json({ msg: "Invalid email format." });
+    }
+
+    // 3. Check same email
+    if (newEmail === user.email) {
+      return res.status(400).json({ msg: "New email cannot be the same as your current email." });
+    }
+    // --- [END] VALIDATION LOGIC ---
+
     const emailExists = await User.findOne({ email: newEmail });
     if (emailExists) return res.status(400).json({ msg: "Email is already taken" });
 
-    // --- [START] RATE LIMIT CHECK (5 MINUTES) ---
+    // --- Rate Limit Check (5 Minutes) ---
     if (user.last_otp_sent_at) {
-      const now = new Date();
-      const lastSent = new Date(user.last_otp_sent_at);
-      
-      // Tính khoảng cách thời gian (miliseconds)
-      const diffMs = now - lastSent;
-      const diffMinutes = diffMs / (1000 * 60); // Đổi ra phút
-
-      // Nếu chưa đủ 5 phút
+      const diffMinutes = (Date.now() - new Date(user.last_otp_sent_at)) / (1000 * 60);
       if (diffMinutes < 5) {
-        const waitTime = Math.ceil(5 - diffMinutes); // Làm tròn số phút phải đợi
-        return res.status(429).json({ 
-          msg: `Please wait ${waitTime} minute(s) before requesting a new OTP.` 
-        });
+        const waitTime = Math.ceil(5 - diffMinutes);
+        return res.status(429).json({ msg: `Please wait ${waitTime} minute(s) before requesting a new OTP.` });
       }
     }
-    // --- [END] RATE LIMIT CHECK ---
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     user.email_otp = otp;
     user.email_otp_expire = Date.now() + 5 * 60 * 1000; // 5 minutes
-    
-    // Cập nhật thời gian gửi mới nhất
-    user.last_otp_sent_at = Date.now(); 
-    
+    user.last_otp_sent_at = Date.now();
     await user.save();
 
     const transporter = createTransporter();
-    
-    // Cấu hình nội dung Email đẹp hơn
-    const brandColor = "#ff5757"; // Màu đỏ/hồng giống logo của bạn
+    const brandColor = "#ff5757"; 
 
     await transporter.sendMail({
           from: '"HT Social Security" <' + process.env.EMAIL_USER + '>',
@@ -388,7 +392,7 @@ exports.requestEmailChange = async (req, res) => {
             <head>
               <meta charset="utf-8">
               <style>
-              @import url('https://fonts.googleapis.com/css2?family=berkshire+swash&display=swap');
+              @import url('https://fonts.googleapis.com/css2?family=Berkshire+Swash&display=swap');
               </style>
             </head>
             <body style="margin: 0; padding: 0; background-color: #f9f9f9; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;">
@@ -401,7 +405,7 @@ exports.requestEmailChange = async (req, res) => {
                     margin: 0; 
                     font-size: 36px; 
                     font-weight: 400; 
-                    font-family: 'Berkshire Swash', cursive, serif; /* Font của bạn */
+                    font-family: 'Berkshire Swash', cursive, serif;
                   ">
                     HT Social
                   </h1>
@@ -683,33 +687,57 @@ exports.verifyAndChangePassword = async (req, res) => {
     if (!user) return res.status(404).json({ msg: "User not found" });
 
     // 1. Kiểm tra OTP
+    // Chuyển về chuỗi và xóa khoảng trắng để so sánh chính xác
     if (String(user.password_otp).trim() !== String(otp).trim()) {
       return res.status(400).json({ msg: "Invalid OTP code" });
     }
+    
+    // Kiểm tra thời hạn OTP
     if (Date.now() > user.password_otp_expire) {
       return res.status(400).json({ msg: "OTP has expired" });
     }
 
-    // 2. Mã hóa mật khẩu mới
+    // --- [START] NEW VALIDATION LOGIC ---
+    
+    // 2. Kiểm tra độ dài mật khẩu (Ví dụ: 6 - 50 ký tự)
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ msg: "Password must be at least 6 characters long." });
+    }
+    if (newPassword.length > 50) {
+      return res.status(400).json({ msg: "Password is too long (max 50 characters)." });
+    }
+
+    // 3. Kiểm tra trùng mật khẩu cũ
+    // Dùng bcrypt.compare để so sánh mật khẩu mới (chưa hash) với mật khẩu cũ (đã hash trong DB)
+    const isSameAsOld = await bcrypt.compare(newPassword, user.password);
+    if (isSameAsOld) {
+      return res.status(400).json({ msg: "New password cannot be the same as your current password." });
+    }
+    // --- [END] NEW VALIDATION LOGIC ---
+
+    // 4. Mã hóa mật khẩu mới
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(newPassword, salt);
 
-    // 3. Xóa OTP
+    // 5. Dọn dẹp OTP & Logout các thiết bị khác
     user.password_otp = null;
     user.password_otp_expire = null;
-
-    // Tăng version lên => Token cũ (version thấp hơn) sẽ sai và bị từ chối
-    user.token_version = (user.token_version || 0) + 1;
-    // (Tuỳ chọn) Set trạng thái về offline để UI các máy khác cập nhật
+    
+    // Tăng phiên đăng nhập (token_version) để vô hiệu hóa token cũ trên các máy khác
+    user.token_version = (user.token_version || 0) + 1; 
+    
+    // (Tùy chọn) Set trạng thái offline
     user.active = false;
 
     await user.save();
 
-    // 4. Gửi Email Thông Báo Thành Công
+    // 6. Gửi Email Thông Báo Thành Công
     const transporter = createTransporter();
     const brandColor = "#ff5757";
-    const loginLink = "http://localhost:8080/login"; // Check lại port frontend của bạn
+    // Đảm bảo port này đúng với frontend của bạn (8080 hoặc 3000)
+    const loginLink = "http://localhost:8080/login"; 
 
+    // Sử dụng .catch để lỗi gửi mail không làm crash luồng chính
     transporter.sendMail({
       from: '"HT Social Security" <' + process.env.EMAIL_USER + '>',
       to: user.email,
@@ -718,17 +746,14 @@ exports.verifyAndChangePassword = async (req, res) => {
         <!DOCTYPE html>
         <html>
         <head><meta charset="utf-8"></head>
-        <style>
-              @import url('https://fonts.googleapis.com/css2?family=berkshire+swash&display=swap');
-        </style>
         <body style="margin: 0; padding: 0; background-color: #f9f9f9; font-family: Helvetica, Arial, sans-serif;">
           <div style="max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
             <div style="background-color: ${brandColor}; padding: 30px 20px; text-align: center;">
-              <h1 style="color: #ffffff; margin: 0; font-size: 32px; font-weight: 700; font-family: 'Berkshire Swash', cursive, serif; letter-spacing: 1px;">HT Social</h1>
+              <h1 style="color: #ffffff; margin: 0; font-size: 32px; font-weight: 700; letter-spacing: 1px;">HT Social</h1>
             </div>
             <div style="padding: 40px 30px; color: #333;">
               <div style="text-align: center; margin-bottom: 20px;">
-                <h2 style="color: #ff5757; margin: 0; font-size: 24px;">Password Updated!</h2>
+                <h2 style="color: #27ae60; margin: 0; font-size: 24px;">Password Updated!</h2>
               </div>
               <p>Hello <b>${user.firstname}</b>,</p>
               <p>Your password has been successfully changed. You can now log in with your new password.</p>
@@ -752,7 +777,7 @@ exports.verifyAndChangePassword = async (req, res) => {
       `
     }).catch(err => console.error("Send password success email error:", err));
 
-    res.status(200).json({ msg: "Password changed successfully!" });
+    res.status(200).json({ msg: "Password changed successfully! All other devices have been logged out." });
 
   } catch (err) {
     console.error("Verify password change error:", err);
