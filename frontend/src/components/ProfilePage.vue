@@ -89,11 +89,11 @@
           </div>
 
           <div class="widget-card friends-widget">
-            <div class="widget-header"><h3>Friends</h3><span class="see-all">See all</span></div>
+            <div class="widget-header"><h3>Friends</h3><span class="see-all" @click="switchTab('friends')">See all</span></div>
             <div v-if="user.friends?.length" class="mini-grid-friends">
               <div v-for="friend in user.friends.slice(0, 9)" :key="friend._id" class="mini-friend">
                 <img :src="getAvatarUrl(friend)" />
-                <span class="friend-name-mini">{{ friend.firstname }}</span>
+                <span class="friend-name-mini">{{ friend.firstname }} {{ friend.lastname }}</span>
               </div>
             </div>
           </div>
@@ -454,6 +454,25 @@ export default {
 
     toggleMenu(postId) {
       this.openMenuId = this.openMenuId === postId ? null : postId;
+    },
+
+    async fetchFriends() {
+      try {
+        const savedUser = JSON.parse(localStorage.getItem("user"));
+        if (!savedUser) return;
+        
+        // Gọi API chuyên biệt để lấy danh sách bạn bè đầy đủ thông tin
+        const res = await fetch(`http://localhost:3000/users/${savedUser.id}/friends`);
+        const friendsData = await res.json();
+        
+        // Gán dữ liệu vào biến user.friends để giao diện tự cập nhật
+        // Dùng $nextTick hoặc gán trực tiếp nếu user đã khởi tạo
+        if (this.user) {
+           this.user.friends = friendsData;
+        }
+      } catch (err) {
+        console.error("Lỗi tải danh sách bạn bè:", err);
+      }
     },
 
     async fetchUserProfile() {
@@ -912,6 +931,7 @@ export default {
     this.fetchUserProfile();
     this.fetchUserPosts();
     this.loadSavedPosts();
+    this.fetchFriends();
   }
 };
 </script>
@@ -991,7 +1011,31 @@ export default {
 
 /* MAIN LAYOUT */
 .main-layout { display: grid; grid-template-columns: 360px 1fr; gap: 28px; max-width: 1120px; margin: 0 auto; padding: 0 20px; }
-.layout-sidebar { position: sticky; top: 130px; height: fit-content; display: flex; flex-direction: column; gap: 24px; }
+/* Tìm và thay thế đoạn này */
+.layout-sidebar {
+  position: sticky;
+  top: 80px; /* Giảm khoảng cách top xuống một chút cho cân đối (từ 130px -> 80px) */
+  
+  /* QUAN TRỌNG: Giới hạn chiều cao bằng màn hình trừ đi Header */
+  max-height: calc(100vh - 100px); 
+  
+  /* Cho phép cuộn dọc khi nội dung quá dài */
+  overflow-y: auto;
+  
+  /* Ẩn thanh cuộn để giao diện đẹp hơn (tùy chọn) */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding-bottom: 10px; /* Thêm padding đáy để không bị cắt sát quá */
+}
+
+/* Ẩn thanh cuộn trên Chrome/Safari */
+.layout-sidebar::-webkit-scrollbar {
+  display: none;
+}
 
 /* WIDGETS NEW */
 .widget-card { background: white; border-radius: 20px; padding: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); border: 1px solid rgba(243, 244, 246, 0.8); }

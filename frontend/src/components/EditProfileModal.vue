@@ -18,15 +18,15 @@
         <!-- BODY -->
         <div class="modal-body">
           
-          <!-- TAB 1: PUBLIC INFO (Thông tin hiển thị - Sửa thoải mái) -->
+          <!-- TAB 1: PUBLIC INFO -->
           <div v-if="currentTab === 'public'" class="tab-content fade-in">
             <div class="form-group">
               <label>Bio</label>
-              <textarea v-model="formData.bio" class="glass-input" rows="3"></textarea>
+              <textarea v-model="formData.bio" class="glass-input" rows="3" placeholder="Describe yourself..."></textarea>
             </div>
             <div class="form-group">
               <label>Location</label>
-              <input v-model="formData.location" type="text" class="glass-input" />
+              <input v-model="formData.location" type="text" class="glass-input" placeholder="City, Country" />
             </div>
             <div class="form-group-row">
               <div class="form-group">
@@ -44,55 +44,72 @@
             </div>
           </div>
 
-          <!-- TAB 2: SECURITY (Thông tin định danh - Có giới hạn) -->
+          <!-- TAB 2: SECURITY -->
           <div v-if="currentTab === 'security'" class="tab-content fade-in">
             
             <!-- 1. Name Change -->
-            <div class="section-title">Full Name</div>
-            <div class="form-group-row">
-              <div class="form-group">
-                <label>First Name</label>
-                <input 
-                  v-model="formData.firstname" 
-                  type="text" 
-                  class="glass-input" 
-                  :disabled="!canChangeName" 
-                  :class="{ 'disabled-input': !canChangeName }"
-                />
+            <div class="section-group">
+              <div class="section-title">Full Name</div>
+              <div class="form-group-row">
+                <div class="form-group">
+                  <label>First Name</label>
+                  <input 
+                    v-model="formData.firstname" 
+                    type="text" 
+                    class="glass-input" 
+                    :disabled="!canChangeName" 
+                    :class="{ 'disabled-input': !canChangeName }"
+                  />
+                </div>
+                <div class="form-group">
+                  <label>Last Name</label>
+                  <input 
+                    v-model="formData.lastname" 
+                    type="text" 
+                    class="glass-input" 
+                    :disabled="!canChangeName" 
+                    :class="{ 'disabled-input': !canChangeName }"
+                  />
+                </div>
               </div>
-              <div class="form-group">
-                <label>Last Name</label>
-                <input 
-                  v-model="formData.lastname" 
-                  type="text" 
-                  class="glass-input" 
-                  :disabled="!canChangeName" 
-                  :class="{ 'disabled-input': !canChangeName }"
-                />
+              
+              <!-- Status Message for Name -->
+              <div v-if="!canChangeName" class="status-box warning">
+                <span>You can change your name again after <strong>{{ nextNameChangeDate }}</strong>.</span>
+              </div>
+              <div v-else class="status-box success">
+                <span>You can change your name now. (Limit: once every 30 days).</span>
               </div>
             </div>
-            <!-- Hiển thị trạng thái cho Tên -->
-            <p v-if="!canChangeName" class="warning-text">⚠️ Bạn có thể đổi tên lại sau ngày <strong>{{ nextNameChangeDate }}</strong>.</p>
-            <p v-else class="hint-text">✅ Bạn có thể đổi tên ngay bây giờ (Giới hạn 30 ngày/lần).</p>
 
             <div class="divider"></div>
 
-            <!-- 2. Username Change (MỚI THÊM) -->
-            <div class="section-title">Username</div>
-            <div class="form-group">
-              <label>Username (@)</label>
-              <input 
-                v-model="formData.username" 
-                type="text" 
-                class="glass-input"
-                :disabled="!canChangeUsername"
-                :class="{ 'disabled-input': !canChangeUsername }"
-                placeholder="username"
-              />
+            <!-- 2. Username Change -->
+            <div class="section-group">
+              <div class="section-title">Username</div>
+              <div class="form-group">
+                <label>Username (@)</label>
+                <div class="input-wrapper">
+                  <span class="prefix">@</span>
+                  <input 
+                    v-model="formData.username" 
+                    type="text" 
+                    class="glass-input with-prefix" 
+                    :disabled="!canChangeUsername" 
+                    :class="{ 'disabled-input': !canChangeUsername }"
+                    placeholder="username"
+                  />
+                </div>
+              </div>
+              
+              <!-- Status Message for Username -->
+              <div v-if="!canChangeUsername" class="status-box warning">
+                <span>Username is locked until <strong>{{ nextUsernameChangeDate }}</strong>.</span>
+              </div>
+              <div v-else class="status-box success">
+                <span>Username must be unique. You can change it now.</span>
+              </div>
             </div>
-            <!-- Hiển thị trạng thái cho Username -->
-            <p v-if="!canChangeUsername" class="warning-text">⚠️ Bạn có thể đổi username lại sau ngày <strong>{{ nextUsernameChangeDate }}</strong>.</p>
-            <p v-else class="hint-text">✅ Username là định danh duy nhất (Giới hạn 30 ngày/lần).</p>
 
             <div class="divider"></div>
 
@@ -111,9 +128,9 @@
             <div class="section-title">Password</div>
             <div class="form-group">
               <button class="btn-outline-danger full-width" @click="requestPasswordChange">
-                🔒 Change Password
+                Change Password
               </button>
-              <p class="hint-text">We will send an OTP code to your email to verify.</p>
+              <p class="hint-text-small">A verification code will be sent to your email.</p>
             </div>
 
           </div>
@@ -122,13 +139,12 @@
         <!-- FOOTER -->
         <div class="modal-footer">
           <button class="btn-cancel" @click="closeModal">Close</button>
-          <!-- Luôn hiện nút Save để lưu các thay đổi (nếu có) -->
           <button class="btn-save" @click="saveProfile">Save Changes</button>
         </div>
       </div>
     </div>
 
-    <!-- SECURITY MODAL -->
+    <!-- SECURITY & NOTIFICATION MODALS -->
     <SecurityModal 
       ref="securityModal"
       :is-visible="securityModalVisible"
@@ -141,7 +157,6 @@
       @resend-otp="handleResendOtp"
     />
 
-    <!-- NOTIFICATION MODAL -->
     <NotificationModal 
       :is-visible="notificationVisible"
       :type="notificationData.type"
@@ -170,12 +185,9 @@ export default {
     return {
       currentTab: 'public',
       
-      // Name Check Logic
-      canChangeName: false,
+      canChangeName: true,
       nextNameChangeDate: '',
-      
-      // Username Check Logic (NEW)
-      canChangeUsername: false,
+      canChangeUsername: true,
       nextUsernameChangeDate: '',
       
       // Dữ liệu form
@@ -192,6 +204,7 @@ export default {
       // Security Modal State
       securityModalVisible: false,
       securityType: 'email',
+      pendingNewEmail: '',
 
       // Notification Modal State
       notificationVisible: false,
@@ -204,8 +217,7 @@ export default {
       },
       onNotificationAction: null,
       
-      // Email Change Temp Data
-      pendingNewEmail: '',
+      
     };
   },
   mounted() {
@@ -259,7 +271,9 @@ export default {
         
         const lastChange = new Date(lastChangeDate);
         const now = new Date();
-        const diffDays = Math.ceil(Math.abs(now - lastChange) / (1000 * 60 * 60 * 24));
+
+        const diffTime = Math.abs(now - lastChange);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         
         if (diffDays >= 30) {
             callback(true, '');
@@ -417,30 +431,69 @@ export default {
 
     // Resend OTP Handler
     async handleResendOtp() {
-      try {
+       try {
         if (this.securityType === 'password') {
-          await this.$axios.post('/users/change-password/request', {
-            userId: this.user._id || this.user.id
-          });
-          alert("New OTP sent for password change!");
+          await this.$axios.post('/users/change-password/request', { userId: this.user._id || this.user.id });
+          
+          // Dùng Modal thông báo thay vì Alert
+          this.showSuccess(
+            "OTP Resent", 
+            "A new verification code has been sent to your email.", 
+            "Please check your inbox.", 
+            "OK", 
+            null
+          );
         } else {
-          if (!this.pendingNewEmail) return alert("Session expired. Please start over.");
-          await this.$axios.post('/users/change-email/request', {
+          if (!this.pendingNewEmail) {
+            return this.showError("Session expired. Please start over.");
+          }
+
+          await this.$axios.post('/users/change-email/request', { 
             userId: this.user._id || this.user.id, 
             newEmail: this.pendingNewEmail 
           });
-          alert(`New OTP sent to ${this.user.email}!`);
+          
+          // Dùng Modal thông báo thay vì Alert
+          this.showSuccess(
+            "OTP Resent",
+            `A new OTP has been sent to ${this.user.email}.`,
+            `For changing email to: ${this.pendingNewEmail}`,
+            "OK",
+            null
+          );
         }
       } catch (err) {
-        alert(err.response?.data?.msg || "Error resending OTP");
+        // Backend trả lỗi 429 (chưa đủ 5 phút) -> Hiện Modal Lỗi
+        this.showError(err.response?.data?.msg || "Error resending OTP");
       }
     },
 
     // Save Public Profile Info
     async saveProfile() {
-      // Gửi tất cả data (bao gồm cả username, firstname...) lên server
-      // Backend sẽ tự check logic 30 ngày và quyết định cho sửa hay không
-      this.$emit('save', this.formData);
+      // Gọi API update user trực tiếp tại đây thay vì emit
+      try {
+        const res = await this.$axios.put(`/users/${this.user._id || this.user.id}`, this.formData);
+        
+        // Cập nhật LocalStorage
+        const currentUser = JSON.parse(localStorage.getItem("user"));
+        const updatedUser = { ...currentUser, ...res.data.user };
+        localStorage.setItem("user", JSON.stringify(updatedUser));
+        
+        // Hiện thông báo thành công
+        this.showSuccess(
+          "Profile Updated",
+          "Your information has been saved successfully.",
+          "",
+          "OK",
+          () => {
+             this.closeModal();
+             window.location.reload(); // Reload để refresh dữ liệu trên toàn trang
+          }
+        );
+      } catch (err) {
+        // Nếu lỗi (ví dụ Username trùng), hiện Popup lỗi đỏ
+        this.showError(err.response?.data?.msg || "Failed to update profile.");
+      }
     }
   }
 };
@@ -486,6 +539,67 @@ export default {
 .btn-cancel { padding: 10px 20px; border-radius: 8px; border: 1px solid #d1d5db; background: white; font-weight: 600; cursor: pointer; }
 .btn-save { padding: 10px 20px; border-radius: 8px; border: none; background: #6366f1; color: white; font-weight: 600; cursor: pointer; }
 .btn-save:hover { background: #4f46e5; }
+
+/* --- STYLE CHO INPUT BỊ KHÓA --- */
+.disabled-input {
+  background-color: #f3f4f6 !important; /* Nền xám */
+  color: #9ca3af !important;            /* Chữ xám nhạt */
+  cursor: not-allowed;                  /* Con trỏ cấm */
+  border-color: #e5e7eb !important;
+}
+
+/* --- HỘP TRẠNG THÁI (Status Box) --- */
+.status-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-top: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  transition: all 0.3s ease;
+}
+
+.status-box .icon {
+  font-size: 16px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* Loại Cảnh báo (Warning - Cam nhạt) */
+.status-box.warning {
+  background-color: #fff7ed;
+  border: 1px solid #ffedd5;
+  color: #c2410c;
+}
+
+/* Loại Thành công (Success - Xanh nhạt) */
+.status-box.success {
+  background-color: #f0fdf4;
+  border: 1px solid #dcfce7;
+  color: #15803d;
+}
+
+/* --- INPUT PREFIX (@username) --- */
+.input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.prefix {
+  position: absolute;
+  left: 12px;
+  color: #9ca3af;
+  font-weight: 600;
+  z-index: 2;
+  font-size: 14px;
+}
+
+.with-prefix {
+  padding-left: 30px !important; /* Chừa chỗ cho dấu @ */
+}
 
 @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 </style>

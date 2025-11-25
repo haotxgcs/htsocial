@@ -192,7 +192,7 @@ exports.getUserById = async (req, res) => {
   try {
     const user = await User.findById(
       req.params.id,
-      "firstname lastname username email avatar role bio birthday location gender createdAt updatedAt active requestSent requestReceived"
+      "firstname lastname username email avatar role bio birthday location gender friends createdAt updatedAt active requestSent requestReceived last_name_change last_username_change"
     );
     if (!user) return res.status(404).json({ msg: "User not found" });
 
@@ -746,14 +746,17 @@ exports.verifyAndChangePassword = async (req, res) => {
         <!DOCTYPE html>
         <html>
         <head><meta charset="utf-8"></head>
+        <style>
+              @import url('https://fonts.googleapis.com/css2?family=berkshire+swash&display=swap');
+        </style>
         <body style="margin: 0; padding: 0; background-color: #f9f9f9; font-family: Helvetica, Arial, sans-serif;">
           <div style="max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
             <div style="background-color: ${brandColor}; padding: 30px 20px; text-align: center;">
-              <h1 style="color: #ffffff; margin: 0; font-size: 32px; font-weight: 700; letter-spacing: 1px;">HT Social</h1>
+              <h1 style="color: #ffffff; margin: 0; font-size: 32px; font-weight: 700; font-family: 'Berkshire Swash', cursive, serif; letter-spacing: 1px;">HT Social</h1>
             </div>
             <div style="padding: 40px 30px; color: #333;">
               <div style="text-align: center; margin-bottom: 20px;">
-                <h2 style="color: #27ae60; margin: 0; font-size: 24px;">Password Updated!</h2>
+                <h2 style="color: #ff5757; margin: 0; font-size: 24px;">Password Updated!</h2>
               </div>
               <p>Hello <b>${user.firstname}</b>,</p>
               <p>Your password has been successfully changed. You can now log in with your new password.</p>
