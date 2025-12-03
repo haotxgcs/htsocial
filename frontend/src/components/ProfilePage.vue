@@ -80,7 +80,12 @@
           </div>
           
           <div class="widget-card photos-widget">
-            <div class="widget-header"><h3>Photos</h3><span class="see-all" @click="switchTab('photos')">See all</span></div>
+            <div class="widget-header">
+              <h3>
+                Photos
+              <span class="count-badge" v-if="postsWithImages.length">({{ postsWithImages.length }})</span>
+              </h3>
+              <span class="see-all" @click="switchTab('photos')">See all</span></div>
             <div class="mini-grid">
               <div v-for="photo in postsWithImages.slice(0, 9)" :key="photo._id" class="mini-photo">
                 <img :src="`http://localhost:3000/${photo.media}`" />
@@ -89,14 +94,26 @@
           </div>
 
           <div class="widget-card friends-widget">
-            <div class="widget-header"><h3>Friends</h3><span class="see-all" @click="switchTab('friends')">See all</span></div>
-            <div v-if="user.friends?.length" class="mini-grid-friends">
-              <div v-for="friend in user.friends.slice(0, 9)" :key="friend._id" class="mini-friend">
+            <div class="widget-header">
+              <h3>
+                Friends 
+                <!-- Vẫn dùng friendsList.length để hiện số lượng -->
+                <span class="count-badge" v-if="friendsList.length">({{ friendsList.length }})</span>
+              </h3>
+              <span class="see-all" @click="switchTab('friends')">See all</span>
+            </div>
+
+            <!-- SỬA: Dùng friendsList trong v-if và v-for -->
+            <div v-if="friendsList.length" class="mini-grid-friends">
+              <div v-for="friend in friendsList.slice(0, 9)" :key="friend._id" class="mini-friend">
                 <img :src="getAvatarUrl(friend)" />
+                <!-- Giờ đây friend là object đầy đủ, nên firstname sẽ hiện ra -->
                 <span class="friend-name-mini">{{ friend.firstname }} {{ friend.lastname }}</span>
               </div>
             </div>
-          </div>
+  
+            <p v-else style="text-align:center; color:#999; font-size:13px;">No friends yet</p>
+        </div>
         </aside>
 
         <main class="layout-feed">
@@ -322,12 +339,22 @@
 
       <template v-else-if="activeTab === 'friends'">
         <div class="friends-container-modern">
-          <div v-for="friend in user.friends" :key="friend._id" class="friend-card-modern">
+          <!-- SỬA: Dùng friendsList -->
+          <div v-if="friendsList.length === 0" class="empty-state" style="grid-column: 1/-1;">
+            <p>No friends yet.</p>
+            <button class="btn-primary-gradient" @click="$router.push('/friend')">Find Friends</button>
+          </div>
+          
+          <div v-for="friend in friendsList" :key="friend._id" class="friend-card-modern">
             <img :src="getAvatarUrl(friend)" />
-            <div class="info"><h4>{{ friend.firstname }} {{ friend.lastname }}</h4><button>Message</button></div>
+            <div class="info">
+              <!-- Hiển thị tên đầy đủ -->
+              <h4>{{ friend.firstname }} {{ friend.lastname }}</h4>
+              <button>Message</button>
+            </div>
           </div>
         </div>
-      </template>
+    </template>
     </div>
 
     <CreatePostModal v-if="createPostModalVisible" :is-visible="createPostModalVisible" :user="user" @close="closeCreatePostModal" @posted="handlePostCreated" />
@@ -370,6 +397,7 @@ export default {
     return {
       user: {},
       userPosts: [],
+      friendsList: [],
       openMenuId: null,
       confirmVisible: false,
       confirmMessage: '',
@@ -461,14 +489,14 @@ export default {
         const savedUser = JSON.parse(localStorage.getItem("user"));
         if (!savedUser) return;
         
-        // Gọi API chuyên biệt để lấy danh sách bạn bè đầy đủ thông tin
+        // Gọi API lấy danh sách bạn bè (API này trả về mảng object chi tiết)
         const res = await fetch(`http://localhost:3000/users/${savedUser.id}/friends`);
         const friendsData = await res.json();
         
-        // Gán dữ liệu vào biến user.friends để giao diện tự cập nhật
-        // Dùng $nextTick hoặc gán trực tiếp nếu user đã khởi tạo
-        if (this.user) {
-           this.user.friends = friendsData;
+        // Kiểm tra dữ liệu trả về có phải mảng không
+        if (Array.isArray(friendsData)) {
+           // Gán vào biến riêng biệt, không đụng đến this.user
+           this.friendsList = friendsData;
         }
       } catch (err) {
         console.error("Lỗi tải danh sách bạn bè:", err);
@@ -1040,7 +1068,16 @@ export default {
 /* WIDGETS NEW */
 .widget-card { background: white; border-radius: 20px; padding: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); border: 1px solid rgba(243, 244, 246, 0.8); }
 .widget-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.widget-header h3 { font-size: 18px; font-weight: 800; margin: 0; color: #111827; }
+.widget-header h3 { 
+  font-size: 18px; 
+  font-weight: 800; 
+  margin: 0; 
+  color: #111827; 
+  display: flex;      /* Để căn chỉnh text và số */
+  align-items: center;
+  gap: 6px;
+}
+
 .see-all { color: #6366f1; font-size: 14px; font-weight: 600; cursor: pointer; }
 .info-row { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; color: #4b5563; font-size: 15px; }
 .mini-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; border-radius: 12px; overflow: hidden; }
@@ -1165,7 +1202,7 @@ export default {
 
 .friends-container-modern { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; }
 .friend-card-modern { background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.03); text-align: center; padding-bottom: 20px; border: 1px solid rgba(243, 244, 246, 0.8); }
-.friend-card-modern img { width: 100%; height: 220px; object-fit: cover; }
+.friend-card-modern img { width: 85%; height: 220px; object-fit: cover; }
 .friend-card-modern .info { padding: 16px; }
 .friend-card-modern h4 { margin: 0 0 12px; font-size: 18px; font-weight: 700; }
 .friend-card-modern button { background: #e0e7ff; color: #4f46e5; border: none; padding: 8px 24px; border-radius: 30px; font-weight: 600; cursor: pointer; }

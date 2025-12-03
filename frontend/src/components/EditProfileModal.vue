@@ -88,7 +88,6 @@
             <div class="section-group">
               <div class="section-title">Username</div>
               <div class="form-group">
-                <label>Username (@)</label>
                 <div class="input-wrapper">
                   <span class="prefix">@</span>
                   <input 
@@ -130,7 +129,7 @@
               <button class="btn-outline-danger full-width" @click="requestPasswordChange">
                 Change Password
               </button>
-              <p class="hint-text-small">A verification code will be sent to your email.</p>
+              
             </div>
 
           </div>
