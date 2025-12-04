@@ -5,6 +5,19 @@ const Post = require("../models/PostModel");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
+const path = require('path');
+const fs = require('fs');
+
+// Hàm helper: Chọn ảnh mặc định dựa trên Giới tính & Role
+const getGenderDefaultAvatar = (gender, role) => {
+  if (role === 'admin') return 'uploads/admin_avatar.png';
+
+  const g = gender ? gender.toLowerCase() : '';
+  if (g === 'male' || g === 'nam') return 'uploads/male_avatar.png';
+  if (g === 'female' || g === 'nữ') return 'uploads/female_avatar.png';
+  
+  return 'uploads/generic_avatar.png';
+};
 
 const createTransporter = () => {
   return nodemailer.createTransport({
@@ -18,7 +31,8 @@ const createTransporter = () => {
 
 // ===== 1. Đăng ký (Register) =====
 exports.register = async (req, res) => {
-  const { username, email, password, firstname, lastname, role = "user" } = req.body;
+  // Thêm gender vào danh sách lấy từ req.body
+  const { username, email, password, firstname, lastname, gender, role = "user" } = req.body;
 
   try {
     const existingUser = await User.findOne({ $or: [{ email }, { username }] });
@@ -26,7 +40,27 @@ exports.register = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const avatar = `uploads/${role === "admin" ? "admin.png" : "user.png"}`;
+    // === [SỬA ĐOẠN NÀY] LOGIC CHỌN AVATAR MẶC ĐỊNH ===
+    let avatarName = "generic_avatar.png"; // Mặc định chung (cho giới tính khác/ẩn)
+
+    if (role === "admin") {
+      avatarName = "admin_avatar.png";
+    } else {
+      // Nếu là User thường -> check giới tính
+      // Chuyển về chữ thường để so sánh cho chính xác
+      const g = gender ? gender.toLowerCase() : "";
+      
+      if (g === "male" || g === "nam") {
+        avatarName = "male_avatar.png";
+      } else if (g === "female" || g === "nữ") {
+        avatarName = "female_avatar.png";
+      } else {
+        avatarName = "generic_avatar.png";
+      }
+    }
+    
+    const avatar = `uploads/${avatarName}`;
+    // ==================================================
 
     const newUser = new User({
       firstname,
@@ -35,16 +69,10 @@ exports.register = async (req, res) => {
       email,
       password: hashedPassword,
       isVerified: false,
-      avatar,
-      coverPhoto: "uploads/cover.png",
-      bio: "",
-      role,
-      friends: [],
-      likedPosts: [],
-      active: false,
-      requestSent: [],
-      requestReceived: [],
-      savedPosts: []
+      avatar,     // Lưu đường dẫn vừa tạo
+      gender,     // Nhớ lưu gender vào DB
+      coverPhoto: "uploads/cover.png", // Ảnh bìa thì vẫn giữ chung
+      // ... các trường khác
     });
 
     await newUser.save();
@@ -192,7 +220,7 @@ exports.getUserById = async (req, res) => {
   try {
     const user = await User.findById(
       req.params.id,
-      "firstname lastname username email avatar role bio birthday location gender friends createdAt updatedAt active requestSent requestReceived last_name_change last_username_change"
+      "firstname lastname username email avatar coverPhoto role bio birthday location gender friends createdAt updatedAt active requestSent requestReceived last_name_change last_username_change"
     );
     if (!user) return res.status(404).json({ msg: "User not found" });
 
@@ -296,10 +324,41 @@ exports.updateUser = async (req, res) => {
     // C. UPDATE PUBLIC INFO (No Restrictions)
     // ---------------------------------------------------------
     if (bio !== undefined) user.bio = bio;
-    if (gender !== undefined) user.gender = gender;
     if (location !== undefined) user.location = location;
     if (birthday !== undefined) user.birthday = birthday;
-    if (avatar !== undefined) user.avatar = avatar;
+
+    if (avatar !== undefined) {
+      // Trường hợp 1: User muốn xóa ảnh (gửi lên chuỗi rỗng)
+      if (avatar === "") {
+        // Xóa ảnh cũ trên ổ cứng (nếu không phải ảnh mặc định)
+        if (user.avatar) {
+          deleteOldImage(user.avatar);
+        }
+        
+        // QUAN TRỌNG: Tính toán lại ảnh mặc định dựa trên giới tính hiện tại
+        // (Lưu ý: nếu request này có gửi kèm gender mới thì dùng gender mới, không thì dùng user.gender cũ)
+        const currentGender = (gender !== undefined) ? gender : user.gender;
+        const currentRole = user.role;
+        
+        user.avatar = getGenderDefaultAvatar(currentGender, currentRole);
+        
+      } else {
+        // Trường hợp 2: User đổi sang ảnh khác (thường là đường dẫn mới upload)
+        user.avatar = avatar;
+      }
+    }
+
+    // Cập nhật các thông tin khác (giữ nguyên)
+    if (gender !== undefined) {
+       user.gender = gender;
+       // Nếu user đổi giới tính mà đang dùng ảnh mặc định -> Cũng cần đổi ảnh theo
+       const isUsingDefault = user.avatar.includes('avatar.png') || user.avatar.includes('user.png');
+       if (isUsingDefault && avatar === undefined) { 
+          // Chỉ đổi ảnh nếu user không đang upload ảnh mới cùng lúc
+          user.avatar = getGenderDefaultAvatar(gender, user.role);
+       }
+    }
+
     if (email && email !== user.email) user.email = email; // Note: Should use OTP for email
 
     // Save all changes
@@ -951,3 +1010,103 @@ exports.hidePost = async (req, res) => {
   }
 };
 
+// Hàm phụ: Xóa file cũ trên disk
+const deleteOldImage = (filePath) => {
+  if (!filePath) return;
+
+  // 1. DANH SÁCH CÁC FILE MẶC ĐỊNH KHÔNG ĐƯỢC XÓA
+  const protectedFiles = [
+    'cover.png',
+    'admin_avatar.png',
+    'male_avatar.png',    // Mới thêm
+    'female_avatar.png',  // Mới thêm
+    'generic_avatar.png'  // Mới thêm
+  ];
+
+  // 2. Kiểm tra: Nếu tên file nằm trong danh sách bảo vệ -> Dừng lại (return)
+  // Dùng .some() để kiểm tra xem filePath có chứa bất kỳ từ khóa nào trong mảng trên không
+  const isProtected = protectedFiles.some(protectedFile => filePath.includes(protectedFile));
+
+  if (isProtected) {
+    // console.log("Bỏ qua xóa ảnh mặc định:", filePath); // Bật log nếu muốn debug
+    return;
+  }
+
+  // 3. Thực hiện xóa file
+  const fullPath = path.join(__dirname, '../', filePath); 
+  
+  fs.unlink(fullPath, (err) => {
+    // Bỏ qua lỗi ENOENT (File không tồn tại - có thể do đã bị xóa trước đó)
+    if (err && err.code !== 'ENOENT') { 
+      console.error("Lỗi xóa ảnh cũ:", err.message);
+    } else {
+      // console.log("Đã xóa ảnh cũ:", filePath);
+    }
+  });
+};
+
+// ==========================================
+// [MỚI] 20. Upload Avatar
+// ==========================================
+exports.uploadAvatar = async (req, res) => {
+  try {
+    const userId = req.params.id;
+    
+    // Multer sẽ xử lý file và gán vào req.file
+    if (!req.file) {
+      return res.status(400).json({ msg: 'Vui lòng chọn file ảnh' });
+    }
+
+    // Chuẩn hóa đường dẫn (thay \ thành / để tránh lỗi trên Windows/URL)
+    const newAvatarPath = req.file.path.replace(/\\/g, "/");
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ msg: 'User không tồn tại' });
+
+    // Xóa avatar cũ
+    if (user.avatar) {
+      deleteOldImage(user.avatar);
+    }
+
+    // Cập nhật DB
+    user.avatar = newAvatarPath;
+    await user.save();
+
+    // Trả về user đã update (để frontend cập nhật UI ngay)
+    res.status(200).json(user);
+  } catch (err) {
+    console.error("Upload avatar error:", err);
+    res.status(500).json({ msg: 'Lỗi server khi upload ảnh' });
+  }
+};
+
+// ==========================================
+// [MỚI] 21. Upload Ảnh Bìa (Cover Photo)
+// ==========================================
+exports.uploadCover = async (req, res) => {
+  try {
+    const userId = req.params.id;
+
+    if (!req.file) {
+      return res.status(400).json({ msg: 'Vui lòng chọn file ảnh' });
+    }
+
+    const newCoverPath = req.file.path.replace(/\\/g, "/");
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ msg: 'User không tồn tại' });
+
+    // Xóa cover cũ
+    if (user.coverPhoto) {
+      deleteOldImage(user.coverPhoto);
+    }
+
+    user.coverPhoto = newCoverPath;
+    await user.save();
+
+    res.status(200).json(user);
+  } catch (err) {
+    console.error("Upload cover error:", err);
+    res.status(500).json({ msg: 'Lỗi server khi upload ảnh' });
+  }
+};

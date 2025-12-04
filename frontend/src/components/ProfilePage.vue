@@ -2,24 +2,49 @@
   <div class="profile-wrapper" v-if="user && (user._id || user.id)">
     
     <div class="profile-header">
-      <div class="cover-container">
+      <input type="file" ref="coverInput" accept="image/*" style="display: none" @change="handleCoverChange" />
+      <input type="file" ref="avatarInput" accept="image/*" style="display: none" @change="handleAvatarChange" />
+
+      <div class="cover-container" @click.stop="toggleCoverMenu">
+        
         <img 
           :src="user.coverPhoto ? `http://localhost:3000/${user.coverPhoto}` : defaultCover" 
-          class="cover-image"
+          class="cover-image clickable"
         />
         <div class="cover-overlay"></div>
-        <button class="btn-glass edit-cover">
-          📷 Chỉnh sửa ảnh bìa
-        </button>
+        
+        <div v-if="showCoverMenu" class="image-options-menu cover-menu" v-click-outside="closeMenus" @click.stop>
+          <div class="menu-item" @click="openImageViewer(user.coverPhoto || defaultCover)">
+            <img src="../assets/view-image.png" class="menu-icon" alt="View" /> View Cover Image
+          </div>
+          <div class="menu-item" @click="triggerCoverUpload">
+            <img src="../assets/update.png" class="menu-icon" alt="Update" /> Update Cover Image
+          </div>
+          <div v-if="!isDefaultCover" class="menu-item delete" @click="deleteCoverPhoto">
+            <img src="../assets/delete.png" class="menu-icon" alt="Delete" /> Remove Image
+          </div>
+        </div>
       </div>
 
       <div class="user-identity-card">
         <div class="avatar-wrapper">
           <img 
             :src="getAvatarUrl(user)" 
-            class="profile-avatar"
+            class="profile-avatar clickable"
+            @click.stop="toggleAvatarMenu"
           />
-          <button class="edit-avatar">📷</button>
+          
+          <div v-if="showAvatarMenu" class="image-options-menu avatar-menu" v-click-outside="closeMenus" @click.stop>
+            <div class="menu-item" @click="openImageViewer(user.avatar || getDefaultAvatarPath(user))">
+              <img src="../assets/view-image.png" class="menu-icon" alt="View" /> View Avatar
+            </div>
+            <div class="menu-item" @click="triggerAvatarUpload">
+              <img src="../assets/update.png" class="menu-icon" alt="Update" /> Update Avatar
+            </div>
+            <div v-if="!isDefaultAvatar" class="menu-item delete" @click="deleteAvatar">
+              <img src="../assets/delete.png" class="menu-icon" alt="Delete" /> Remove Avatar
+            </div>
+          </div>
         </div>
         
         <div class="identity-content">
@@ -44,11 +69,11 @@
           </div>
 
           <div class="action-buttons">
-          <button class="btn-primary-gradient" @click="openEditProfileModal">
-            Edit Profile
-          </button>
-          <button class="btn-glass-dark">⋯</button>
-        </div>
+            <button class="btn-primary-gradient" @click="openEditProfileModal">
+              Edit Profile
+            </button>
+            <button class="btn-glass-dark">⋯</button>
+          </div>
         </div>
       </div>
     </div>
@@ -363,13 +388,28 @@
     <CommentModal v-if="commentModalVisible" :is-visible="commentModalVisible" :post="selectedPost" :user="user" @close="closeCommentModal" @liked="handlePostLiked" @share="openShareModal" @comment-count-updated="handleCommentCountUpdated" @rating-updated="handleRatingUpdated" />
     <ShareModal v-if="shareModalVisible" :post="sharedPost" :user="user" @close="closeShareModal" @shared="handlePostShared" />
     <EditShareModal v-if="showEditShareModal" :share="editedShare" @close="showEditShareModal = false" @updated="fetchUserPosts" />
+    
     <EditProfileModal
-  v-if="editProfileModalVisible"
-  :is-visible="editProfileModalVisible"
-  :user="user"
-  @close="closeEditProfileModal"
-  @save="handleProfileSave"
-/>
+      v-if="editProfileModalVisible"
+      :is-visible="editProfileModalVisible"
+      :user="user"
+      @close="closeEditProfileModal"
+      @save="handleProfileSave"
+    />
+
+    <ImagePreviewModal 
+      :is-visible="imagePreviewVisible" 
+      :image-url="previewImageUrl" 
+      @close="closeImagePreview" 
+    />
+
+    <NotificationModal 
+      :is-visible="notification.visible"
+      :type="notification.type"
+      :title="notification.title"
+      :message="notification.message"
+      @confirm="closeNotify"
+    />
   </div>
 </template>
 
@@ -379,11 +419,32 @@ import EditShareModal from './EditShareModal.vue';
 import CommentModal from './CommentModal.vue';
 import ShareModal from './ShareModal.vue';
 import EditPostModal from './EditPostModal.vue';
-import CreatePostModal from './CreatePostModal.vue'; // ✅ IMPORT CreatePostModal
+import CreatePostModal from './CreatePostModal.vue';
 import EditProfileModal from './EditProfileModal.vue';
+import ImagePreviewModal from './ImagePreviewModal.vue';
+import NotificationModal from './NotificationModal.vue';
+
+// 1. ĐỊNH NGHĨA DIRECTIVE CLICK OUTSIDE (MỚI)
+const clickOutside = {
+  mounted(el, binding) {
+    el.clickOutsideEvent = function(event) {
+      if (!(el === event.target || el.contains(event.target))) {
+        binding.value(event, el);
+      }
+    };
+    document.body.addEventListener('click', el.clickOutsideEvent);
+  },
+  unmounted(el) {
+    document.body.removeEventListener('click', el.clickOutsideEvent);
+  },
+};
 
 export default {
   name: "ProfilePage",
+  // Đăng ký directive
+  directives: {
+    clickOutside: clickOutside
+  },
   components: {
     ConfirmDialog,
     EditShareModal,
@@ -391,7 +452,9 @@ export default {
     ShareModal,
     EditPostModal,
     CreatePostModal,
-    EditProfileModal 
+    EditProfileModal,
+    ImagePreviewModal,
+    NotificationModal
   },
   data() {
     return {
@@ -418,7 +481,6 @@ export default {
       defaultAvatar: "uploads/user.png",
       defaultCover: "uploads/cover.png",
    
-
       // ===== Modal Comment =====
       commentModalVisible: false,
       selectedPost: null,
@@ -438,6 +500,20 @@ export default {
       postLineCounts: {},
 
       editProfileModalVisible: false,
+
+      // 2. THÊM DATA QUẢN LÝ MENU ẢNH (MỚI)
+      showAvatarMenu: false,
+      showCoverMenu: false,
+
+      imagePreviewVisible: false, // Biến bật tắt modal
+      previewImageUrl: "",
+
+      notification: {
+        visible: false,
+        type: 'success', // 'success', 'error', 'warning'
+        title: '',
+        message: ''
+      }
     };
   },
   computed: {
@@ -448,13 +524,58 @@ export default {
     },
     postsWithImages() {
       return this.userPosts.filter(p => p.mediaType === "image");
-    }
+    },
+
+    isDefaultAvatar() {
+      // Nếu chưa có user hoặc avatar rỗng -> Là mặc định -> Ẩn nút xóa
+      if (!this.user || !this.user.avatar) return true;
+
+      // Danh sách các tên file ĐƯỢC COI LÀ MẶC ĐỊNH
+      // QUAN TRỌNG: Phải có 'user.png' vì database cũ của bạn đang lưu cái này
+      const defaultFiles = [           
+        'male_avatar.png',
+        'female_avatar.png',
+        'generic_avatar.png',
+        'admin_avatar.png', 
+        
+      ];
+
+      // Nếu link avatar có chứa bất kỳ từ nào trong list trên -> Trả về TRUE
+      return defaultFiles.some(def => this.user.avatar.includes(def));
+    },
+
+    // 2. Logic kiểm tra Cover mặc định
+    isDefaultCover() {
+      if (!this.user || !this.user.coverPhoto) return true;
+      return this.user.coverPhoto.includes('cover.png');
+    },
+
   },
   methods: {
-    getAvatarUrl(author) {
-      return author.avatar
-        ? `http://localhost:3000/${author.avatar}`
-        : `http://localhost:3000/${this.defaultAvatar}`;
+    // === CÁC METHOD CŨ GIỮ NGUYÊN ===
+    getDefaultAvatarPath(user) {
+      if (!user) return "uploads/generic_avatar.png";
+
+      if (user.role === "admin") {
+        return "uploads/admin_avatar.png";
+      }
+
+      const g = user.gender ? user.gender.toLowerCase() : "";
+      if (g === "male" || g === "nam") return "uploads/male_avatar.png";
+      if (g === "female" || g === "nữ") return "uploads/female_avatar.png";
+      
+      return "uploads/generic_avatar.png";
+    },
+
+    // 2. Sửa hàm getAvatarUrl để dùng logic động
+    getAvatarUrl(user) {
+      // Nếu user có avatar riêng -> dùng nó
+      if (user && user.avatar) {
+        return `http://localhost:3000/${user.avatar}`;
+      }
+      // Nếu không -> Tính toán ảnh mặc định dựa trên giới tính/role
+      const defaultPath = this.getDefaultAvatarPath(user);
+      return `http://localhost:3000/${defaultPath}`;
     },
     formatTime(dateStr) {
       return new Date(dateStr).toLocaleString();
@@ -484,18 +605,14 @@ export default {
       this.openMenuId = this.openMenuId === postId ? null : postId;
     },
 
+    // ... (Giữ nguyên các hàm fetchFriends, fetchUserProfile, fetchUserPosts, isMyPost) ...
     async fetchFriends() {
       try {
         const savedUser = JSON.parse(localStorage.getItem("user"));
         if (!savedUser) return;
-        
-        // Gọi API lấy danh sách bạn bè (API này trả về mảng object chi tiết)
         const res = await fetch(`http://localhost:3000/users/${savedUser.id}/friends`);
         const friendsData = await res.json();
-        
-        // Kiểm tra dữ liệu trả về có phải mảng không
         if (Array.isArray(friendsData)) {
-           // Gán vào biến riêng biệt, không đụng đến this.user
            this.friendsList = friendsData;
         }
       } catch (err) {
@@ -521,8 +638,6 @@ export default {
         const res = await fetch(`http://localhost:3000/feeds/users/${savedUser.id}`);
         const data = await res.json();
         this.userPosts = Array.isArray(data) ? data : [];
-        
-        // Fetch save counts và calculate line counts
         this.fetchAllSaveCounts();
         this.$nextTick(() => {
           this.calculateAllPostLineCounts();
@@ -538,6 +653,197 @@ export default {
       return savedUser && post.author && post.author._id === savedUser.id;
     },
 
+    // 3. THÊM CÁC METHOD XỬ LÝ ẢNH AVATAR/COVER (MỚI)
+    
+    // --- Điều khiển Menu ---
+    toggleAvatarMenu() {
+      this.showAvatarMenu = !this.showAvatarMenu;
+      this.showCoverMenu = false; // Đóng menu kia nếu đang mở
+    },
+    toggleCoverMenu() {
+      this.showCoverMenu = !this.showCoverMenu;
+      this.showAvatarMenu = false;
+    },
+    closeMenus() {
+      this.showAvatarMenu = false;
+      this.showCoverMenu = false;
+    },
+
+    // --- Xem ảnh ---
+    openImageViewer(imagePath) {
+      this.closeMenus();
+      if (!imagePath) {
+        alert("Chưa có ảnh để xem!");
+        return;
+      }
+      
+      // Gán link ảnh và bật Modal
+      this.previewImageUrl = `http://localhost:3000/${imagePath}`;
+      this.imagePreviewVisible = true;
+    },
+
+    closeImagePreview() {
+      this.imagePreviewVisible = false;
+      this.previewImageUrl = "";
+    },
+
+    // --- Upload ảnh (Kích hoạt Input ẩn) ---
+    triggerAvatarUpload() {
+      // Cần có ref="avatarInput" ở thẻ input trong template
+      if(this.$refs.avatarInput) this.$refs.avatarInput.click();
+      this.closeMenus();
+    },
+    triggerCoverUpload() {
+      // Cần có ref="coverInput" ở thẻ input trong template
+      if(this.$refs.coverInput) this.$refs.coverInput.click();
+      this.closeMenus();
+    },
+
+    // --- Xử lý sự kiện Change của Input File ---
+    async handleAvatarChange(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const formData = new FormData();
+      formData.append("avatar", file);
+
+      try {
+        const savedUser = JSON.parse(localStorage.getItem("user"));
+        const res = await fetch(`http://localhost:3000/users/${savedUser.id}/avatar`, {
+          method: "POST",
+          body: formData,
+        });
+        
+        if (res.ok) {
+          const updatedUser = await res.json();
+          
+          // === [SỬA ĐOẠN NÀY] ===
+          // Gọi hàm đồng bộ để cập nhật avatar ở mọi nơi
+          this.updateLocalAvatar(updatedUser.avatar); 
+          
+          this.showNotify("success", "Thành công!", "Ảnh đại diện đã được cập nhật.");
+        } else {
+           this.showNotify("error", "Thất bại", "Không thể tải ảnh lên. Vui lòng thử lại.");
+        }
+      } catch (err) {
+        console.error(err);
+        this.showNotify("error", "Lỗi mạng", "Không thể kết nối đến máy chủ.");
+      }
+      event.target.value = null; 
+    },
+
+    async handleCoverChange(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const formData = new FormData();
+      formData.append("coverPhoto", file);
+
+      try {
+        const savedUser = JSON.parse(localStorage.getItem("user"));
+        const res = await fetch(`http://localhost:3000/users/${savedUser.id}/cover`, {
+          method: "POST",
+          body: formData,
+        });
+
+        if (res.ok) {
+          const updatedUser = await res.json();
+          this.user.coverPhoto = updatedUser.coverPhoto;
+          this.showNotify("success", "Thành công!", "Ảnh bìa đã được cập nhật.");
+        } else {
+           this.showNotify("error", "Thất bại", "Lỗi khi tải ảnh bìa.");
+        }
+      } catch (err) {
+        console.error(err);
+      }
+      event.target.value = null;
+    },
+
+    // --- Xóa ảnh ---
+    async deleteAvatar() {
+      if (!confirm("Bạn có chắc muốn gỡ ảnh đại diện?")) return;
+      this.closeMenus();
+      
+      try {
+         const savedUser = JSON.parse(localStorage.getItem("user"));
+         const res = await fetch(`http://localhost:3000/users/${savedUser.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ avatar: "" }) 
+         });
+         
+         if(res.ok) {
+             const data = await res.json(); // Nhận data từ backend (chứa ảnh mặc định mới)
+             
+             // === [SỬA ĐOẠN NÀY] ===
+             // Đồng bộ avatar mới (hoặc avatar mặc định) vào list post
+             this.updateLocalAvatar(data.user.avatar);
+             
+             this.showNotify("success", "Đã gỡ ảnh", "Ảnh đại diện đã trở về mặc định.");
+         }
+      } catch(err) {
+          console.error(err);
+      }
+    },
+
+    async deleteCoverPhoto() {
+      if (!confirm("Bạn có chắc muốn gỡ ảnh bìa?")) return;
+      this.closeMenus();
+
+      try {
+         const savedUser = JSON.parse(localStorage.getItem("user"));
+         const res = await fetch(`http://localhost:3000/users/${savedUser.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ coverPhoto: "" }) 
+         });
+         
+         if(res.ok) {
+             this.user.coverPhoto = ""; 
+             this.showNotify("success", "Đã gỡ ảnh", "Ảnh bìa đã được gỡ bỏ.");
+         }
+      } catch(err) {
+          console.error(err);
+      }
+    },
+
+    // --- HÀM ĐỒNG BỘ AVATAR TRÊN GIAO DIỆN ---
+    updateLocalAvatar(newAvatarUrl) {
+      const currentUserId = this.user._id || this.user.id;
+
+      // 1. Cập nhật Avatar chính trên Profile
+      this.user.avatar = newAvatarUrl;
+
+      // 2. Cập nhật LocalStorage (để Header nhận diện)
+      const savedUser = JSON.parse(localStorage.getItem("user"));
+      if (savedUser) {
+        savedUser.avatar = newAvatarUrl;
+        localStorage.setItem("user", JSON.stringify(savedUser));
+      }
+
+      // 3. Quét và cập nhật Avatar trong danh sách bài viết (userPosts)
+      this.userPosts.forEach(post => {
+        // Trường hợp A: Bài viết thường (Type: post/original)
+        if (post.author && (post.author._id === currentUserId || post.author.id === currentUserId)) {
+          post.author.avatar = newAvatarUrl;
+        }
+
+        // Trường hợp B: Bài viết chia sẻ (Type: share)
+        // Cập nhật avatar người chia sẻ (là mình)
+        if (post.type === 'share' && post.username && (post.username._id === currentUserId || post.username.id === currentUserId)) {
+          post.username.avatar = newAvatarUrl;
+        }
+        
+        // Cập nhật avatar trong bài gốc (nếu bài gốc cũng là của mình)
+        if (post.post && post.post.author && (post.post.author._id === currentUserId || post.post.author.id === currentUserId)) {
+          post.post.author.avatar = newAvatarUrl;
+        }
+      });
+      
+      // (Tùy chọn) Force update nếu Vue không tự nhận diện thay đổi sâu trong object
+      // this.$forceUpdate(); 
+    },
+
+    // ... (Các method còn lại của Post, Like, Share giữ nguyên bên dưới) ...
     // ===== CREATE POST =====
     openCreatePostModal() {
       this.createPostModalVisible = true;
@@ -592,7 +898,7 @@ export default {
       this.confirmVisible = false;
     },
 
-    // ===== COMMENT MODAL - Use Component =====
+    // ===== COMMENT MODAL =====
     openCommentModal(post) {
       this.selectedPost = post;
       this.commentModalVisible = true;
@@ -603,7 +909,6 @@ export default {
       this.selectedPost = null;
     },
 
-    // ✅ Handle events from CommentModal
     handlePostLiked({ postId, likes }) {
       const post = this.userPosts.find(p => p._id === postId);
       if (post) {
@@ -639,7 +944,7 @@ export default {
     
     async handlePostShared() {
       this.closeShareModal();
-      await this.fetchUserPosts(); // Reload posts to show new share
+      await this.fetchUserPosts(); 
       alert('Post shared successfully!');
     },
 
@@ -650,8 +955,11 @@ export default {
 
     async deleteShare(shareId) {
       if (confirm("Are you sure you want to delete this shared post?")) {
-        await this.$axios.delete(`/shares/${shareId}`);
-        this.fetchUserPosts();
+        // Lưu ý: dùng this.$axios ở đây có thể lỗi nếu chưa config global, nên dùng fetch cho đồng bộ
+        try {
+            const res = await fetch(`http://localhost:3000/shares/${shareId}`, { method: 'DELETE' });
+            if(res.ok) this.fetchUserPosts();
+        } catch(e) { console.error(e); }
       }
     },
 
@@ -662,51 +970,34 @@ export default {
 
     canViewSharedPost(post) {
       if (!post || !post.author || !this.user) return false;
-
       const authorId = post.author._id || post.author.id;
       const viewerId = this.user._id || this.user.id;
-
       const isAuthor = authorId === viewerId;
       const isFriend = post.author.friends?.includes(viewerId);
-
       switch (post.audience) {
-        case 'public':
-          return true;
-        case 'friends':
-          return isAuthor || isFriend;
-        case 'private':
-          return isAuthor;
-        default:
-          return false;
+        case 'public': return true;
+        case 'friends': return isAuthor || isFriend;
+        case 'private': return isAuthor;
+        default: return false;
       }
     },
 
     getPostAccessMessage(post) {
-      if (post.audience === 'private') {
-        return 'This post is private';
-      } else if (post.audience === 'friends') {
-        return 'Only friends of this user can see';
-      } else {
-        return '';
-      }
+      if (post.audience === 'private') return 'This post is private';
+      else if (post.audience === 'friends') return 'Only friends of this user can see';
+      else return '';
     },
 
     // ===== LIKE POST =====
     async toggleLike(post) {
       const savedUser = JSON.parse(localStorage.getItem("user"));
       if (!savedUser) return alert("Please login");
-
       try {
         const res = await fetch(`http://localhost:3000/posts/${post._id}/like`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            username: savedUser.username
-          })
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: savedUser.username })
         });
-
         const data = await res.json();
         post.likes = data.likes;
       } catch (err) {
@@ -720,12 +1011,11 @@ export default {
       return savedUser && post.likes && post.likes.includes(savedUser.id);
     },
 
-    // ===== SAVE POST METHODS =====
+    // ===== SAVE POST =====
     async loadSavedPosts() {
       try {
         const savedUser = JSON.parse(localStorage.getItem("user"));
         if (!savedUser) return;
-
         const res = await fetch(`http://localhost:3000/feeds/users/${savedUser.id}/saved-items`);
         if (res.ok) {
           const data = await res.json();
@@ -737,10 +1027,7 @@ export default {
     },
 
     async fetchPostSaveCount(postId) {
-      if (this.postSaveCounts[postId] !== undefined) {
-        return this.postSaveCounts[postId];
-      }
-
+      if (this.postSaveCounts[postId] !== undefined) return this.postSaveCounts[postId];
       try {
         const res = await fetch(`http://localhost:3000/posts/${postId}/saves-count`);
         if (res.ok) {
@@ -751,87 +1038,54 @@ export default {
       } catch (err) {
         console.error("Cannot fetch save count:", err);
       }
-      
       this.postSaveCounts[postId] = 0;
       return 0;
     },
 
     getPostSaveCount(post) {
       if (!post || !post._id) return 0;
-      
-      if (post.savesCount !== undefined) {
-        return post.savesCount;
-      }
-      
-      if (this.postSaveCounts[post._id] !== undefined) {
-        return this.postSaveCounts[post._id];
-      }
-      
+      if (post.savesCount !== undefined) return post.savesCount;
+      if (this.postSaveCounts[post._id] !== undefined) return this.postSaveCounts[post._id];
       this.fetchPostSaveCount(post._id);
       return 0;
     },
 
     updatePostSaveCount(postId, increment = false) {
-      if (this.postSaveCounts[postId] === undefined) {
-        this.postSaveCounts[postId] = 0;
-      }
+      if (this.postSaveCounts[postId] === undefined) this.postSaveCounts[postId] = 0;
+      if (increment) this.postSaveCounts[postId]++;
+      else this.postSaveCounts[postId] = Math.max(0, this.postSaveCounts[postId] - 1);
       
-      if (increment) {
-        this.postSaveCounts[postId]++;
-      } else {
-        this.postSaveCounts[postId] = Math.max(0, this.postSaveCounts[postId] - 1);
-      }
-
       const postIndex = this.userPosts.findIndex(p => p._id === postId || (p.post && p.post._id === postId));
       if (postIndex !== -1) {
         const post = this.userPosts[postIndex];
-        if (post.post) {
-          post.post.savesCount = this.postSaveCounts[postId];
-        } else {
-          post.savesCount = this.postSaveCounts[postId];
-        }
+        if (post.post) post.post.savesCount = this.postSaveCounts[postId];
+        else post.savesCount = this.postSaveCounts[postId];
       }
     },
 
     async fetchAllSaveCounts() {
       const postIds = [];
-      
       this.userPosts.forEach(post => {
-        if (post.type === 'original') {
-          postIds.push(post._id);
-        } else if (post.type === 'share' && post.post) {
-          postIds.push(post.post._id);
-        }
+        if (post.type === 'original') postIds.push(post._id);
+        else if (post.type === 'share' && post.post) postIds.push(post.post._id);
       });
-
       for (const postId of postIds) {
-        if (this.postSaveCounts[postId] === undefined) {
-          this.fetchPostSaveCount(postId);
-        }
+        if (this.postSaveCounts[postId] === undefined) this.fetchPostSaveCount(postId);
       }
     },
 
     async toggleSavePost(post) {
       const savedUser = JSON.parse(localStorage.getItem("user"));
       if (!savedUser) return alert("Please login to save posts");
-
       try {
         const postId = post._id;
         const isSaved = this.savedPosts.includes(postId);
-        
         const res = await fetch(`http://localhost:3000/feeds/save/${postId}`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            userId: savedUser.id,
-            action: isSaved ? 'unsave' : 'save'
-          })
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: savedUser.id, action: isSaved ? 'unsave' : 'save' })
         });
-
         const data = await res.json();
-        
         if (res.ok) {
           if (isSaved) {
             this.savedPosts = this.savedPosts.filter(id => id !== postId);
@@ -855,7 +1109,7 @@ export default {
       return this.savedPosts.includes(post._id);
     },
 
-    // ===== EXPAND POST CONTENT =====
+    // ===== EXPAND POST =====
     calculatePostLineCount(post) {
       if (post?.content) {
         const content = post.content.trim();
@@ -869,11 +1123,8 @@ export default {
     
     calculateAllPostLineCounts() {
       this.userPosts.forEach(post => {
-        if (post.type === 'original') {
-          this.calculatePostLineCount(post);
-        } else if (post.type === 'share' && post.post) {
-          this.calculatePostLineCount(post.post);
-        }
+        if (post.type === 'original') this.calculatePostLineCount(post);
+        else if (post.type === 'share' && post.post) this.calculatePostLineCount(post.post);
       });
     },
     
@@ -890,70 +1141,71 @@ export default {
     getDisplayedContent(post) {
       if (!post?.content) return '';
       const postId = post._id;
-      
       if (!this.shouldShowReadMore(postId) || this.expandedPosts[postId]) {
         return post.content;
       }
-      
       const counts = this.postLineCounts[postId];
-      
       if (counts.lineCount > 10) {
         const lines = post.content.split('\n');
         return lines.slice(0, 10).join('\n') + '...';
       }
-      
       if (counts.charCount > 300) {
         return post.content.substring(0, 300) + '...';
       }
-      
       return post.content;
     },
 
     switchTab(tabId) {
-    this.activeTab = tabId;
-    // Cuộn nhẹ lên phần menu nav để người dùng biết đã chuyển tab
-    const navElement = this.$el.querySelector('.profile-nav') || this.$el.querySelector('.nav-wrapper');
-    if (navElement) {
-      navElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  },
-
-  openEditProfileModal() {
-    this.editProfileModalVisible = true;
-  },
-
-  closeEditProfileModal() {
-    this.editProfileModalVisible = false;
-  },
-
-  async handleProfileSave(updatedData) {
-    try {
-      const savedUser = JSON.parse(localStorage.getItem("user"));
-      
-      // Gọi API Update User (Lưu ý: Backend cần có route PUT /users/:id)
-      const res = await fetch(`http://localhost:3000/users/${savedUser.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedData)
-      });
-
-      if (res.ok) {
-        const newUser = await res.json();
-        this.user = newUser; // Cập nhật lại giao diện
-        // Cập nhật localStorage nếu cần thiết để đồng bộ header
-        localStorage.setItem("user", JSON.stringify({ ...savedUser, ...newUser }));
-        
-        this.closeEditProfileModal();
-        alert("Cập nhật thông tin thành công!");
-      } else {
-        alert("Lỗi khi cập nhật thông tin");
+      this.activeTab = tabId;
+      const navElement = this.$el.querySelector('.profile-nav') || this.$el.querySelector('.nav-wrapper');
+      if (navElement) {
+        navElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
-    } catch (err) {
-      console.error(err);
-      alert("Lỗi server");
-    }
-  }
+    },
 
+    openEditProfileModal() {
+      this.editProfileModalVisible = true;
+    },
+
+    closeEditProfileModal() {
+      this.editProfileModalVisible = false;
+    },
+
+    async handleProfileSave(updatedData) {
+      try {
+        const savedUser = JSON.parse(localStorage.getItem("user"));
+        const res = await fetch(`http://localhost:3000/users/${savedUser.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatedData)
+        });
+
+        if (res.ok) {
+          const newUser = await res.json();
+          this.user = newUser; 
+          localStorage.setItem("user", JSON.stringify({ ...savedUser, ...newUser }));
+          this.closeEditProfileModal();
+          this.showNotify("success", "Đã lưu", "Cập nhật thông tin cá nhân thành công!");
+        } else {
+          this.showNotify("error", "Lỗi", "Không thể cập nhật thông tin.");
+        }
+      } catch (err) {
+        console.error(err);
+        this.showNotify("error", "Lỗi mạng", "Không thể kết nối đến máy chủ.");
+      }
+    },
+
+    showNotify(type, title, message) {
+      this.notification.type = type;
+      this.notification.title = title;
+      this.notification.message = message;
+      this.notification.visible = true;
+    },
+
+    // Hàm đóng thông báo
+    closeNotify() {
+      this.notification.visible = false;
+    }
   },
   mounted() {
     this.fetchUserProfile();
@@ -993,7 +1245,7 @@ export default {
   overflow: hidden;
 }
 .cover-image { width: 100%; height: 100%; object-fit: cover; }
-.cover-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(to bottom, transparent 70%, rgba(0,0,0,0.5)); }
+.cover-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(to bottom, transparent 70%, rgba(0,0,0,0.5)); pointer-events: none;}
 .edit-cover { position: absolute; bottom: 20px; right: 30px; z-index: 5; }
 
 .user-identity-card {
@@ -1230,6 +1482,118 @@ export default {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.avatar-wrapper {
+  position: relative;
+  display: inline-block; /* Đảm bảo wrapper ôm sát ảnh */
+}
+
+/* Thêm hiệu ứng hover vào ảnh để người dùng biết có thể bấm */
+.profile-avatar.clickable {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.profile-avatar.clickable:hover {
+  filter: brightness(0.9); /* Làm tối nhẹ khi di chuột vào */
+  transform: scale(1.02);  /* Phóng to cực nhẹ */
+}
+
+/* Menu Dropdown chung (Giữ nguyên hoặc chỉnh lại chút width) */
+.image-options-menu {
+  position: absolute;
+  background: white;
+  border-radius: 12px; /* Bo góc mềm mại hơn */
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15); /* Shadow đậm hơn chút cho nổi */
+  padding: 8px;
+  width: 220px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #f0f2f5;
+}
+
+/* Vị trí Menu Avatar: Căn giữa bên dưới ảnh */
+.avatar-menu {
+  top: 110%; /* Nằm dưới ảnh một khoảng nhỏ */
+  left: 50%; 
+  transform: translateX(-50%); /* Căn giữa menu so với avatar */
+}
+
+/* Mũi tên nhỏ trỏ lên trên (Optional - cho đẹp giống tooltip) */
+.avatar-menu::before {
+  content: "";
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 0 6px 6px 6px;
+  border-style: solid;
+  border-color: transparent transparent white transparent;
+}
+
+/* Style cho từng dòng menu */
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 500;
+  color: #050505;
+  transition: background 0.2s;
+}
+
+.menu-item:hover {
+  background-color: #f2f2f5;
+}
+
+.menu-item span {
+  font-size: 18px; /* Icon nhỏ lại chút cho tinh tế */
+}
+
+.menu-item.delete {
+  color: #dc3545;
+}
+.menu-item.delete:hover {
+  background-color: #ffebee;
+}
+
+.cover-image.clickable {
+  cursor: pointer;
+}
+
+/* Định vị Container để làm chuẩn cho absolute */
+.cover-container {
+  position: relative; 
+  /* ... các thuộc tính cũ giữ nguyên */
+}
+
+/* SỬA LẠI VỊ TRÍ MENU ẢNH BÌA */
+.cover-menu {
+  /* Cách 1: Hiện ở chính giữa ảnh bìa */
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.menu-icon {
+  width: 20px;  /* Kích thước icon */
+  height: 20px;
+  object-fit: contain; /* Giữ tỉ lệ ảnh không bị méo */
+  opacity: 0.8; /* Làm mờ nhẹ cho đỡ gắt (tuỳ chọn) */
+}
+
+.menu-item:hover {
+  background-color: #f2f2f5;
+}
+
+/* Hiệu ứng khi hover vào dòng menu thì icon đậm lên */
+.menu-item:hover .menu-icon {
+  opacity: 1;
 }
 
 /* Responsive */
