@@ -268,7 +268,7 @@ exports.updateUser = async (req, res) => {
   const userId = req.params.id;
   const { 
     firstname, lastname, username, email, 
-    avatar, bio, gender, location, birthday 
+    avatar,coverPhoto, bio, gender, location, birthday 
   } = req.body;
 
   try {
@@ -278,6 +278,21 @@ exports.updateUser = async (req, res) => {
     }
 
     const now = new Date();
+
+    if (coverPhoto !== undefined) {
+      // Trường hợp xóa ảnh bìa (gửi lên chuỗi rỗng)
+      if (coverPhoto === "") {
+        // Xóa file cũ trên ổ cứng (nếu không phải mặc định)
+        if (user.coverPhoto) {
+          deleteOldImage(user.coverPhoto);
+        }
+        // Gán về ảnh mặc định
+        user.coverPhoto = "uploads/cover.png";
+      } else {
+        // Trường hợp đổi ảnh mới (đã upload xong và gửi đường dẫn lên)
+        user.coverPhoto = coverPhoto;
+      }
+    }
 
     // ---------------------------------------------------------
     // A. SECURITY CHECK: FIRSTNAME / LASTNAME (30 Days)

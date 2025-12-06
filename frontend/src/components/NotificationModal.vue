@@ -51,7 +51,7 @@ export default {
 /* Style giữ nguyên như cũ, chỉ đổi tên class cho hợp lý nếu muốn */
 .modal-overlay {
   position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-  background: rgba(0, 0, 0, 0.6); z-index: 3000;
+  background: rgba(0, 0, 0, 0.6); z-index: 11002;
   display: flex; justify-content: center; align-items: center;
   backdrop-filter: blur(4px);
   animation: fadeIn 0.3s ease;

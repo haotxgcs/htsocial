@@ -223,7 +223,12 @@
     </div>
 
   <CreatePostModal :is-visible="createPostModalVisible" :user="user" @close="createPostModalVisible = false" @posted="handlePostCreated" />
-  <ConfirmDialog v-if="confirmVisible" :message="confirmMessage" @confirm="handleConfirmedDelete" @cancel="confirmVisible = false" />
+  <ConfirmDialog 
+  v-if="confirmVisible" 
+  :message="confirmMessage" 
+  @confirm="handleConfirmedAction" 
+  @cancel="confirmVisible = false" 
+/>
   <EditShareModal v-if="showEditShareModal" :share="editedShare" @close="showEditShareModal = false" @updated="fetchPosts" />
   <ShareModal v-if="showShareModal" :post="postToShare" :user="user" @close="showShareModal = false" @shared="fetchPosts" />
   <EditPostModal :is-visible="editModalVisible" :post="editedPost" :user="user" @close="closeEditModal" @updated="handlePostUpdated" />
@@ -671,26 +676,56 @@ handleRatingUpdated(data) {
     },
     
     deletePost(postId) {
-      this.confirmMessage = 'Are you sure to delete this post?';
-      this.postToDeleteId = postId;
+      this.itemToDeleteId = postId;
+      this.deleteType = 'post';
+      this.confirmMessage = "Bạn có chắc chắn muốn xóa bài viết này không?";
       this.confirmVisible = true;
     },
 
-    async handleConfirmedDelete() {
-      try {
-        const res = await fetch(`http://localhost:3000/posts/${this.postToDeleteId}`, {
-          method: 'DELETE'
-        });
-        
-        if (res.ok) {
-          this.posts = this.posts.filter(p => p._id !== this.postToDeleteId);
-          this.openMenuId = null;
-        }
-      } catch (err) {
-        console.error("Fail to delete post:", err);
-      }
-      this.confirmVisible = false;
-    },
+    async handleConfirmedAction() {
+          this.confirmVisible = false;
+
+          if (!this.itemToDeleteId) return;
+
+          try {
+            if (this.deleteType === 'share') {
+              // --- XÓA SHARE ---
+              const res = await fetch(`http://localhost:3000/shares/${this.itemToDeleteId}`, {
+                method: 'DELETE'
+              });
+              
+              if (res.ok) {
+                // Cập nhật giao diện: Xóa khỏi mảng posts
+                this.posts = this.posts.filter(p => p._id !== this.itemToDeleteId);
+                // Hoặc gọi this.fetchPosts() nếu muốn load lại toàn bộ
+                // alert("Đã xóa bài chia sẻ."); 
+              } else {
+                alert("Lỗi khi xóa bài chia sẻ.");
+              }
+
+            } else if (this.deleteType === 'post') {
+              // --- XÓA POST ---
+              const res = await fetch(`http://localhost:3000/posts/${this.itemToDeleteId}`, {
+                method: 'DELETE'
+              });
+
+              if (res.ok) {
+                this.posts = this.posts.filter(p => p._id !== this.itemToDeleteId);
+                this.openMenuId = null;
+                // alert("Đã xóa bài viết.");
+              } else {
+                alert("Lỗi khi xóa bài viết.");
+              }
+            }
+          } catch (err) {
+            console.error(`Error deleting ${this.deleteType}:`, err);
+            alert("Lỗi kết nối server.");
+          }
+
+          // Reset biến tạm
+          this.itemToDeleteId = null;
+          this.deleteType = null;
+        },
 
     isMyPost(post) {
       const savedUser = JSON.parse(localStorage.getItem("user"));
@@ -713,19 +748,11 @@ handleRatingUpdated(data) {
       return savedUser && share.username._id === savedUser.id;
     },
 
-    async deleteShare(shareId) {
-      if (confirm("Are you sure you want to delete this shared post?")) {
-        try {
-          const res = await fetch(`http://localhost:3000/shares/${shareId}`, {
-            method: 'DELETE'
-          });
-          if (res.ok) {
-            this.fetchPosts();
-          }
-        } catch (err) {
-          console.error("Error deleting share:", err);
-        }
-      }
+deleteShare(shareId) {
+      this.itemToDeleteId = shareId;
+      this.deleteType = 'share';
+      this.confirmMessage = "Bạn có chắc chắn muốn xóa bài chia sẻ này không?";
+      this.confirmVisible = true;
     },
 
     editShare(share) {

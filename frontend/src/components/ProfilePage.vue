@@ -363,23 +363,40 @@
       </template>
 
       <template v-else-if="activeTab === 'friends'">
-        <div class="friends-container-modern">
-          <!-- SỬA: Dùng friendsList -->
-          <div v-if="friendsList.length === 0" class="empty-state" style="grid-column: 1/-1;">
+        <div class="friends-tab-wrapper">
+          
+          <div class="friends-header-card">
+            <h2>Friends</h2>
+            <span class="friend-count">{{ friendsList.length }} Friends</span>
+          </div>
+
+          <div v-if="friendsList.length === 0" class="empty-state">
             <p>No friends yet.</p>
             <button class="btn-primary-gradient" @click="$router.push('/friend')">Find Friends</button>
           </div>
           
-          <div v-for="friend in friendsList" :key="friend._id" class="friend-card-modern">
-            <img :src="getAvatarUrl(friend)" />
-            <div class="info">
-              <!-- Hiển thị tên đầy đủ -->
-              <h4>{{ friend.firstname }} {{ friend.lastname }}</h4>
-              <button>Message</button>
+          <div v-else class="modern-grid">
+            <div v-for="friend in friendsList" :key="friend._id" class="modern-card">
+              
+              <div class="card-image-wrapper">
+                <img :src="getAvatarUrl(friend)" class="card-img" />
+                <div class="status-badge" v-if="friend.active">Online</div>
+              </div>
+
+              <div class="card-body">
+                <h4>{{ friend.firstname }} {{ friend.lastname }}</h4>
+                <p class="username">@{{ friend.username }}</p>
+                
+                <button class="btn-secondary full-width">
+                  Message
+                </button>
+              </div>
+
             </div>
           </div>
+
         </div>
-    </template>
+      </template>
     </div>
 
     <CreatePostModal v-if="createPostModalVisible" :is-visible="createPostModalVisible" :user="user" @close="closeCreatePostModal" @posted="handlePostCreated" />
@@ -465,6 +482,7 @@ export default {
       confirmVisible: false,
       confirmMessage: '',
       postToDeleteId: null,
+      deleteType: null,
 
       // Edit post
       editModalVisible: false,
@@ -513,7 +531,9 @@ export default {
         type: 'success', // 'success', 'error', 'warning'
         title: '',
         message: ''
-      }
+      },
+
+      
     };
   },
   computed: {
@@ -838,6 +858,8 @@ export default {
           post.post.author.avatar = newAvatarUrl;
         }
       });
+
+      window.dispatchEvent(new Event('user-profile-updated'));
       
       // (Tùy chọn) Force update nếu Vue không tự nhận diện thay đổi sâu trong object
       // this.$forceUpdate(); 
@@ -877,25 +899,56 @@ export default {
 
     // Delete Post
     deletePost(postId) {
-      this.confirmMessage = 'Are you sure to delete this post?';
       this.postToDeleteId = postId;
+      this.deleteType = 'post'; // Đánh dấu là xóa bài viết gốc
+      this.confirmMessage = 'Bạn có chắc chắn muốn xóa bài viết này không?';
       this.confirmVisible = true;
     },
 
     async handleConfirmedDelete() {
-      try {
-        const res = await fetch(`http://localhost:3000/posts/${this.postToDeleteId}`, {
-          method: 'DELETE'
-        });
+      this.confirmVisible = false; // Đóng modal trước
 
-        if (res.ok) {
-          this.userPosts = this.userPosts.filter(p => p._id !== this.postToDeleteId);
-          this.openMenuId = null;
+      if (!this.postToDeleteId) return;
+
+      try {
+        // TRƯỜNG HỢP 1: XÓA SHARE
+        if (this.deleteType === 'share') {
+          const res = await fetch(`http://localhost:3000/shares/${this.postToDeleteId}`, {
+            method: 'DELETE'
+          });
+          
+          if (res.ok) {
+            // Cập nhật lại danh sách bài viết (Load lại hoặc filter bỏ đi)
+            await this.fetchUserPosts(); 
+            this.showNotify("success", "Thành công", "Đã xóa bài chia sẻ.");
+          } else {
+            this.showNotify("error", "Lỗi", "Không thể xóa bài chia sẻ.");
+          }
+        } 
+        
+        // TRƯỜNG HỢP 2: XÓA POST GỐC
+        else if (this.deleteType === 'post') {
+          const res = await fetch(`http://localhost:3000/posts/${this.postToDeleteId}`, {
+            method: 'DELETE'
+          });
+
+          if (res.ok) {
+            this.userPosts = this.userPosts.filter(p => p._id !== this.postToDeleteId);
+            this.openMenuId = null;
+            this.showNotify("success", "Thành công", "Đã xóa bài viết.");
+          } else {
+            this.showNotify("error", "Lỗi", "Không thể xóa bài viết.");
+          }
         }
+
       } catch (err) {
-        console.error("Fail to delete post:", err);
+        console.error("Lỗi khi xóa:", err);
+        this.showNotify("error", "Lỗi", "Lỗi kết nối server.");
       }
-      this.confirmVisible = false;
+
+      // Reset biến tạm
+      this.postToDeleteId = null;
+      this.deleteType = null;
     },
 
     // ===== COMMENT MODAL =====
@@ -953,14 +1006,12 @@ export default {
       return savedUser && share.username && share.username._id === savedUser.id;
     },
 
-    async deleteShare(shareId) {
-      if (confirm("Are you sure you want to delete this shared post?")) {
-        // Lưu ý: dùng this.$axios ở đây có thể lỗi nếu chưa config global, nên dùng fetch cho đồng bộ
-        try {
-            const res = await fetch(`http://localhost:3000/shares/${shareId}`, { method: 'DELETE' });
-            if(res.ok) this.fetchUserPosts();
-        } catch(e) { console.error(e); }
-      }
+    deleteShare(shareId) {
+      // Bỏ confirm mặc định, dùng Modal Confirm
+      this.postToDeleteId = shareId;
+      this.deleteType = 'share'; // Đánh dấu là xóa bài chia sẻ
+      this.confirmMessage = "Bạn có chắc chắn muốn xóa bài chia sẻ này không?";
+      this.confirmVisible = true;
     },
 
     editShare(share) {
@@ -1454,7 +1505,7 @@ export default {
 
 .friends-container-modern { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; }
 .friend-card-modern { background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.03); text-align: center; padding-bottom: 20px; border: 1px solid rgba(243, 244, 246, 0.8); }
-.friend-card-modern img { width: 85%; height: 220px; object-fit: cover; }
+.friend-card-modern img { width: 100%; height: 220px; object-fit: cover; }
 .friend-card-modern .info { padding: 16px; }
 .friend-card-modern h4 { margin: 0 0 12px; font-size: 18px; font-weight: 700; }
 .friend-card-modern button { background: #e0e7ff; color: #4f46e5; border: none; padding: 8px 24px; border-radius: 30px; font-weight: 600; cursor: pointer; }
@@ -1594,6 +1645,143 @@ export default {
 /* Hiệu ứng khi hover vào dòng menu thì icon đậm lên */
 .menu-item:hover .menu-icon {
   opacity: 1;
+}
+
+/* --- CSS CHO THẺ BẠN BÈ (COPY TỪ FRIEND PAGE) --- */
+
+.friends-tab-wrapper {
+  grid-column: 1 / -1; /* Chiếm toàn bộ chiều ngang */
+}
+
+/* Grid Layout */
+.modern-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); /* Kích thước thẻ tự động */
+  gap: 20px;
+}
+
+/* Card Style */
+.modern-card {
+  background: white;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  border: 1px solid #f0f2f5;
+  transition: transform 0.2s, box-shadow 0.2s;
+  display: flex;
+  flex-direction: column;
+}
+
+.modern-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0,0,0,0.1);
+}
+
+/* Phần ảnh Card */
+.card-image-wrapper {
+  position: relative;
+  width: 100%;
+  padding-top: 100%; /* Tạo khung vuông tỉ lệ 1:1 */
+}
+
+.card-img {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background-color: #f3f4f6;
+}
+
+/* Badge Online */
+.status-badge {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  background: #10b981;
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Phần Body Card */
+.card-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1; /* Để căn đều chiều cao */
+}
+
+.card-body h4 {
+  margin: 0 0 4px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #111827;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.username {
+  color: #6b7280;
+  font-size: 13px;
+  margin: 0 0 16px;
+  font-weight: 500;
+}
+
+/* Buttons */
+.btn-secondary {
+  background: #eff6ff; /* Xanh nhạt */
+  color: #4f46e5;      /* Xanh đậm */
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s;
+  margin-top: auto; /* Đẩy nút xuống đáy thẻ */
+}
+
+.btn-secondary:hover {
+  background: #e0e7ff;
+}
+
+.full-width {
+  width: 100%;
+}
+
+/* --- CSS CHO HEADER TAB BẠN BÈ --- */
+
+.friends-header-card {
+  background: white;
+  padding: 20px 24px;
+  border-radius: 16px;
+  margin-bottom: 24px; /* Khoảng cách với lưới bạn bè */
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* Đẩy tiêu đề sang trái, số lượng sang phải */
+  border: 1px solid #f3f4f6;
+}
+
+.friends-header-card h2 {
+  font-size: 20px;
+  font-weight: 800;
+  color: #111827;
+  margin: 0;
+}
+
+.friend-count {
+  background: #f3f4f6;
+  color: #4b5563;
+  padding: 6px 16px;
+  border-radius: 30px;
+  font-size: 14px;
+  font-weight: 700;
 }
 
 /* Responsive */
