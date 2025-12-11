@@ -52,7 +52,12 @@ const userSchema = new mongoose.Schema(
     password_otp_expire: { type: Date, default: null },
     last_password_otp_sent_at: { type: Date, default: null },
 
-    token_version: { type: Number, default: 0 }
+    token_version: { type: Number, default: 0 },
+
+    searchHistory: {
+      type: [String], // Mảng chứa các chuỗi từ khóa
+      default: [],    // Mặc định là rỗng
+    },
   },
   {
     timestamps: true,

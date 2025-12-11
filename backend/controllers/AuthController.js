@@ -1125,3 +1125,85 @@ exports.uploadCover = async (req, res) => {
     res.status(500).json({ msg: 'Lỗi server khi upload ảnh' });
   }
 };
+
+// 1. Lấy lịch sử tìm kiếm
+exports.getSearchHistory = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ msg: "User not found" });
+
+    // Trả về mảng rỗng nếu chưa có lịch sử
+    res.status(200).json({ history: user.searchHistory || [] });
+  } catch (err) {
+    console.error("Get history error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// 2. Lưu từ khóa mới
+exports.saveSearchHistory = async (req, res) => {
+  try {
+    const { query } = req.body;
+    const userId = req.params.id;
+
+    if (!query) return res.status(400).json({ msg: "Query is required" });
+
+    // Bước 1: Xóa từ khóa cũ nếu trùng (để đưa lên đầu)
+    await User.findByIdAndUpdate(userId, {
+      $pull: { searchHistory: query }
+    });
+
+    // Bước 2: Chèn lên đầu và giới hạn 10 item
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      {
+        $push: {
+          searchHistory: {
+            $each: [query],
+            $position: 0,
+            $slice: 10 // Chỉ giữ 10 cái mới nhất
+          }
+        }
+      },
+      { new: true }
+    );
+
+    res.status(200).json({ history: updatedUser.searchHistory });
+  } catch (err) {
+    console.error("Save history error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// 3. Xóa một từ khóa cụ thể
+exports.removeSearchHistoryItem = async (req, res) => {
+  try {
+    const { query } = req.body;
+    const userId = req.params.id;
+
+    await User.findByIdAndUpdate(userId, {
+      $pull: { searchHistory: query }
+    });
+
+    res.status(200).json({ msg: "Removed from history" });
+  } catch (err) {
+    console.error("Remove item error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// 4. Xóa toàn bộ lịch sử
+exports.clearSearchHistory = async (req, res) => {
+  try {
+    const userId = req.params.id;
+
+    await User.findByIdAndUpdate(userId, {
+      $set: { searchHistory: [] }
+    });
+
+    res.status(200).json({ msg: "History cleared" });
+  } catch (err) {
+    console.error("Clear history error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};

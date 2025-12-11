@@ -54,4 +54,20 @@ router.post('/:id/avatar', upload.single('avatar'), AuthController.uploadAvatar)
 // 2. Upload Cover Photo
 router.post('/:id/cover', upload.single('coverPhoto'), AuthController.uploadCover);
 
+// GET: Lấy danh sách lịch sử
+// URL: /users/:id/search-history
+router.get("/:id/search-history", AuthController.getSearchHistory);
+
+// POST: Lưu từ khóa mới
+// URL: /users/:id/search-history
+router.post("/:id/search-history", AuthController.saveSearchHistory);
+
+// DELETE: Xóa 1 item (gửi body { query: "..." })
+// URL: /users/:id/search-history
+router.delete("/:id/search-history", AuthController.removeSearchHistoryItem);
+
+// DELETE: Xóa tất cả
+// URL: /users/:id/search-history/all
+router.delete("/:id/search-history/all", AuthController.clearSearchHistory);
+
 module.exports = router;

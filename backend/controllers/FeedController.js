@@ -10,15 +10,19 @@ exports.getUnifiedFeed = async (req, res) => {
     const user = await User.findById(viewerId).populate("friends");
     if (!user) return res.status(404).json({ msg: "User not found" });
 
-    // Lấy bài viết gốc
+    // 1. GET POSTS
     const posts = await Post.find()
       .populate("author", "firstname lastname username avatar friends")
       .sort({ createdAt: -1 });
 
     const visiblePosts = posts.filter(post => {
-      const isAuthor = post.author._id.equals(viewerId);
-      const isFriend = post.author.friends.includes(viewerId);
-      const isHidden = post.hiddenBy.includes(viewerId);
+      const authorId = post.author._id.toString(); // Chuyển về String
+      const isAuthor = authorId === viewerId;
+      
+      // So sánh mảng friends an toàn
+      const isFriend = post.author.friends.some(f => f._id.toString() === viewerId);
+      
+      const isHidden = post.hiddenBy.some(id => id.toString() === viewerId);
       if (isHidden) return false;
 
       switch (post.audience) {
@@ -29,7 +33,7 @@ exports.getUnifiedFeed = async (req, res) => {
       }
     });
 
-    // Lấy bài chia sẻ
+    // 2. GET SHARES
     const shares = await Share.find()
       .populate("username", "firstname lastname username avatar friends")
       .populate({
@@ -42,22 +46,19 @@ exports.getUnifiedFeed = async (req, res) => {
       .sort({ createdAt: -1 });
 
     const visibleShares = shares.filter(share => {
-      const sharer = share.username;
-      if (!sharer) return false;
+      if (!share.username) return false; // Skip if sharer deleted account
 
       const isHidden = user.hiddenShares.some(id => id.toString() === share._id.toString());
       if (isHidden) return false;
 
-      // Giữ lại share ngay cả khi post bị xóa
-      if (!share.post) return true;
-
-      const isAuthor = sharer._id.equals(viewerId);
-      const isFriend = sharer.friends.includes(viewerId);
+      const sharerId = share.username._id.toString();
+      const isSharerMe = sharerId === viewerId;
+      const isFriendWithSharer = share.username.friends.some(f => f._id.toString() === viewerId);
 
       switch (share.audience) {
         case "public": return true;
-        case "friends": return isFriend || isAuthor;
-        case "private": return isAuthor;
+        case "friends": return isFriendWithSharer || isSharerMe;
+        case "private": return isSharerMe;
         default: return false;
       }
     });
@@ -70,30 +71,27 @@ exports.getUnifiedFeed = async (req, res) => {
 
       let canViewPost = false;
 
-      if (!post || !post.author) {
-        return { ...share, canViewPost: false, type: "share" };
-      }
+      // Nếu post tồn tại, kiểm tra quyền xem bài GỐC
+      if (post && post.author) {
+        const postAuthorId = post.author._id.toString();
+        const isPostAuthor = postAuthorId === viewerId;
+        const isFriendWithPostAuthor = post.author.friends.some(f => f._id.toString() === viewerId);
 
-      const postAuthor = post.author;
-      const isPostAuthor = postAuthor._id.toString() === viewerId;
-      const isFriend = postAuthor.friends.includes(viewerId);
-
-      switch (post.audience) {
-        case "public":
-          canViewPost = true;
-          break;
-        case "friends":
-          canViewPost = isPostAuthor || isFriend;
-          break;
-        case "private":
-          canViewPost = isPostAuthor;
-          break;
-        default:
-          canViewPost = false;
+        switch (post.audience) {
+          case "public": canViewPost = true; break;
+          case "friends": canViewPost = isPostAuthor || isFriendWithPostAuthor; break;
+          case "private": canViewPost = isPostAuthor; break;
+          default: canViewPost = false;
+        }
+      } else {
+        // Nếu post null (đã xóa thật sự trong DB), thì canView = false
+        canViewPost = false;
       }
 
       return { 
         ...share, 
+        // Quan trọng: Luôn trả về post object (dù là null) để frontend xử lý
+        post: post || null, 
         canViewPost, 
         type: "share",
         commentCount: share.commentCount || 0,
@@ -166,7 +164,7 @@ exports.getHiddenShares = async (req, res) => {
       .populate("username", "firstname lastname username avatar friends")
       .populate({
         path: "post",
-        select: "content audience media mediaType createdAt author",
+        select: "title category ingredients instructions audience media mediaType createdAt author",
         populate: {
           path: "author",
           select: "firstname lastname username avatar friends"

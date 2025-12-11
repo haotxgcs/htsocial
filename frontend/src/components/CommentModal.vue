@@ -1,6 +1,7 @@
 <template>
   <div v-if="isVisible" class="comment-modal-overlay" @click="closeModal">
     <div class="comment-modal-content" @click.stop>
+      
       <div class="comment-modal-header">
         <h3>{{ post?.author?.firstname }} {{ post?.author?.lastname }}'s post</h3>
         <button class="close-btn" @click="closeModal">&times;</button>
@@ -21,26 +22,33 @@
         </div>
 
         <div class="post-content">
-          <div ref="postContentRef" :class="{ 'content-collapsed': shouldShowReadMore && !isContentExpanded }">
-            {{ displayedContent }}
+          <h3 class="recipe-title">{{ post?.title }}</h3>
+          <span class="recipe-category">{{ post?.category }}</span>
+
+          <div class="recipe-body">
+            <div v-if="!isContentExpanded">
+              <p class="recipe-section-header">Ingredients:</p>
+              <p class="post-text">{{ getTruncatedText(post?.ingredients) }}</p>
+              
+              <template v-if="!shouldShowReadMore">
+                 <p class="recipe-section-header">Instructions:</p>
+                 <p class="post-text">{{ post?.instructions }}</p>
+              </template>
+            </div>
+
+            <div v-else>
+              <p class="recipe-section-header">Ingredients:</p>
+              <p class="post-text">{{ post?.ingredients }}</p>
+              
+              <p class="recipe-section-header">Instructions:</p>
+              <p class="post-text">{{ post?.instructions }}</p>
+            </div>
           </div>
+
           <button v-if="shouldShowReadMore" @click="toggleContent" class="read-more-btn">
             {{ isContentExpanded ? 'Show Less' : 'Show More' }}
           </button>
-
-          <div v-if="post?.recipeName" class="recipe-content">
-            <h4 class="recipe-title">{{ post.recipeName }}</h4>
-            <div v-if="post?.ingredients" class="recipe-section">
-              <strong>Ingredients:</strong>
-              <p class="recipe-text">{{ post.ingredients }}</p>
-            </div>
-            <div v-if="post?.instructions" class="recipe-section">
-              <strong>Instructions:</strong>
-              <p class="recipe-text">{{ post.instructions }}</p>
-            </div>
-          </div>
         </div>
-
         <div v-if="post?.media" class="post-media-modal">
           <img v-if="post?.mediaType === 'image'" :src="`http://localhost:3000/${post.media}`" class="post-image-modal" />
           <video v-else-if="post?.mediaType === 'video'" controls class="post-video-modal">
@@ -405,7 +413,7 @@ export default {
       commentFilter: 'newest', 
 
       isContentExpanded: false,
-      contentLineCount: 0,
+      
 
       // --- Emoji Logic Data ---
       activeEmojiPicker: null, // ID của picker đang mở (null = đóng hết)
@@ -466,17 +474,14 @@ export default {
     },
 
     shouldShowReadMore() {
-      return this.contentLineCount > 10;
+      if (!this.post) return false;
+      const text = (this.post.ingredients || '') + (this.post.instructions || '');
+      const lines = text.split('\n');
+      // Hiện nút nếu dài hơn 5 dòng hoặc 200 ký tự
+      return lines.length > 5 || text.length > 200;
     },
 
-    displayedContent() {
-      if (!this.post?.content) return '';
-      if (!this.shouldShowReadMore || this.isContentExpanded) {
-        return this.post.content;
-      }
-      const lines = this.post.content.split('\n');
-      return lines.slice(0, 10).join('\n');
-    }
+    
   },
   watch: {
     post: {
@@ -487,7 +492,7 @@ export default {
           this.fetchComments(newPost._id);
           this.fetchPostSaveCount();
           this.checkUserRating();
-          this.calculateContentLines();
+          
         }
       },
       immediate: true
@@ -501,7 +506,7 @@ export default {
         this.loadSavedPosts();
         this.fetchPostSaveCount();
         this.checkUserRating();
-        this.calculateContentLines();
+        
         
         // Auto focus vào ô comment chính
         this.$nextTick(() => {
@@ -764,7 +769,7 @@ export default {
         const data = await res.json();
         if (!res.ok) throw new Error(data.msg || "Submit comment fail");
 
-        this.comments.push(data.comment);
+        this.comments.unshift(data.comment);
         
         if (this.showRatingOption && this.selectedRating > 0) {
           this.userHasRated = true;
@@ -1209,13 +1214,23 @@ export default {
       }
     },
 
-    calculateContentLines() {
-      this.$nextTick(() => {
-        if (this.post?.content) {
-          const lines = this.post.content.split('\n');
-          this.contentLineCount = lines.length;
-        }
-      });
+   
+
+    getTruncatedText(text) {
+      if (!text) return '';
+      const lines = text.split('\n');
+      
+      // Lấy 3 dòng đầu tiên
+      if (lines.length > 3) {
+        return lines.slice(0, 3).join('\n') + '...';
+      }
+      
+      // Hoặc lấy 150 ký tự đầu tiên
+      if (text.length > 150) {
+        return text.substring(0, 150) + '...';
+      }
+      
+      return text;
     },
 
     toggleContent() {

@@ -2,10 +2,31 @@ const Post = require("../models/PostModel");
 const User = require("../models/UserModel");
 const Comment = require("../models/CommentModel");
 const Share = require("../models/ShareModel");
+const fs = require('fs');
+
+// Assuming you know the path to your 'uploads' folder relative to this file
+const path = require('path');
+const UPLOAD_DIR = path.join(__dirname, '..', 'uploads'); // Adjust this path as necessary
+
+// Helper function to delete a file from the disk
+const deleteFileFromDisk = (filePath) => {
+    if (!filePath) return;
+    // Assuming post.media stores the relative path like 'uploads/filename.jpg'
+    const fullPath = path.join(__dirname, '..', filePath); 
+    
+    if (fs.existsSync(fullPath)) {
+        try {
+            fs.unlinkSync(fullPath);
+            
+        } catch (error) {
+            console.error(`Failed to delete media file: ${error.message}`);
+        }
+    }
+};
 
 exports.createPost = async (req, res) => {
   try {
-    const { content, author,audience,hiddenBy } = req.body;
+    const { title, category, ingredients, instructions, author, audience,hiddenBy } = req.body;
     const media = req.file ? `uploads/${req.file.filename}` : null;
     const mediaType = req.file
       ? req.file.mimetype.startsWith("image")
@@ -23,7 +44,10 @@ exports.createPost = async (req, res) => {
 
     // Tạo post mới
     const newPost = new Post({
-      content,
+      title,
+      category,
+      ingredients,
+      instructions,
       author: existingUser._id,
       media,
       mediaType,
@@ -208,32 +232,55 @@ exports.getHiddenPosts = async (req, res) => {
 
 
 exports.updatePost = async (req, res) => {
-  try {
-    const { content,audience } = req.body;
-    const file = req.file;
+    try {
+        // Destructure 'deleteMedia' from the request body
+        const {title, category, ingredients, instructions, audience, deleteMedia} = req.body; 
+        const file = req.file;
 
-    const post = await Post.findById(req.params.id);
-    if (!post) return res.status(404).json({ msg: "Post not found" });
+        const post = await Post.findById(req.params.id);
+        if (!post) return res.status(404).json({ msg: "Post not found" });
 
-    if (content) post.content = content;
-    if (audience) post.audience = audience;
+        // 1. Update basic fields
+        
+        if (title) post.title = title;
+        if (ingredients) post.ingredients = ingredients;
+        if (instructions) post.instructions = instructions;
+        if (audience) post.audience = audience;
+        if (category) post.category = category;
 
-    if (file) {
-      post.media = file.path;
-      post.mediaType = file.mimetype.startsWith("image") ? "image" :
-                       file.mimetype.startsWith("video") ? "video" : null;
+        // 2. Handle explicit media deletion request (User clicks 'X' on an existing image)
+        if (deleteMedia === 'true' && post.media) {
+            deleteFileFromDisk(post.media); // Delete the physical file
+            post.media = null;
+            post.mediaType = null;
+        }
+
+        // 3. Handle new file upload
+        if (file) {
+            // If a new file is uploaded, delete the old one first (if it exists)
+            if (post.media) {
+                deleteFileFromDisk(post.media);
+            }
+            
+            // Update with new file path
+            post.media = file.path; // file.path should contain the relative path (e.g., uploads/filename.jpg)
+            post.mediaType = file.mimetype.startsWith("image") ? "image" :
+                             file.mimetype.startsWith("video") ? "video" : null;
+        }
+
+        // NOTE: If deleteMedia is not 'true' and no new file is uploaded,
+        // post.media remains unchanged, which is correct (user kept the image).
+
+        await post.save();
+
+        const updatedPost = await Post.findById(post._id)
+            .populate("author", "firstname lastname username");
+
+        res.status(200).json({ msg: "Post updated", post: updatedPost });
+    } catch (err) {
+        console.error("Update post error:", err);
+        res.status(500).json({ msg: "Error updating post" });
     }
-
-    await post.save();
-
-    const updatedPost = await Post.findById(post._id)
-      .populate("author", "firstname lastname username");
-
-    res.status(200).json({ msg: "Post updated", post: updatedPost });
-  } catch (err) {
-    console.error("Update post error:", err);
-    res.status(500).json({ msg: "Error updating post" });
-  }
 };
 
 

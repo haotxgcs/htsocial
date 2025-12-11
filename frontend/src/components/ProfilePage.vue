@@ -34,7 +34,7 @@
             @click.stop="toggleAvatarMenu"
           />
           
-          <div v-if="showAvatarMenu" class="image-options-menu avatar-menu" v-click-outside="closeMenus" @click.stop>
+          <div v-if="showAvatarMenu" class="image-options-menu avatar-menu" v-click-outside="closeMenus" >
             <div class="menu-item" @click="openImageViewer(user.avatar || getDefaultAvatarPath(user))">
               <img src="../assets/view-image.png" class="menu-icon" alt="View" /> View Avatar
             </div>
@@ -166,15 +166,15 @@
                     </div>
                   </div>
 
-                  <div class="post-menu-wrapper">
-                    <img src="../assets/menu.png" class="menu-post-icon" @click="toggleMenu(post._id)" />
+                  <div class="post-menu-wrapper" v-click-outside="closeAllMenus">
+                    <img src="../assets/menu.png" class="menu-post-icon" @click.stop="toggleMenu(post._id)" />
                     <div v-if="openMenuId === post._id" class="dropdown-menu">
                       <button v-if="isMyPost(post)" @click="editPost(post)"><img src="../assets/edit.png" class="menu-icon-left"/> Edit Post</button>
                       <button v-if="!isMyPost(post)" @click="hideThisPost(post._id)"><img src="../assets/hide.png" class="menu-icon-left"/> Hide Post</button>
                       <button v-if="isMyPost(post)" @click="deletePost(post._id)" style="color: red"><img src="../assets/delete.png" class="menu-icon-left"/> Delete Post</button>
                     </div>
                   </div>
-                </div>
+                </div> 
 
                 <div v-if="post.content" class="post-content-wrapper">
                   <p class="post-text" :class="{ 'content-collapsed': shouldShowReadMore(post._id) && !expandedPosts[post._id] }">
@@ -245,9 +245,9 @@
                       </p>
                     </div>
                   </div>
-                  <div class="post-menu-wrapper">
-                    <img src="../assets/menu.png" class="menu-post-icon" @click="toggleMenu(post._id)" />
-                    <div v-if="openMenuId === post._id" class="dropdown-menu">
+                  <div class="post-menu-wrapper" v-click-outside="closeAllMenus">
+                    <img src="../assets/menu.png" class="menu-post-icon" @click.stop="toggleMenu(post._id)" />
+                    <div v-if="openMenuId === post._id" class="dropdown-menu" >
                       <button v-if="isMyShare(post)" @click="editShare(post)"><img src="../assets/edit.png" class="menu-icon-left"/> Edit Share</button>
                       <button v-if="!isMyShare(post)" @click="hideThisShare(post._id)"><img src="../assets/hide.png" class="menu-icon-left"/> Hide Share</button>
                       <button v-if="isMyShare(post)" @click="deleteShare(post._id)" style="color: red"><img src="../assets/delete.png" class="menu-icon-left"/> Delete Share</button>
@@ -623,6 +623,17 @@ export default {
 
     toggleMenu(postId) {
       this.openMenuId = this.openMenuId === postId ? null : postId;
+    },
+
+    closeAllMenus() {
+      this.openMenuId = null;
+    },
+
+    // 2. [MỚI] Hàm xử lý khi lướt (scroll) -> Đóng menu ngay lập tức
+    handleScroll() {
+      if (this.openMenuId) {
+        this.openMenuId = null;
+      }
     },
 
     // ... (Giữ nguyên các hàm fetchFriends, fetchUserProfile, fetchUserPosts, isMyPost) ...
@@ -1263,6 +1274,12 @@ export default {
     this.fetchUserPosts();
     this.loadSavedPosts();
     this.fetchFriends();
+
+    window.addEventListener('scroll', this.handleScroll, true);
+  },
+  beforeUnmount() {
+    // 4. [MỚI] Dọn dẹp sự kiện khi rời trang
+    window.removeEventListener('scroll', this.handleScroll, true);
   }
 };
 </script>
@@ -1429,13 +1446,77 @@ export default {
 .author-details .time { font-size: 12px; color: #65676b; margin-top: 2px; line-height: 1.2; }
 
 /* Menu Dropdown */
-.post-menu-wrapper { position: relative; display: flex; align-items: center; }
-.menu-post-icon { width: 24px; height: 24px; cursor: pointer; padding: 8px; border-radius: 50%; transition: background 0.2s; }
-.menu-post-icon:hover { background: #f0f2f5; }
-.dropdown-menu { position: absolute; top: 40px; right: 0; background: white; border: 1px solid #ccc; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); z-index: 1000; min-width: 240px; }
-.dropdown-menu button { display: block; width: 100%; padding: 12px 16px; background: none; border: none; text-align: left; cursor: pointer; font-size: 15px; }
-.dropdown-menu button:hover { background-color: #f0f2f5; }
-.menu-icon-left { width: 20px; height: 20px; margin-right: 10px; vertical-align: middle; }
+/* --- MENU POST STYLES (Dùng chung cho cả HomePage và ProfilePage) --- */
+
+/* Wrapper cho menu */
+.post-menu-wrapper { 
+  position: relative; 
+  display: flex;
+  align-items: center;
+}
+
+/* Icon Menu (3 chấm) */
+.menu-post-icon {
+  width: 20px;  /* Đặt cứng kích thước */
+  height: 20px;
+  cursor: pointer;
+  padding: 8px; /* Vùng bấm rộng */
+  border-radius: 50%;
+  transition: background 0.2s;
+  object-fit: contain; /* Giữ tỉ lệ icon */
+  opacity: 0.6; /* Làm mờ nhẹ */
+}
+
+.menu-post-icon:hover {
+  background: #f0f2f5;
+  opacity: 1;
+}
+
+/* Dropdown Menu */
+.dropdown-menu {
+  position: absolute;
+  top: 100%; /* Hiện ngay dưới */
+  right: 0;
+  background: white;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 100; /* Đủ cao để đè lên post */
+  min-width: 200px;
+  overflow: hidden;
+  padding: 4px 0;
+  margin-top: 4px; /* Cách icon một chút */
+}
+
+/* Dropdown Item */
+.dropdown-menu button {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 10px 16px;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  font-size: 14px; /* Cỡ chữ chuẩn */
+  font-weight: 500;
+  color: #050505;
+  gap: 12px; /* Khoảng cách giữa icon và chữ */
+  transition: background 0.1s;
+}
+
+.dropdown-menu button:hover { 
+  background-color: #f2f2f2; 
+}
+
+/* Icon nhỏ bên trong menu (Edit, Hide, Delete) */
+.menu-icon-left {
+  width: 18px;  /* Icon nhỏ hơn chữ một chút */
+  height: 18px;
+  object-fit: contain;
+  margin: 0;
+  opacity: 0.7;
+}
 
 /* Content */
 .post-content-wrapper { margin: 10px 0; }
