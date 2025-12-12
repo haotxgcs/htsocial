@@ -6,43 +6,34 @@
       <input type="file" ref="avatarInput" accept="image/*" style="display: none" @change="handleAvatarChange" />
 
       <div class="cover-container" @click.stop="toggleCoverMenu">
-        
-        <img 
-          :src="user.coverPhoto ? `http://localhost:3000/${user.coverPhoto}` : defaultCover" 
-          class="cover-image clickable"
-        />
+        <img :src="user.coverPhoto ? `http://localhost:3000/${user.coverPhoto}` : defaultCover" class="cover-image clickable"/>
         <div class="cover-overlay"></div>
         
         <div v-if="showCoverMenu" class="image-options-menu cover-menu" v-click-outside="closeMenus" @click.stop>
           <div class="menu-item" @click="openImageViewer(user.coverPhoto || defaultCover)">
-            <img src="../assets/view-image.png" class="menu-icon" alt="View" /> View Cover Image
+            <img src="../assets/view-image.png" class="menu-icon" /> View Cover
           </div>
           <div class="menu-item" @click="triggerCoverUpload">
-            <img src="../assets/update.png" class="menu-icon" alt="Update" /> Update Cover Image
+            <img src="../assets/update.png" class="menu-icon" /> Update Cover
           </div>
           <div v-if="!isDefaultCover" class="menu-item delete" @click="deleteCoverPhoto">
-            <img src="../assets/delete.png" class="menu-icon" alt="Delete" /> Remove Image
+            <img src="../assets/delete.png" class="menu-icon" /> Remove
           </div>
         </div>
       </div>
 
       <div class="user-identity-card">
         <div class="avatar-wrapper">
-          <img 
-            :src="getAvatarUrl(user)" 
-            class="profile-avatar clickable"
-            @click.stop="toggleAvatarMenu"
-          />
-          
-          <div v-if="showAvatarMenu" class="image-options-menu avatar-menu" v-click-outside="closeMenus" >
+          <img :src="getAvatarUrl(user)" class="profile-avatar clickable" @click.stop="toggleAvatarMenu"/>
+          <div v-if="showAvatarMenu" class="image-options-menu avatar-menu" v-click-outside="closeMenus">
             <div class="menu-item" @click="openImageViewer(user.avatar || getDefaultAvatarPath(user))">
-              <img src="../assets/view-image.png" class="menu-icon" alt="View" /> View Avatar
+              <img src="../assets/view-image.png" class="menu-icon" /> View Avatar
             </div>
             <div class="menu-item" @click="triggerAvatarUpload">
-              <img src="../assets/update.png" class="menu-icon" alt="Update" /> Update Avatar
+              <img src="../assets/update.png" class="menu-icon" /> Update Avatar
             </div>
             <div v-if="!isDefaultAvatar" class="menu-item delete" @click="deleteAvatar">
-              <img src="../assets/delete.png" class="menu-icon" alt="Delete" /> Remove Avatar
+              <img src="../assets/delete.png" class="menu-icon" /> Remove
             </div>
           </div>
         </div>
@@ -52,27 +43,15 @@
           <p class="user-bio-short" v-if="user.bio">{{ user.bio }}</p>
           
           <div class="stats-row">
-            <div class="stat-item">
-              <span class="stat-val">{{ userPosts.length }}</span>
-              <span class="stat-label">Posts</span>
-            </div>
+            <div class="stat-item"><span class="stat-val">{{ userPosts.length }}</span><span class="stat-label">Posts</span></div>
             <div class="stat-divider"></div>
-            <div class="stat-item">
-              <span class="stat-val">{{ user.friends?.length || 0 }}</span>
-              <span class="stat-label">Friends</span>
-            </div>
+            <div class="stat-item"><span class="stat-val">{{ user.friends?.length || 0 }}</span><span class="stat-label">Friends</span></div>
             <div class="stat-divider"></div>
-            <div class="stat-item">
-              <span class="stat-val">{{ postsWithImages.length }}</span>
-              <span class="stat-label">Photos</span>
-            </div>
+            <div class="stat-item"><span class="stat-val">{{ postsWithImages.length }}</span><span class="stat-label">Photos</span></div>
           </div>
 
           <div class="action-buttons">
-            <button class="btn-primary-gradient" @click="openEditProfileModal">
-              Edit Profile
-            </button>
-            <button class="btn-glass-dark">⋯</button>
+            <button class="btn-primary-gradient" @click="openEditProfileModal">Edit Profile</button>
           </div>
         </div>
       </div>
@@ -80,72 +59,17 @@
 
     <div class="nav-wrapper">
       <div class="glass-nav">
-        <button 
-          v-for="tab in tabs" 
-          :key="tab.id"
-          :class="['nav-pill', { active: activeTab === tab.id }]"
-          @click="activeTab = tab.id"
-        >
-          {{ tab.label }}
-        </button>
+        <button v-for="tab in tabs" :key="tab.id" :class="['nav-pill', { active: activeTab === tab.id }]" @click="activeTab = tab.id">{{ tab.label }}</button>
       </div>
     </div>
 
     <div class="main-layout">
       
       <template v-if="activeTab === 'posts'">
-        
-        <aside class="layout-sidebar">
-          <div class="widget-card intro-widget">
-            <div class="widget-header"><h3>Intro</h3><span class="see-all" @click="switchTab('about')">See all</span></div>
-            <div class="info-list">
-              <div class="info-row"><span class="icon">Joined date: </span><span>{{ joinDateFormatted }}</span></div>
-              <div class="info-row" v-if="user.location"><span class="icon">Location: </span><span>{{ user.location }}</span></div>
-            </div>
-          </div>
-          
-          <div class="widget-card photos-widget">
-            <div class="widget-header">
-              <h3>
-                Photos
-              <span class="count-badge" v-if="postsWithImages.length">({{ postsWithImages.length }})</span>
-              </h3>
-              <span class="see-all" @click="switchTab('photos')">See all</span></div>
-            <div class="mini-grid">
-              <div v-for="photo in postsWithImages.slice(0, 9)" :key="photo._id" class="mini-photo">
-                <img :src="`http://localhost:3000/${photo.media}`" />
-              </div>
-            </div>
-          </div>
-
-          <div class="widget-card friends-widget">
-            <div class="widget-header">
-              <h3>
-                Friends 
-                <!-- Vẫn dùng friendsList.length để hiện số lượng -->
-                <span class="count-badge" v-if="friendsList.length">({{ friendsList.length }})</span>
-              </h3>
-              <span class="see-all" @click="switchTab('friends')">See all</span>
-            </div>
-
-            <!-- SỬA: Dùng friendsList trong v-if và v-for -->
-            <div v-if="friendsList.length" class="mini-grid-friends">
-              <div v-for="friend in friendsList.slice(0, 9)" :key="friend._id" class="mini-friend">
-                <img :src="getAvatarUrl(friend)" />
-                <!-- Giờ đây friend là object đầy đủ, nên firstname sẽ hiện ra -->
-                <span class="friend-name-mini">{{ friend.firstname }} {{ friend.lastname }}</span>
-              </div>
-            </div>
-  
-            <p v-else style="text-align:center; color:#999; font-size:13px;">No friends yet</p>
-        </div>
-        </aside>
-
         <main class="layout-feed">
-          
           <div class="create-post">
             <h3>Create your post</h3>
-            <input type="text" @click="openCreatePostModal" :placeholder="`What's is on your mind, ${user?.firstname} ${user?.lastname}?`"/>
+            <input type="text" @click="openCreatePostModal" :placeholder="`What's on your mind, ${user?.firstname} ${user?.lastname}?`"/>
           </div>
 
           <div v-if="userPosts.length" class="post-list">
@@ -161,11 +85,10 @@
                         {{ formatTime(post.createdAt) }}
                         <span v-if="post.audience === 'public'">🌍</span>
                         <span v-else-if="post.audience === 'friends'">👥</span>
-                        <span v-else-if="post.audience === 'private'">🔒</span>
+                        <span v-else>🔒</span>
                       </p>
                     </div>
                   </div>
-
                   <div class="post-menu-wrapper" v-click-outside="closeAllMenus">
                     <img src="../assets/menu.png" class="menu-post-icon" @click.stop="toggleMenu(post._id)" />
                     <div v-if="openMenuId === post._id" class="dropdown-menu">
@@ -176,140 +99,194 @@
                   </div>
                 </div> 
 
-                <div v-if="post.content" class="post-content-wrapper">
-                  <p class="post-text" :class="{ 'content-collapsed': shouldShowReadMore(post._id) && !expandedPosts[post._id] }">
-                    {{ getDisplayedContent(post) }}
-                  </p>
-                  <button v-if="shouldShowReadMore(post._id)" @click="togglePostContent(post._id)" class="read-more-btn">
+                <div class="post-content-wrapper">
+                  <h3 class="recipe-title">{{ post.title }}</h3>
+                  <span class="recipe-category">{{ post.category }}</span>
+                  <div class="recipe-body">
+                    <div v-if="!expandedPosts[post._id]">
+                       <p class="recipe-section-header">Ingredients:</p>
+                       <p class="post-text">{{ getTruncatedText(post.ingredients) }}</p>
+                    </div>
+                    <div v-else>
+                       <p class="recipe-section-header">Ingredients:</p>
+                       <p class="post-text">{{ post.ingredients }}</p>
+                       <p class="recipe-section-header">Instructions:</p>
+                       <p class="post-text">{{ post.instructions }}</p>
+                    </div>
+                  </div>
+                  <button v-if="shouldShowReadMore(post)" @click="togglePostContent(post._id)" class="read-more-btn">
                     {{ expandedPosts[post._id] ? 'Show Less' : 'Show More' }}
                   </button>
                 </div>
 
                 <div v-if="post.media" class="post-media">
                   <img v-if="post.mediaType === 'image'" :src="`http://localhost:3000/${post.media}`" class="post-image" />
-                  <video v-else-if="post.mediaType === 'video'" controls class="post-video">
-                    <source :src="`http://localhost:3000/${post.media}`" type="video/mp4" />
-                  </video>
+                  <video v-else controls class="post-video"><source :src="`http://localhost:3000/${post.media}`" /></video>
                 </div>
 
                 <div v-if="post.totalRatings > 0" class="rating-statistics">
                   <div class="rating-summary">
                     <div class="average-rating">
                       <span class="rating-number">{{ post.averageRating }}</span>
-                      <div class="stars-display">
-                        <span v-for="star in 5" :key="star" class="star-icon" :class="{ filled: star <= Math.round(post.averageRating) }">★</span>
-                      </div>
+                      <div class="stars-display"><span v-for="star in 5" :key="star" class="star-icon" :class="{ filled: star <= Math.round(post.averageRating) }">★</span></div>
                     </div>
-                    <div class="rating-count">
-                      <span>{{ post.totalRatings }} rating{{ post.totalRatings > 1 ? 's' : '' }}</span>
-                    </div>
+                    <div class="rating-count"><span>{{ post.totalRatings }} ratings</span></div>
                   </div>
                 </div>
 
                 <div class="post-stats">
                   <span v-if="post.likes?.length > 0">{{ post.likes.length }} liked</span>
-                  <span v-if="(post.commentCount || 0) + (post.replyCommentCount || 0) > 0">
-                    {{ (post.commentCount || 0) + (post.replyCommentCount || 0) }} commented
-                  </span>
+                  <span v-if="(post.commentCount || 0) + (post.replyCommentCount || 0) > 0">{{ (post.commentCount || 0) + (post.replyCommentCount || 0) }} commented</span>
                   <span v-if="post.sharesCount > 0">{{ post.sharesCount }} shared</span>
                   <span v-if="getPostSaveCount(post) > 0">{{ getPostSaveCount(post) }} saved</span>
                 </div>
 
                 <div class="post-actions">
-                  <button @click="toggleLike(post)">
-                    <img :src="isLiked(post) ? require('../assets/like.png') : require('../assets/unlike.png')" class="action-icon" /> <span>Like</span>
-                  </button>
-                  <button @click="openCommentModal(post)">
-                    <img src="../assets/comment.png" class="action-icon" /> <span>Comment</span>
-                  </button>
-                  <button @click="openShareModal(post)">
-                    <img src="../assets/share.png" class="action-icon" /> <span>Share</span>
-                  </button>
-                  <button @click="toggleSavePost(post)">
-                    <img :src="isSaved(post) ? require('../assets/saved.png') : require('../assets/save.png')" class="action-icon" /> <span>{{ isSaved(post) ? 'Saved' : 'Save' }}</span>
-                  </button>
+                  <button @click="toggleLike(post)" :class="{ active: isLiked(post) }"><img :src="isLiked(post) ? require('../assets/like.png') : require('../assets/unlike.png')" class="action-icon" /> <span>Like</span></button>
+                  <button @click="openCommentModal(post)"><img src="../assets/comment.png" class="action-icon" /> <span>Comment</span></button>
+                  <button @click="openShareModal(post)"><img src="../assets/share.png" class="action-icon" /> <span>Share</span></button>
+                  <button @click="toggleSavePost(post)" :class="{ active: isSaved(post) }"><img :src="isSaved(post) ? require('../assets/saved.png') : require('../assets/save.png')" class="action-icon" /> <span>{{ isSaved(post) ? 'Saved' : 'Save' }}</span></button>
                 </div>
               </div>
 
-              <div v-else-if="post.type === 'share'" class="shared-post">
-                <div class="post-header">
-                  <div class="post-author-info">
-                    <img :src="getAvatarUrl(post.username)" alt="avatar" />
-                    <div class="author-details">
-                      <strong>{{ post.username?.firstname }} {{ post.username?.lastname }}</strong>
-                      <p class="time">
-                        {{ formatTime(post.createdAt) }} • Shared
-                        <span v-if="post.audience === 'public'">🌍</span>
-                        <span v-else-if="post.audience === 'friends'">👥</span>
-                        <span v-else-if="post.audience === 'private'">🔒</span>
-                      </p>
-                    </div>
-                  </div>
-                  <div class="post-menu-wrapper" v-click-outside="closeAllMenus">
-                    <img src="../assets/menu.png" class="menu-post-icon" @click.stop="toggleMenu(post._id)" />
-                    <div v-if="openMenuId === post._id" class="dropdown-menu" >
-                      <button v-if="isMyShare(post)" @click="editShare(post)"><img src="../assets/edit.png" class="menu-icon-left"/> Edit Share</button>
-                      <button v-if="!isMyShare(post)" @click="hideThisShare(post._id)"><img src="../assets/hide.png" class="menu-icon-left"/> Hide Share</button>
-                      <button v-if="isMyShare(post)" @click="deleteShare(post._id)" style="color: red"><img src="../assets/delete.png" class="menu-icon-left"/> Delete Share</button>
-                    </div>
-                  </div>
-                </div>
+              <div v-else-if="post.type === 'share'" class="post shared-post">
 
-                <div v-if="post.content" class="post-content-wrapper">
-                  <p class="post-text" :class="{ 'content-collapsed': shouldShowReadMore(post._id) && !expandedPosts[post._id] }">
-                    <i>{{ getDisplayedContent(post) }}</i>
-                  </p>
-                  <button v-if="shouldShowReadMore(post._id)" @click="togglePostContent(post._id)" class="read-more-btn">
-                    {{ expandedPosts[post._id] ? 'Show Less' : 'Show More' }}
-                  </button>
+          <div class="post-header">
+            <div class="post-author-info">
+              <img :src="getAvatarUrl(post.username)" alt="avatar" />
+              <div class="author-details">
+                <strong>{{ post.username?.firstname }} {{ post.username?.lastname }}</strong>
+                
+                <p class="time">
+                  {{ formatTime(post.createdAt) }} • Shared a post
+                  
+                  <span v-if="post.audience === 'public'" title="Public" style="margin-left: 4px;">🌍</span>
+                  <span v-else-if="post.audience === 'friends'" title="Friends" style="margin-left: 4px;">👥</span>
+                  <span v-else-if="post.audience === 'private'" title="Private" style="margin-left: 4px;">🔒</span>
+                </p>
                 </div>
+            </div>
 
-                <div class="shared-box">
-                  <template v-if="post.post">
-                    <template v-if="post.canViewPost === false || !canViewSharedPost(post.post)">
-                      <div class="restricted-post-warning">
-                        <img :src="getAvatarUrl(post.post.author)" class="avatar-small" />
-                        <div class="restricted-content">
+            <div class="post-menu-wrapper" v-click-outside="closeAllMenus">
+              <img src="../assets/menu.png" class="menu-post-icon" @click.stop="toggleMenu(post._id)" />
+              <div v-if="openMenuId === post._id" class="dropdown-menu" @click.stop>
+                <button v-if="isMyShare(post)" @click="editShare(post)">
+                  <img src="../assets/edit.png" class="menu-icon-left"/> Edit Share
+                </button>
+                <button v-if="!isMyShare(post)" @click="hideThisShare(post._id)">
+                  <img src="../assets/hide.png" class="menu-icon-left"/> Hide Share
+                </button>
+                <button v-if="isMyShare(post)" @click="deleteShare(post._id)" style="color: red">
+                  <img src="../assets/delete.png" class="menu-icon-left"/> Delete Share
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="post.content" class="post-content-wrapper">
+            <p class="post-text" :class="{ 'content-collapsed': shouldShowReadMore(post) && !expandedPosts[post._id] }">
+              <i>{{ getDisplayedContent(post, post._id) }}</i>
+            </p>
+            <button 
+              v-if="shouldShowReadMore(post)" 
+              @click="togglePostContent(post._id)" 
+              class="read-more-btn"
+            >
+              {{ expandedPosts[post._id] ? 'Show Less' : 'Show More' }}
+            </button>
+          </div>
+
+          <div class="shared-content-box">
+                <template v-if="post.post">
+                   
+                   <template v-if="post.canViewPost === false">
+                      <div class="origin-post-author-info">
+                        <img :src="getAvatarUrl(post.post.author)" alt="avatar" />
+                        <div class="origin-author-details">
                           <strong>{{ post.post.author.firstname }} {{ post.post.author.lastname }}</strong>
-                          <p class="notice-message">{{ getPostAccessMessage(post.post) }}</p>
-                        </div>
+                          
+                          <p class="origin-post-time">
+                            {{ formatTime(post.post.createdAt) }}
+                            
+                            <span v-if="post.post.audience === 'friends'">👥</span>
+                              <span v-else-if="post.post.audience === 'private'">🔒</span>
+                          </p>
+                          </div>
                       </div>
-                    </template>
-                    <template v-else>
-                      <div class="post-header">
-                        <img :src="getAvatarUrl(post.post.author)" class="avatar-small" />
-                        <div class="author-details">
-                          <strong>{{ post.post.author.firstname }} {{ post.post.author.lastname }}</strong>
-                          <p class="time">{{ formatTime(post.post.createdAt) }}</p>
-                        </div>
+                        <p class="notice-message">{{ getPostAccessMessage(post.post) }}</p>
+                   </template>
+
+                   <template v-else>
+                      <div class="share-post-header small origin-post">
+                          <div class="post-author-info">
+                            <img :src="getAvatarUrl(post.post.author)" class="avatar-small" />
+                            <div class="author-details">
+                                <strong>{{ post.post.author.firstname }} {{ post.post.author.lastname }}</strong>
+                                <p class="time">
+                                  {{ formatTime(post.post.createdAt) }}
+                                  <span v-if="post.post.audience === 'public'" title="Public">🌍</span>
+                                  <span v-else-if="post.post.audience === 'friends'" title="Friends">👥</span>
+                                  <span v-else-if="post.post.audience === 'private'" title="Private">🔒</span>
+                                </p>
+                            </div>
+                          </div>
                       </div>
-                      <div v-if="post.post.content" class="post-content-wrapper">
-                        <p :class="{ 'content-collapsed': shouldShowReadMore(post.post._id) && !expandedPosts[post.post._id] }">
-                          {{ getDisplayedContent(post.post) }}
-                        </p>
-                        <button v-if="shouldShowReadMore(post.post._id)" @click="togglePostContent(post.post._id)" class="read-more-btn">
-                          {{ expandedPosts[post.post._id] ? 'Show Less' : 'Show More' }}
-                        </button>
+
+                      <div class="share-post-content-wrapper">
+                          <h3 class="recipe-title small">{{ post.post.title }}</h3>
+                          <span class="recipe-category small">{{ post.post.category }}</span>
+
+                          <div class="recipe-body">
+                             <div v-if="!expandedPosts[post._id + '_shared']">
+                                <p class="recipe-section-header">Ingredients:</p>
+                                <p class="post-text">{{ getTruncatedText(post.post.ingredients) }}</p>
+                             </div>
+                             <div v-else>
+                                <p class="recipe-section-header">Ingredients:</p>
+                                <p class="post-text">{{ post.post.ingredients }}</p>
+                                <p class="recipe-section-header">Instructions:</p>
+                                <p class="post-text">{{ post.post.instructions }}</p>
+                             </div>
+                          </div>
+
+                          <button 
+                            v-if="shouldShowReadMore(post.post)" 
+                            @click="togglePostContent(post._id + '_shared')" 
+                            class="read-more-btn"
+                          >
+                            {{ expandedPosts[post._id + '_shared'] ? 'Show Less' : 'Show More' }}
+                          </button>
                       </div>
-                      <div v-if="post.post.media">
-                        <img v-if="post.post.mediaType === 'image'" :src="`http://localhost:3000/${post.post.media}`" class="post-image" />
-                        <video v-else controls class="post-video"><source :src="`http://localhost:3000/${post.post.media}`" type="video/mp4" /></video>
+
+                      <div v-if="post.post.media" class="post-media-container small">
+                          <img v-if="post.post.mediaType === 'image'" :src="`http://localhost:3000/${post.post.media}`" class="post-media" />
+                          <video v-else controls class="post-media"><source :src="`http://localhost:3000/${post.post.media}`" /></video>
                       </div>
+
                       <div class="post-actions">
-                        <button @click="openCommentModal(post.post)"><img src="../assets/arrow.png" class="action-icon" /> <span>Open Origin Post</span></button>
+                          <button @click="openCommentModal(post.post)">
+                              <img src="../assets/arrow.png" class="action-icon"/> Open Origin Post
+                          </button>
                       </div>
-                    </template>
-                  </template>
-                  <template v-else>
-                    <div class="restricted-post-warning"><p class="notice-message">This post is deleted</p></div>
-                  </template>
+                   </template>
+                </template>
+                
+                <div v-else class="restricted-post-warning">
+                   <div class="restricted-content">
+                      <p class="notice-message" style="margin: 0; font-style: italic; color: #c00;">
+                        This content is currently unavailable.
+                      </p>
+                   </div>
                 </div>
-              </div>
+             </div>
+        </div>
 
             </div>
           </div>
           
-          <p v-else class="no-posts">No Posts</p>
+          <div v-else class="empty-feed">
+             <p>No posts available.</p>
+          </div>
         </main>
       </template>
 
@@ -331,102 +308,50 @@
       </template>
 
       <template v-else-if="activeTab === 'photos'">
-        <div class="photos-container-modern" style="grid-column: 1 / -1;">
-          <div class="card">
+        <div class="photos-container-modern">
+          <div class="photos-header-card">
             <h2>Photos</h2>
-            
-            <div v-if="postsWithImages.length > 0" class="photos-grid-large">
-              <div 
-                v-for="post in postsWithImages" 
-                :key="post._id" 
-                class="photo-card"
-                @click="openCommentModal(post)"
-              >
+            <span class="photo-count">{{ postsWithImages.length }} Photos </span>
+          </div>
+          <div v-if="postsWithImages.length > 0" class="photos-grid-large">
+              <div v-for="post in postsWithImages" :key="post._id" class="photo-card" @click="openCommentModal(post)">
                 <img :src="`http://localhost:3000/${post.media}`" class="photo-large"/>
-                
-                <div class="photo-overlay">
-                  <div class="overlay-stat">
-                    <span>❤️</span> {{ post.likes?.length || 0 }}
-                  </div>
-                  <div class="overlay-stat">
-                    <span>💬</span> {{ (post.commentCount || 0) + (post.replyCommentCount || 0) }}
-                  </div>
-                </div>
               </div>
             </div>
-
-            <div v-else class="empty-state">
-              <p>No photos to show.</p>
-            </div>
-          </div>
+            <div v-else class="empty-state"><p>No photos to show.</p></div>
         </div>
       </template>
 
       <template v-else-if="activeTab === 'friends'">
         <div class="friends-tab-wrapper">
-          
           <div class="friends-header-card">
             <h2>Friends</h2>
             <span class="friend-count">{{ friendsList.length }} Friends</span>
           </div>
-
-          <div v-if="friendsList.length === 0" class="empty-state">
-            <p>No friends yet.</p>
-            <button class="btn-primary-gradient" @click="$router.push('/friend')">Find Friends</button>
-          </div>
-          
+          <div v-if="friendsList.length === 0" class="empty-state"><p>No friends yet.</p></div>
           <div v-else class="modern-grid">
             <div v-for="friend in friendsList" :key="friend._id" class="modern-card">
-              
-              <div class="card-image-wrapper">
-                <img :src="getAvatarUrl(friend)" class="card-img" />
-                <div class="status-badge" v-if="friend.active">Online</div>
-              </div>
-
+              <div class="card-image-wrapper"><img :src="getAvatarUrl(friend)" class="card-img" /></div>
               <div class="card-body">
                 <h4>{{ friend.firstname }} {{ friend.lastname }}</h4>
                 <p class="username">@{{ friend.username }}</p>
-                
-                <button class="btn-secondary full-width">
-                  Message
-                </button>
+                <button class="btn-secondary full-width">Message</button>
               </div>
-
             </div>
           </div>
-
         </div>
       </template>
     </div>
 
-    <CreatePostModal v-if="createPostModalVisible" :is-visible="createPostModalVisible" :user="user" @close="closeCreatePostModal" @posted="handlePostCreated" />
+    <CreatePostModal :is-visible="createPostModalVisible" :user="user" @close="closeCreatePostModal" @posted="handlePostCreated" />
     <ConfirmDialog v-if="confirmVisible" :message="confirmMessage" @confirm="handleConfirmedDelete" @cancel="confirmVisible = false" />
-    <EditPostModal v-if="editModalVisible" :is-visible="editModalVisible" :post="editPostData" :user="user" @close="closeEditModal" @updated="handlePostUpdated" />
-    <CommentModal v-if="commentModalVisible" :is-visible="commentModalVisible" :post="selectedPost" :user="user" @close="closeCommentModal" @liked="handlePostLiked" @share="openShareModal" @comment-count-updated="handleCommentCountUpdated" @rating-updated="handleRatingUpdated" />
+    <EditPostModal :is-visible="editModalVisible" :post="editPostData" :user="user" @close="closeEditModal" @updated="handlePostUpdated" />
+    <CommentModal :is-visible="commentModalVisible" :post="selectedPost" :user="user" @close="closeCommentModal" @liked="handlePostLiked" @share="openShareModal" @comment-count-updated="handleCommentCountUpdated" @rating-updated="handleRatingUpdated" />
     <ShareModal v-if="shareModalVisible" :post="sharedPost" :user="user" @close="closeShareModal" @shared="handlePostShared" />
     <EditShareModal v-if="showEditShareModal" :share="editedShare" @close="showEditShareModal = false" @updated="fetchUserPosts" />
-    
-    <EditProfileModal
-      v-if="editProfileModalVisible"
-      :is-visible="editProfileModalVisible"
-      :user="user"
-      @close="closeEditProfileModal"
-      @save="handleProfileSave"
-    />
-
-    <ImagePreviewModal 
-      :is-visible="imagePreviewVisible" 
-      :image-url="previewImageUrl" 
-      @close="closeImagePreview" 
-    />
-
-    <NotificationModal 
-      :is-visible="notification.visible"
-      :type="notification.type"
-      :title="notification.title"
-      :message="notification.message"
-      @confirm="closeNotify"
-    />
+    <EditProfileModal :is-visible="editProfileModalVisible" :user="user" @close="closeEditProfileModal" @save="handleProfileSave" />
+    <ImagePreviewModal :is-visible="imagePreviewVisible" :image-url="previewImageUrl" @close="closeImagePreview" />
+    <NotificationModal :is-visible="notification.visible" :type="notification.type" :title="notification.title" :message="notification.message" @confirm="closeNotify" />
   </div>
 </template>
 
@@ -515,7 +440,6 @@ export default {
 
       // Expand posts functionality
       expandedPosts: {},
-      postLineCounts: {},
 
       editProfileModalVisible: false,
 
@@ -671,7 +595,7 @@ export default {
         this.userPosts = Array.isArray(data) ? data : [];
         this.fetchAllSaveCounts();
         this.$nextTick(() => {
-          this.calculateAllPostLineCounts();
+          
         });
       } catch (err) {
         console.error("Lỗi tải bài viết:", err);
@@ -1171,50 +1095,64 @@ export default {
       return this.savedPosts.includes(post._id);
     },
 
-    // ===== EXPAND POST =====
-    calculatePostLineCount(post) {
-      if (post?.content) {
-        const content = post.content.trim();
-        const lines = content.split('\n').filter(line => line.trim().length > 0);
-        this.postLineCounts[post._id] = {
-          lineCount: lines.length,
-          charCount: content.length
-        };
+    
+    
+    // ===== EXPAND POST (LOGIC MỚI CHO 4 TRƯỜNG) =====
+    
+    // 1. Hàm cắt ngắn text (Dùng cho Ingredients khi chưa mở rộng)
+    getTruncatedText(text) {
+      if (!text) return '';
+      
+      const lines = text.split('\n');
+      
+      // Lấy tối đa 3 dòng đầu tiên
+      if (lines.length > 3) {
+        return lines.slice(0, 3).join('\n') + '...';
       }
+      
+      // Hoặc lấy tối đa 150 ký tự
+      if (text.length > 150) {
+        return text.substring(0, 150) + '...';
+      }
+      
+      return text;
     },
-    
-    calculateAllPostLineCounts() {
-      this.userPosts.forEach(post => {
-        if (post.type === 'original') this.calculatePostLineCount(post);
-        else if (post.type === 'share' && post.post) this.calculatePostLineCount(post.post);
-      });
+
+    // 2. Kiểm tra xem có cần hiện nút "Show More" không
+    shouldShowReadMore(post) {
+      if (!post) return false;
+      
+      // --- SỬA ĐOẠN NÀY ---
+      // Cộng nội dung Ingredients và Instructions lại để kiểm tra độ dài
+      const text = (post.ingredients || '') + (post.instructions || '');
+      const lines = text.split('\n');
+      
+      // Nếu tổng cộng quá 5 dòng hoặc quá 200 ký tự thì hiện nút Show More
+      return lines.length > 5 || text.length > 200;
     },
-    
+
+    // 3. Toggle trạng thái Mở/Đóng
     togglePostContent(postId) {
-      this.expandedPosts[postId] = !this.expandedPosts[postId];
+      // Tạo object mới để Vue nhận diện thay đổi (Reactivity)
+      const newExpanded = { ...this.expandedPosts };
+      newExpanded[postId] = !newExpanded[postId];
+      this.expandedPosts = newExpanded;
     },
 
-    shouldShowReadMore(postId) {
-      const counts = this.postLineCounts[postId];
-      if (!counts) return false;
-      return counts.lineCount > 10 || counts.charCount > 300;
-    },
-
+    // 4. Hiển thị nội dung Caption (Cho bài share)
     getDisplayedContent(post) {
       if (!post?.content) return '';
+      
       const postId = post._id;
-      if (!this.shouldShowReadMore(postId) || this.expandedPosts[postId]) {
+      // Nếu đã bấm Show More hoặc nội dung ngắn -> Hiện hết
+      if (this.expandedPosts[postId] || !this.shouldShowReadMore(postId)) {
         return post.content;
       }
-      const counts = this.postLineCounts[postId];
-      if (counts.lineCount > 10) {
-        const lines = post.content.split('\n');
-        return lines.slice(0, 10).join('\n') + '...';
-      }
-      if (counts.charCount > 300) {
-        return post.content.substring(0, 300) + '...';
-      }
-      return post.content;
+      
+      // Nếu chưa bấm -> Cắt ngắn
+      const lines = post.content.split('\n');
+      if (lines.length > 3) return lines.slice(0, 3).join('\n') + '...';
+      return post.content.substring(0, 200) + '...';
     },
 
     switchTab(tabId) {
@@ -1287,28 +1225,39 @@ export default {
 <style scoped>
 /* --- 1. GLOBAL & HEADER NEW STYLE --- */
 :root {
-  --primary-color: #6366f1;
+  --primary-color: #FF642F;
   --bg-color: #f3f4f6;
 }
 
 .profile-wrapper {
-  background-color: #f3f4f6;
+  background-color: #fdf4f0;
   min-height: 100vh;
   font-family: 'Inter', sans-serif;
   padding-bottom: 60px;
+  
+  padding-left: 320px; /* Tạo khoảng trống 320px cho Sidebar bên trái */
+  padding-right: 20px; /* Khoảng hở bên phải cho cân đối */
+  padding-top: 20px;
 }
 
 /* HEADER GLASSMORPHISM */
 .profile-header {
   background: white;
   padding-bottom: 20px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.03); /* Shadow nhẹ giống post */
   position: relative;
-  margin-bottom: 20px;
+  
+  /* ⭐ THAY ĐỔI QUAN TRỌNG ⭐ */
+  max-width: 750px;       /* Giới hạn chiều rộng bằng Feed */
+  margin: 0 auto 24px;    /* Căn giữa màn hình và cách dưới 24px */
+  border-radius: 0 0 20px 20px; /* Bo tròn 2 góc dưới (hoặc bo cả 4 nếu muốn tách biệt hẳn) */
+  /* Nếu muốn nó tách hẳn lề trên như một cái Card riêng biệt thì dùng dòng dưới: */
+  border-radius: 16px; 
+  overflow: hidden;       /* Đảm bảo ảnh bìa không bị tràn ra ngoài góc bo */
 }
 
 .cover-container {
-  height: 350px;
+  height: 250px; /* ⭐ Giảm chiều cao xuống chút cho cân đối với chiều rộng 750px */
   position: relative;
   overflow: hidden;
 }
@@ -1333,52 +1282,50 @@ export default {
 
 .identity-content { text-align: center; margin-top: 12px; max-width: 700px; }
 .user-name { font-size: 32px; font-weight: 800; color: #111827; margin: 0 0 4px 0; }
-.user-bio-short { color: #6b7280; margin: 0 auto 20px; font-size: 16px; }
+.user-bio-short { color: #FF642F; font-style:italic; margin: 0 auto 20px; font-size: 16px; }
 
 .stats-row {
   display: inline-flex; justify-content: center; align-items: center; gap: 24px;
   margin-bottom: 24px; background: white; padding: 12px 32px;
-  border-radius: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); border: 1px solid #f3f4f6;
+  border-radius: 20px;  border: 1px solid #f3f4f6;
 }
 .stat-item { text-align: center; display: flex; flex-direction: column; }
 .stat-val { font-weight: 800; font-size: 20px; color: #111827; }
-.stat-label { font-size: 12px; color: #9ca3af; text-transform: uppercase; font-weight: 600; }
-.stat-divider { width: 1px; height: 30px; background: #e5e7eb; }
+.stat-label { font-size: 12px; color: #FF642F; text-transform: uppercase; font-weight: 600; }
+.stat-divider { width: 1px; height: 30px;  }
 .action-buttons { display: flex; gap: 12px; justify-content: center; }
+
+.edit-profile-btn {
+  background: #FF642F; color: white; border: none; 
+  border-radius: 20px;  font-weight: 600; cursor: pointer;
+  height: 40px; /* Cố định chiều cao cho bằng input */
+  align-items: center; justify-content: center;
+  padding: 10px 24px;
+}
 
 /* BUTTONS NEW */
 .btn-glass { background: rgba(255, 255, 255, 0.25); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.4); color: white; padding: 10px 20px; border-radius: 12px; cursor: pointer; font-weight: 600; }
-.btn-primary-gradient { background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: white; border: none; padding: 10px 28px; border-radius: 24px; font-weight: 600; cursor: pointer; }
+.btn-primary-gradient { background: #FF642F; color: white; border: none; padding: 10px 28px; border-radius: 24px; font-weight: 600; cursor: pointer; }
 .btn-glass-dark { background: white; color: #374151; border: 1px solid #e5e7eb; padding: 10px 24px; border-radius: 24px; font-weight: 600; cursor: pointer; }
 
 /* NAV NEW */
 .nav-wrapper { display: flex; justify-content: center; margin-bottom: 32px; position: sticky; top: 60px; z-index: 90; padding: 10px 0; }
 .glass-nav { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(16px); padding: 6px; border-radius: 100px; display: flex; gap: 6px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); border: 1px solid rgba(255,255,255,0.6); }
 .nav-pill { padding: 10px 28px; border-radius: 40px; border: none; background: transparent; color: #6b7280; font-weight: 600; cursor: pointer; transition: all 0.3s; }
-.nav-pill.active { background: #111827; color: white; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+.nav-pill.active { background: #FF642F; color: white; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
 
 /* MAIN LAYOUT */
-.main-layout { display: grid; grid-template-columns: 360px 1fr; gap: 28px; max-width: 1120px; margin: 0 auto; padding: 0 20px; }
-/* Tìm và thay thế đoạn này */
-.layout-sidebar {
-  position: sticky;
-  top: 80px; /* Giảm khoảng cách top xuống một chút cho cân đối (từ 130px -> 80px) */
-  
-  /* QUAN TRỌNG: Giới hạn chiều cao bằng màn hình trừ đi Header */
-  max-height: calc(100vh - 100px); 
-  
-  /* Cho phép cuộn dọc khi nội dung quá dài */
-  overflow-y: auto;
-  
-  /* Ẩn thanh cuộn để giao diện đẹp hơn (tùy chọn) */
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE/Edge */
-
-  display: flex;
+/* --- MAIN LAYOUT (ĐÃ SỬA: CĂN GIỮA, 1 CỘT) --- */
+.main-layout {
+  max-width: 750px; /* Giống Homepage */
+  margin: 0 auto;   /* Căn giữa */
+  display: flex;    /* Flex 1 cột */
   flex-direction: column;
+  padding: 0 16px;
   gap: 24px;
-  padding-bottom: 10px; /* Thêm padding đáy để không bị cắt sát quá */
 }
+/* Tìm và thay thế đoạn này */
+.layout-sidebar { display: none; }
 
 /* Ẩn thanh cuộn trên Chrome/Safari */
 .layout-sidebar::-webkit-scrollbar {
@@ -1398,7 +1345,7 @@ export default {
   gap: 6px;
 }
 
-.see-all { color: #6366f1; font-size: 14px; font-weight: 600; cursor: pointer; }
+.see-all { color: #FF642F; font-size: 14px; font-weight: 600; cursor: pointer; }
 .info-row { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; color: #4b5563; font-size: 15px; }
 .mini-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; border-radius: 12px; overflow: hidden; }
 .mini-photo img { width: 100%; aspect-ratio: 1; object-fit: cover; cursor: pointer; }
@@ -1425,6 +1372,36 @@ export default {
   box-shadow: 0 1px 2px rgba(0,0,0,0.1);
 }
 
+/* --- RECIPE CONTENT STYLES (MỚI) --- */
+.recipe-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0 0 5px 0;
+  color: #333;
+}
+
+.recipe-category {
+  display: inline-block;
+  font-size: 13px;
+  background: #FFF0E6; /* Nền cam nhạt */
+  color: #FF642F;       /* Chữ cam đậm */
+  padding: 2px 8px;
+  border-radius: 12px;
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+
+.recipe-body {
+  margin-top: 12px;
+}
+
+.recipe-section-header {
+  font-weight: 700;
+  margin: 0 0 10px 0;
+  font-size: 13px;
+  color: #333;
+}
+
 /* Post Header */
 /* Tìm đoạn này trong <style scoped> */
 .post-header {
@@ -1439,6 +1416,7 @@ export default {
   
   margin-bottom: 12px;
 }
+.share-post-header { padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; }
 .post-author-info { display: flex; align-items: flex-start; flex: 1; gap: 10px; }
 .post-author-info img, .avatar-small { width: 40px; height: 40px; border-radius: 50%; margin-right: 0px; object-fit: cover; flex-shrink: 0; }
 .author-details { display: flex; flex-direction: column; justify-content: center; min-width: 0; }
@@ -1498,7 +1476,7 @@ export default {
   border: none;
   text-align: left;
   cursor: pointer;
-  font-size: 14px; /* Cỡ chữ chuẩn */
+  font-size: 13px; /* Cỡ chữ chuẩn */
   font-weight: 500;
   color: #050505;
   gap: 12px; /* Khoảng cách giữa icon và chữ */
@@ -1520,8 +1498,11 @@ export default {
 
 /* Content */
 .post-content-wrapper { margin: 10px 0; }
+.share-post-content-wrapper { padding: 4px 16px 12px 16px; }
 .post-text { margin: 10px 0; font-size: 14px; white-space: pre-line; word-wrap: break-word; color: #1c1e21; line-height: 1.4; }
-.read-more-btn { background: none; border: none; color: #1877f2; font-weight: 600; font-size: 14px; cursor: pointer; padding: 4px 0; }
+.read-more-btn { border: none; background: none; color: #FF642F; font-weight: 600; font-size: 13px; cursor: pointer; padding: 0; margin-top: 5px; }
+.read-more-btn:hover { text-decoration: underline; }
+
 /* ===== Post Media ===== */
 /* Giữ nguyên cho container và ảnh */
 .post-media,
@@ -1563,25 +1544,79 @@ export default {
 
 /* Stats & Actions */
 .post-stats { display: flex; gap: 16px; margin: 16px 0 12px 0; font-size: 14px; color: #65676b; }
-.post-actions { display: flex; justify-content: space-around; margin-top: 10px; border-top: 1px solid #ddd; padding-top: 10px; }
-.post-actions button { background: none; border: none; color: #555; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 6px; flex: 1; justify-content: center; padding: 8px; border-radius: 6px; transition: all 0.2s; }
-.post-actions button:hover { background: #f2f2f2; }
+.post-actions {  display: flex; justify-content: space-around; margin-top: 10px; border-top: 1px solid #ddd; padding-top: 10px; }
+.post-actions button { background: none; border: none; color: #555; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 6px; flex: 1; justify-content: center; padding: 8px; border-radius: 6px; transition: all 0.2s; }
+.post-actions button:hover { background: #fdf4f0; color: #FF642F; }
 .action-icon { width: 20px; height: 20px; }
 
 /* Shared Post */
-.shared-post { background-color: #f5f5f5; border: 1px solid #ddd; padding: 10px; border-radius: 10px; }
-.shared-box { background: white; padding: 10px; border-left: 3px solid #ccc; margin-top: 10px; border-radius: 6px; white-space: pre-line; }
-.restricted-post-warning { display: flex; align-items: flex-start; gap: 8px; padding: 16px; background: #fef2f2; border-radius: 12px; margin-top: 16px; }
-.notice-message { color: #555; font-style: italic; margin-top: 4px; }
+/* --- SHARED POST SPECIFICS (CẬP NHẬT) --- */
+
+/* Khung bao ngoài bài gốc */
+.shared-content-box { 
+  border: 1px solid #ddd; 
+  border-radius: 12px; 
+  margin: 0 0px 0px; 
+  overflow: hidden; 
+  background-color: #fff;
+}
+
+.origin-post-author-info { display: flex; align-items: center; gap: 12px; }
+.origin-post-author-info img { margin-left:20px; margin-top:10px; width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 1px solid #eee; }
+.origin-author-details strong { margin-top:10px; display: block; font-size: 14px; color: #333; }
+.origin-author-details .origin-post-time { font-size: 12px; color: #999; margin-top: 2px; }
+
+.restricted-post-warning { 
+  padding: 15px; 
+  display: flex; 
+  align-items: center; /* Căn giữa dọc */
+  gap: 12px; 
+  border-bottom: 1px solid #ffebeb;
+  
+}
+
+/* Nội dung cảnh báo */
+.restricted-content {
+
+  display: block; font-size: 14px; color: #333;
+}
+
+.notice-message { 
+  font-size: 13px; 
+  color: #c00; 
+  font-style: italic; 
+  margin: 4px 0 0 0; 
+  padding:10px;
+  margin-left:15px;
+}
+
+.empty-feed{
+  text-align: center; 
+  color: #FF642F; 
+  font-size: 16px; 
+  margin-top: 40px;
+}
+
+.empty-state{
+  text-align: center; 
+  color: #FF642F; 
+  font-size: 16px; 
+  margin-top: 40px;
+}
+
+
+
+/* Media bài gốc */
+ .post-media-container { width: 100%; aspect-ratio: 1 / 1; background: #f0f0f0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
 
 /* Other Tabs (About/Friends) - NEW STYLE */
 .about-container-modern { grid-column: 1 / -1; }
-.about-card { background: white; border-radius: 24px; padding: 40px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); }
-.about-card h2 { font-size: 24px; font-weight: 800; margin-bottom: 32px; }
-.bio-large { font-size: 20px; color: #374151; margin-bottom: 40px; background: #f9fafb; padding: 24px; border-radius: 16px; border-left: 4px solid #6366f1; }
+.about-card { background: white; border-radius: 24px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.03);}
+.about-card h2 { font-size: 20px; font-weight: 800; margin-bottom: 32px; }
+.bio-large { font-size: 20px; color: #FF642F; font-style:italic; margin-bottom: 40px; background: #fdf4f0; padding: 24px; border-radius: 16px; border: 1px solid #e5e7eb }
 .details-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; }
-.detail-box { background: #ffffff; border: 1px solid #e5e7eb; padding: 20px; border-radius: 16px; }
-.detail-box .label { display: block; font-size: 12px; color: #9ca3af; margin-bottom: 6px; font-weight: 700; text-transform: uppercase; }
+.detail-box { background: #fdf4f0; border: 1px solid #e5e7eb; padding: 20px; border-radius: 16px; }
+.detail-box .label { display: block; font-size: 12px; color: #FF642F; margin-bottom: 6px; font-weight: 700; text-transform: uppercase; }
 .detail-box .value { font-size: 16px; font-weight: 600; color: #111827; }
 
 .friends-container-modern { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; }
@@ -1589,7 +1624,7 @@ export default {
 .friend-card-modern img { width: 100%; height: 220px; object-fit: cover; }
 .friend-card-modern .info { padding: 16px; }
 .friend-card-modern h4 { margin: 0 0 12px; font-size: 18px; font-weight: 700; }
-.friend-card-modern button { background: #e0e7ff; color: #4f46e5; border: none; padding: 8px 24px; border-radius: 30px; font-weight: 600; cursor: pointer; }
+.friend-card-modern button { background: #e0e7ff; color: #FF642F; border: none; padding: 8px 24px; border-radius: 30px; font-weight: 600; cursor: pointer; }
 
 .photos-grid-large {
   display: grid;
@@ -1734,6 +1769,11 @@ export default {
   grid-column: 1 / -1; /* Chiếm toàn bộ chiều ngang */
 }
 
+.photos-container-modern {
+  grid-column: 1 / -1; /* Chiếm toàn bộ chiều ngang */
+}
+
+
 /* Grid Layout */
 .modern-grid {
   display: grid;
@@ -1815,8 +1855,8 @@ export default {
 
 /* Buttons */
 .btn-secondary {
-  background: #eff6ff; /* Xanh nhạt */
-  color: #4f46e5;      /* Xanh đậm */
+  background: #fdf4f0; 
+  color: #FF642F;      
   border: none;
   padding: 8px 16px;
   border-radius: 8px;
@@ -1827,9 +1867,7 @@ export default {
   margin-top: auto; /* Đẩy nút xuống đáy thẻ */
 }
 
-.btn-secondary:hover {
-  background: #e0e7ff;
-}
+
 
 .full-width {
   width: 100%;
@@ -1856,17 +1894,57 @@ export default {
   margin: 0;
 }
 
+.photos-header-card {
+  background: white;
+  padding: 20px 24px;
+  border-radius: 16px;
+  margin-bottom: 24px; /* Khoảng cách với lưới bạn bè */
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* Đẩy tiêu đề sang trái, số lượng sang phải */
+  border: 1px solid #f3f4f6;
+}
+
+.photos-header-card h2 {
+  font-size: 20px;
+  font-weight: 800;
+  color: #111827;
+  margin: 0;
+}
+
 .friend-count {
-  background: #f3f4f6;
-  color: #4b5563;
+  background: #fdf4f0;
+  color: #FF642F;
   padding: 6px 16px;
   border-radius: 30px;
   font-size: 14px;
   font-weight: 700;
 }
 
+.photo-count {
+  background: #fdf4f0;
+  color: #FF642F;
+  padding: 6px 16px;
+  border-radius: 30px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+
+
+
+
 /* Responsive */
-@media (max-width: 1024px) { .main-layout { grid-template-columns: 300px 1fr; gap: 20px; } }
+@media (max-width: 1024px) { 
+  .main-layout { grid-template-columns: 300px 1fr; gap: 20px; } 
+  .profile-wrapper {
+    padding-left: 0;  /* Trên màn hình nhỏ/mobile thì bỏ khoảng trống này đi */
+    padding-right: 0;
+    padding-top: 60px; /* Đẩy xuống một chút nếu có header fixed trên mobile */
+  }
+}
+
 @media (max-width: 900px) {
   .main-layout { grid-template-columns: 1fr; }
   .layout-sidebar { display: none; }

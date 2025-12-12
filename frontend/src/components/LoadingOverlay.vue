@@ -33,7 +33,7 @@ export default {
   width: 40px;
   height: 40px;
   border: 4px solid #f3f3f3;
-  border-top: 4px solid #1877f2; /* Màu chính */
+  border-top: 4px solid #FF642F; /* Màu chính */
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }

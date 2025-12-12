@@ -262,9 +262,10 @@ export default {
 /* Modal Base */
 .modal-backdrop {
   position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-  background-color: rgba(0, 0, 0, 0.5); /* Màu tối hơn cho nổi bật */
+  background-color: rgba(255, 255, 255, 0.8);
   display: flex; justify-content: center; align-items: center;
-  z-index: 10000; animation: fadeIn 0.2s ease-out;
+  z-index: 10000;
+  animation: fadeIn 0.2s ease-out;
 }
 
 .notification-wrapper :deep(.modal-overlay) { z-index: 11002 !important; }
@@ -280,7 +281,7 @@ export default {
 .modal-header {
   display: flex; justify-content: center; align-items: center;
   padding: 16px 24px; position: relative; flex-shrink: 0;
-  border-bottom: 1px solid #eee;
+  
 }
 .modal-header h3 { margin: 0; font-size: 18px; font-weight: 700; color: #333; }
 .close-btn { position: absolute; right: 16px; background: #f0f2f5; border: none; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 20px; color: #666; transition: 0.2s; }
@@ -315,7 +316,7 @@ export default {
   overflow: hidden; background: #fff;
 }
 .origin-header {
-  padding: 10px 12px; background-color: #f9f9f9; border-bottom: 1px solid #eee;
+  padding: 10px 12px; background-color: #f9f9f9;
   display: flex; align-items: center;
 }
 .avatar-small { width: 36px; height: 36px; border-radius: 50%; margin-right: 10px; object-fit: cover; border: 1px solid #ccc; }
@@ -324,9 +325,18 @@ export default {
 
 .post-content-wrapper { padding: 12px; }
 .shared-title { font-size: 16px; font-weight: 700; color: #333; margin: 0 0 5px 0; }
-.shared-category { display: inline-block; font-size: 11px; background: #FFF0E6; color: #FF642F; padding: 2px 8px; border-radius: 12px; margin-bottom: 8px; font-weight: 600; }
-.shared-details { font-size: 13px; color: #555; background: #fdfdfd; padding: 8px; border-radius: 6px; border: 1px solid #eee; }
-.shared-label { font-weight: 700; font-size: 12px; color: #444; margin: 4px 0 2px 0; text-decoration: underline; }
+.shared-category { 
+  display: inline-block;
+  font-size: 11px;
+  background: #FFF0E6; /* Nền cam nhạt */
+  color: #FF642F;       /* Chữ cam đậm */
+  padding: 2px 8px;
+  border-radius: 12px;
+  margin-bottom: 12px;
+  font-weight: 600; 
+}
+.shared-details { font-size: 13px; color: #555; background: #fdfdfd; padding: 8px; border-radius: 6px;  }
+.shared-label { font-weight: 700; font-size: 12px; color: #444;  }
 .shared-text { margin: 0 0 8px 0; white-space: pre-line; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; }
 
 .media-preview img, .media-preview video { width: 100%; aspect-ratio: 16/9; object-fit: cover; background: #000; display: block; }

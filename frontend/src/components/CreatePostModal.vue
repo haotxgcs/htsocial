@@ -441,9 +441,9 @@ export default {
 .recipe-input, .category-select { width: 100%; padding: 12px; font-size: 15px; font-family: inherit; line-height: 1.2; color: #1c1e21; background: #f8f9fa; border: 1px solid #e4e6ea; border-radius: 8px; box-sizing: border-box; transition: border-color 0.2s, background-color 0.2s; }
 .recipe-input { font-size: 18px; }
 .category-select { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 12px center; background-size: 20px; padding-right: 40px; }
-.recipe-input:focus, .category-select:focus { border-color: #1877f2; background: #ffffff; outline: none; box-shadow: 0 0 0 2px rgba(24, 119, 242, 0.2); }
+.recipe-input:focus, .category-select:focus { border-color: #FF642F; background: #ffffff; outline: none;  }
 .recipe-textarea { width: 100%; min-height: 100px; padding: 12px; font-size: 15px; font-family: inherit; line-height: 1.4; color: #1c1e21; background: #f8f9fa; border: 1px solid #e4e6ea; border-radius: 8px; box-sizing: border-box; resize: vertical; transition: border-color 0.2s, background-color 0.2s; }
-.recipe-textarea:focus { border-color: #1877f2; background: #ffffff; outline: none; box-shadow: 0 0 0 2px rgba(24, 119, 242, 0.2); }
+.recipe-textarea:focus { border-color: #FF642F; background: #ffffff; outline: none;  }
 .recipe-textarea::placeholder { color: #8a8d91; font-style: italic; }
 .ingredients-textarea { font-family: monospace; font-size: 14px; }
 .instructions-textarea { min-height: 120px; }
@@ -455,12 +455,12 @@ export default {
 .add-options { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 16px; width: 100%; box-sizing: border-box; flex:1; }
 .emoji-action-wrapper { flex: 1; position: relative; }
 .add-option { width: 100%; padding: 10px 12px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 10px; background: #f0f2f5; border: 1px solid #ccc; cursor: pointer; transition: background-color 0.2s; font-size: 14px; white-space: nowrap; box-sizing: border-box; flex:1; }
-.add-option:hover { background: #e4e6ea; }
+.add-option:hover { background: #fdf4f0; color: #FF642F;}
 .option-icon img { width: 20px; height: 20px; }
 .emoji-picker-popover { position: absolute; bottom: 100%; left: 0; z-index: 1001; margin-bottom: 10px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2); border-radius: 8px; background: white; }
 .post-actions-footer { padding: 16px 24px; border-top: 1px solid #e4e6ea; }
-.post-submit-btn { width: 100%; padding: 12px; background: #1877f2; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: background-color 0.2s; }
-.post-submit-btn:hover:not(.disabled) { background: #166fe5; }
+.post-submit-btn { width: 100%; padding: 12px; background: #FF642F; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: background-color 0.2s; }
+.post-submit-btn:hover:not(.disabled) { background: #FF642F; }
 .post-submit-btn.disabled { background: #e4e6ea; color: #bcc0c4; cursor: not-allowed; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }

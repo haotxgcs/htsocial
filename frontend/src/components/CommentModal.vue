@@ -1299,14 +1299,37 @@ export default {
 
 .post-content { font-size: 15px; line-height: 1.4; color: #1c1e21; margin: 12px 0; white-space: pre-line; }
 .content-collapsed { max-height: none; overflow: hidden; }
-.read-more-btn { background: none; border: none; color: #1877f2; font-weight: 600; font-size: 14px; cursor: pointer; padding: 4px 0; margin-top: 4px; }
+.read-more-btn { background: none; border: none; color: #FF642F; font-weight: 600; font-size: 14px; cursor: pointer; padding: 4px 0; margin-top: 4px; }
 .read-more-btn:hover { text-decoration: underline; }
 
 .recipe-content { background: #f8f9fa; border: 1px solid #e3e6ea; border-radius: 12px; padding: 16px; margin-top: 12px; }
-.recipe-title { color: #1c1e21; font-size: 16px; font-weight: 600; margin: 0 0 12px 0; border-bottom: 1px solid #e3e6ea; padding-bottom: 8px; }
+.recipe-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0 0 5px 5px;
+  color: #333;
+}
+
+.recipe-category {
+  display: inline-block;
+  font-size: 13px;
+  background: #FFF0E6; /* Nền cam nhạt */
+  color: #FF642F;       /* Chữ cam đậm */
+  padding: 2px 8px;
+  border-radius: 12px;
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+
+.recipe-section-header {
+  font-weight: 700;
+  margin: 0 0 10px 0;
+  font-size: 13px;
+  color: #333;
+}
 .recipe-section { margin-bottom: 12px; }
 .recipe-section:last-child { margin-bottom: 0; }
-.recipe-section strong { color: #1877f2; font-size: 14px; font-weight: 600; display: block; margin-bottom: 6px; }
+.recipe-section strong { color: #FF642F; font-size: 14px; font-weight: 600; display: block; margin-bottom: 6px; }
 .recipe-text { font-size: 14px; line-height: 1.5; color: #1c1e21; margin: 0; white-space: pre-line; background: white; padding: 8px 12px; border-radius: 8px; border: 1px solid #e3e6ea; }
 
 .post-media-modal { margin: 16px 0; text-align: center; }
@@ -1314,8 +1337,8 @@ export default {
 .post-stats { display: flex; gap: 16px; margin: 16px 0 12px 0; font-size: 14px; color: #65676b; }
 
 .post-actions-modal { display: flex; justify-content: space-around; padding: 8px 0; border-top: 1px solid #e4e6eb; margin-top: 10px; }
-.action-btn { display: flex; align-items: center; gap: 8px; background: none; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-weight: 600; color: #65676b; flex: 1; justify-content: center; }
-.action-btn:hover { color: #1877f2; background: #f0f2f5; }
+.action-btn { display: flex; align-items: center; gap: 8px; background: none; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-weight: 500; color: #65676b; flex: 1; justify-content: center; }
+.action-btn:hover { color: #FF642F; background: #fdf4f0; }
 .action-icon { width: 20px; height: 20px; }
 
 .comments-section {
@@ -1337,7 +1360,7 @@ export default {
 .comment-bubble { background: #f0f2f5; border-radius: 16px; padding: 8px 12px; display: inline-block; max-width: 90%; word-wrap: break-word; }
 .edit-comment-container { width: 100%; margin-top: 8px; }
 .edit-comment-container .edit-textarea { width: 100%; min-height: 80px; padding: 12px 16px; border: 1px solid #ddd; border-radius: 12px; resize: vertical; font-family: inherit; font-size: 14px; line-height: 1.4; box-sizing: border-box; background-color: white; color: #1c1e21; }
-.edit-comment-container .edit-textarea:focus { outline: none; border-color: #1877f2; box-shadow: 0 0 0 2px rgba(24, 119, 242, 0.2); }
+.edit-comment-container .edit-textarea:focus { outline: none; border-color: #FF642F; box-shadow: 0 0 0 2px rgba(24, 119, 242, 0.2); }
 .edit-rating-value {
   margin-left: 8px;
   font-size: 13px;
@@ -1351,8 +1374,8 @@ export default {
 .comment-text { font-size: 14px; color: #1c1e21; margin: 0; line-height: 1.4; word-wrap: break-word; }
 .comment-actions { display: flex; align-items: center; gap: 12px; margin-top: 4px; margin-left: 12px; font-size: 12px; color: #65676b; }
 .comment-time { font-size: 12px; color: #65676b; }
-.comment-action-btn { background: none; border: none; font-size: 12px; font-weight: 600; color: #65676b; cursor: pointer; padding: 0; display: flex; align-items: center; gap: 4px; }
-.comment-action-btn:hover { text-decoration: underline; color: #1877f2; }
+.comment-action-btn { background: none; border: none; font-size: 12px; font-weight: 500; color: #65676b; cursor: pointer; padding: 0; display: flex; align-items: center; gap: 4px; }
+.comment-action-btn:hover { text-decoration: underline; color: #FF642F; }
 .action-icon-small { width: 14px; height: 14px; }
 
 /* Add Comment Section (Đã sửa lại cho Emoji) */
@@ -1467,7 +1490,7 @@ export default {
 .send-comment-btn, .send-reply-btn { 
   background: none; 
   border: none; 
-  color: #1877f2; 
+  color: #FF642F; 
   font-size: 16px; 
   cursor: pointer; 
   padding: 0 4px; 
@@ -1475,7 +1498,7 @@ export default {
   transition: transform 0.1s; 
   flex-shrink: 0;
 }
-.send-comment-btn:hover:not(:disabled), .send-reply-btn:hover:not(:disabled) { transform: scale(1.1); color: #166fe5; }
+.send-comment-btn:hover:not(:disabled), .send-reply-btn:hover:not(:disabled) { transform: scale(1.1); color: #FF642F; }
 .send-comment-btn:disabled, .send-reply-btn:disabled { color: #bcc0c4; cursor: default; }
 
 /* --- END EMOJI STYLES --- */
@@ -1489,14 +1512,14 @@ export default {
   flex-shrink: 0; /* Đảm bảo nút không bị co nhỏ */
 }
 .toggle-rating-btn {
-  background: #e7f3ff;
+  background: #fdf4f0;
   border: none;
   padding: 0 12px;
   border-radius: 18px; /* Bo tròn kiểu "chip" */
   font-size: 13px;
   cursor: pointer;
-  color: #1877f2;
-  font-weight: 600;
+  color: #FF642F;
+  font-weight: 500;
   transition: all 0.2s;
   white-space: nowrap;
   height: 36px; /* Chiều cao bằng với ô input */
@@ -1574,14 +1597,14 @@ export default {
 .user-avatar-small { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
 
 .replies-section { margin-top: 12px; padding-left: 20px; border-left: 2px solid #f0f2f5; }
-.toggle-replies-btn { background: none; border: none; color: #1877f2; cursor: pointer; font-size: 12px; font-weight: 600; margin-bottom: 8px; }
+.toggle-replies-btn { background: none; border: none; color: #FF642F; cursor: pointer; font-size: 12px; font-weight: 600; margin-bottom: 8px; }
 .reply-item { display: flex; gap: 8px; margin-top: 8px; }
 .reply-content { flex: 1; }
 .reply-bubble { background-color: #f0f2f5; padding: 6px 10px; border-radius: 12px; display: inline-block; max-width: 75%; word-wrap: break-word; }
 .reply-bubble strong { font-size: 13px; color: #050505; }
 .reply-bubble p { font-size: 13px; margin: 0; }
-.reply-to-name { color: #1877f2; font-weight: 500; margin-right: 4px; }
-.author-label { background-color: #1876f2; color: white; font-size: 11px; font-weight: bold; padding: 2px 6px; margin-left: 6px; border-radius: 4px; }
+.reply-to-name { color: #FF642F; font-weight: 500; margin-right: 4px; }
+.author-label { background-color: #FF642F; color: white; font-size: 11px; font-weight: 500; padding: 2px 6px; margin-left: 6px; border-radius: 4px; }
 .reply-actions { display: flex; gap: 8px; margin-top: 2px; font-size: 11px; color: #65676b; margin-left: 10px; }
 .reply-time { color: #65676b; font-size: 11px; }
 
@@ -1597,7 +1620,7 @@ export default {
 }
 
 .edit-input-wrapper:focus-within {
-  border-color: #1877f2;
+  border-color: #FF642F;
   box-shadow: 0 0 0 2px rgba(24, 119, 242, 0.2);
 }
 
@@ -1631,13 +1654,14 @@ export default {
 .edit-reply-container .edit-reply-input { width: calc(100% - 40px) !important; min-height: 80px; padding: 10px 14px; border: 1px solid #ddd; border-radius: 12px; resize: vertical; font-family: inherit; font-size: 13px; line-height: 1.4; box-sizing: border-box; background-color: white; color: #1c1e21; }
 .edit-actions { display: flex; gap: 8px; margin-top: 8px; }
 .save-btn, .cancel-btn { padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; }
-.save-btn { background-color: #1877f2; color: white; }
+.save-btn { background-color: #FF642F; color: white; }
 .cancel-btn { background-color: #e4e6ea; color: #1c1e21; }
 
 /* Filter Bar */
 .comment-filter-bar { display: flex; gap: 8px; padding: 12px 16px; background: white; border-bottom: 1px solid #e4e6eb; overflow-x: auto; }
-.filter-btn { padding: 8px 16px; border: 1px solid #e4e6eb; background: white; border-radius: 20px; font-size: 13px; font-weight: 600; color: #65676b; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
-.filter-btn.active { background: #1877f2; color: white; border-color: #1877f2; }
+.filter-btn { padding: 8px 16px; border: 1px solid #e4e6eb; background: white; border-radius: 20px; font-size: 13px; font-weight: 500; color: #65676b; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+.filter-btn:hover { background: #FF642F; color:white; border-color: #FF642F; }
+.filter-btn.active { background: #FF642F; color: white; border-color: #FF642F; }
 
 /* Responsive */
 @media (max-width: 768px) {

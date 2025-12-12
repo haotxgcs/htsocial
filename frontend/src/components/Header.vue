@@ -13,17 +13,7 @@
         </router-link>
       </div>
 
-      <div class="sidebar-search">
-        <div class="search-box">
-          <img src="../assets/search.png" class="search-icon" />
-          <input 
-            type="text" 
-            placeholder="Tìm kiếm..." 
-            v-model="search"
-            @keyup.enter="handleSearch"
-          />
-        </div>
-      </div>
+      
 
       <nav class="sidebar-nav">
         <router-link to="/home" class="nav-item" active-class="active">

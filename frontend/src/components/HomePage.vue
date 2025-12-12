@@ -56,14 +56,14 @@
       </div>
 
       <div v-if="searchQuery && searchedUsers.length > 0" class="search-results-section">
-        <h3 class="section-title">People</h3>
+        <h3 class="section-title">People ({{searchedUsers.length }}) </h3>
         <div class="user-results-list">
           <div v-for="u in searchedUsers" :key="u._id" class="user-result-card">
             <div class="user-info-left">
               <img :src="getAvatarUrl(u)" class="avatar" />
               <div class="user-details">
-                <span class="user-name">{{ u.firstname }} {{ u.lastname }}</span>
-                <span class="user-role">{{ u.username ? '@' + u.username : 'User' }}</span>
+                <span class="user-fullname">{{ u.firstname }} {{ u.lastname }}</span>
+                <span class="username">@{{ u.username}}</span>
               </div>
             </div>
             <button class="view-profile-btn" @click="$router.push(`/profile/${u._id}`)">View Profile</button>
@@ -72,7 +72,7 @@
       </div>
 
       <div class="posts-section">
-        <h3 v-if="searchQuery && filteredPosts.length > 0" class="section-title">Posts</h3>
+        <h3 v-if="searchQuery && filteredPosts.length > 0" class="section-title">Posts ({{ filteredPosts.length }})</h3>
 
         <div v-if="searchQuery && filteredPosts.length === 0 && searchedUsers.length === 0" class="no-posts-container">
           <p>No results found for "<strong>{{ searchQuery }}</strong>"</p>
@@ -241,22 +241,6 @@
                 <template v-if="post.post">
                    
                    <template v-if="post.canViewPost === false">
-                      <!-- <div class="restricted-post-warning">
-                         <div class="warning-avatar-col">
-                            <img :src="getAvatarUrl(post.post.author)" class="avatar-small" />
-                         </div>
-                         <div class="restricted-content">
-                            <strong>{{ post.post.author.firstname }} {{ post.post.author.lastname }}</strong>
-                            <p class="time">
-                              {{ formatTime(post.post.createdAt) }}
-                              <span v-if="post.post.audience === 'friends'">👥</span>
-                              <span v-else-if="post.post.audience === 'private'">🔒</span>
-                            </p>
-                            <p class="notice-message">{{ getPostAccessMessage(post.post) }}</p>
-                         </div>
-                         
-                      </div> -->
-
                       <div class="origin-post-author-info">
                         <img :src="getAvatarUrl(post.post.author)" alt="avatar" />
                         <div class="origin-author-details">
@@ -1484,21 +1468,10 @@ export default {
   border: 1px solid #eee;
 }
 
-.user-details {
-  display: flex;
-  flex-direction: column;
-}
 
-.user-name {
-  font-weight: 600;
-  font-size: 15px;
-  color: #333;
-}
 
-.username {
-  font-size: 12px;
-  color: #888;
-}
+.user-details .user-fullname { display:flex; font-weight: 700; font-size: 14px; margin: 0; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
+ .user-details .username { font-size: 12px; color: #999; margin: 0; }
 
 .view-profile-btn {
   background-color: #f0f2f5;
@@ -1556,7 +1529,32 @@ export default {
 .post-content-wrapper { padding: 4px 16px 12px 16px; }
 .post-text { font-size: 15px; line-height: 1.5; color: #333; margin: 0; white-space: pre-line; }
 .read-more-btn { border: none; background: none; color: #FF642F; font-weight: 600; font-size: 13px; cursor: pointer; padding: 0; margin-top: 5px; }
+.read-more-btn:hover { text-decoration: underline; }
 
+.recipe-category {
+  display: inline-block;
+  font-size: 13px;
+  background: #FFF0E6; /* Nền cam nhạt */
+  color: #FF642F;       /* Chữ cam đậm */
+  padding: 2px 8px;
+  border-radius: 12px;
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+
+.recipe-section-header {
+  font-weight: 700;
+  margin: 0 0 10px 0;
+  font-size: 13px;
+  color: #333;
+}
+
+.recipe-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0 0 5px 0;
+  color: #333;
+}
 /* Media */
 .post-media-container { width: 100%; aspect-ratio: 1 / 1; background: #f0f0f0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
 .post-media { width: 100%; height: 100%; object-fit: cover; }
@@ -1590,7 +1588,7 @@ export default {
 .menu-post-icon { width: 24px; cursor: pointer; opacity: 0.5; padding: 4px; }
 .dropdown-menu {
   position: absolute; right: 0; top: 100%; background: white; border: 1px solid #eee;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden; z-index: 100; width: 140px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden; z-index: 100; width: 140px; font-weight: 500;
 }
 .dropdown-menu button {
   width: 100%; padding: 10px 12px; text-align: left; background: white; border: none;

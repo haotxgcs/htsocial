@@ -429,6 +429,9 @@ togglePostContent(postId) {
   margin: 0 auto;
   padding: 20px;
   min-height: 100vh;
+  padding-left: 320px; 
+  padding-top: 30px; 
+  padding-right: 40px;
 }
 
 .header-section {
@@ -470,7 +473,7 @@ togglePostContent(postId) {
   width: 40px;
   height: 40px;
   border: 4px solid #f3f3f3;
-  border-top: 4px solid #1877f2;
+  border-top: 4px solid #FF642F; /* Màu chính */
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -508,7 +511,7 @@ togglePostContent(postId) {
 }
 
 .browse-btn {
-  background: #1877f2;
+  background: #FF642F;
   color: white;
   border: none;
   padding: 12px 24px;
@@ -520,7 +523,7 @@ togglePostContent(postId) {
 }
 
 .browse-btn:hover {
-  background: #166fe5;
+  background: #FF642F;
 }
 
 .browse-btn:active {
@@ -589,8 +592,8 @@ togglePostContent(postId) {
   font-size: 14px;
   font-weight: 600;
   border: none;
-  background: #fee;
-  color: #d93025;
+  background: #ffe6e6;
+  color: #FF642F;
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -621,7 +624,7 @@ togglePostContent(postId) {
 .read-more-btn {
   background: none;
   border: none;
-  color: #1877f2;
+  color: #FF642F;
   font-weight: 600;
   font-size: 14px;
   cursor: pointer;
@@ -634,7 +637,7 @@ togglePostContent(postId) {
 }
 
 .read-more-btn:hover {
-  color: #166fe5;
+  color: #FF642F;
   text-decoration: underline;
 }
 
@@ -665,7 +668,7 @@ togglePostContent(postId) {
 }
 
 .recipe-section strong {
-  color: #1877f2;
+  color: #FF642F;
   font-size: 14px;
   font-weight: 600;
   display: block;
@@ -787,6 +790,14 @@ togglePostContent(postId) {
   height: 20px;
 }
 
+@media (max-width: 1024px) { 
+  
+  .saved-posts-page {
+    padding-left: 0;  /* Trên màn hình nhỏ/mobile thì bỏ khoảng trống này đi */
+    padding-right: 0;
+    padding-top: 60px; /* Đẩy xuống một chút nếu có header fixed trên mobile */
+  }
+}
 @media (max-width: 768px) {
   .saved-posts-page {
     padding: 12px;

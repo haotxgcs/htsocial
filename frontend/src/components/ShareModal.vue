@@ -309,9 +309,9 @@ export default {
 .user-details { flex: 1; }
 .user-details strong { font-size: 15px; font-weight: 600; color: #1c1e21; display: block; margin-bottom: 4px; }
 .audience-inline select { padding: 4px 8px; border-radius: 6px; border: 1px solid #ccc; font-size: 13px; background: #f0f2f5; cursor: pointer; outline: none; }
-.audience-inline select:focus { border-color: #1877f2; }
+.audience-inline select:focus { border-color: #FF642F; }
 .share-input-wrapper { border: 1px solid #ccc; border-radius: 8px; padding: 12px; margin-bottom: 16px; position: relative; background: white; transition: border-color 0.2s; }
-.share-input-wrapper:focus-within { border-color: #1877f2; box-shadow: 0 0 0 2px rgba(24, 119, 242, 0.1); }
+.share-input-wrapper:focus-within { border-color: #FF642F;  }
 .share-textarea { width: 100%; min-height: 80px; max-height: 150px; resize: none; border: none; outline: none; font-family: inherit; font-size: 15px; line-height: 1.4; background: transparent; box-sizing: border-box; padding-bottom: 30px; }
 .share-textarea::placeholder { color: #626569; }
 .emoji-trigger { position: absolute; bottom: 8px; right: 8px; }
@@ -327,7 +327,7 @@ export default {
 .post-content { font-size: 14px; line-height: 1.4; color: #1c1e21; word-wrap: break-word; white-space: pre-line; margin-bottom: 8px; }
 .post-content p { margin: 0; }
 .recipe-preview { background: white; border: 1px solid #e4e6eb; border-radius: 8px; padding: 12px; margin-top: 8px; }
-.recipe-header { font-size: 14px; font-weight: 600; color: #1877f2; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #e4e6eb; }
+.recipe-header { font-size: 14px; font-weight: 600; color: #FF642F; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #e4e6eb; }
 .recipe-item { margin-bottom: 8px; font-size: 13px; line-height: 1.5; }
 .recipe-item:last-child { margin-bottom: 0; }
 .recipe-item strong { display: block; color: #1c1e21; margin-bottom: 4px; }
@@ -336,8 +336,8 @@ export default {
 .media-preview img, .media-preview video { width: 100%; max-height: 300px; object-fit: contain; border-radius: 8px; background: #000; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 16px 24px; border-top: 1px solid #e4e6eb; flex-shrink: 0; }
 .btn { padding: 10px 24px; border: none; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer; transition: all 0.2s ease; }
-.btn.share { background-color: #1877f2; color: white; }
-.btn.share:hover { background-color: #166fe5; }
+.btn.share { background-color: #FF642F; color: white; }
+.btn.share:hover { background-color: #FF642F; }
 .btn.cancel { background-color: #e4e6eb; color: #1c1e21; }
 .btn.cancel:hover { background-color: #d8dadf; }
 
@@ -369,24 +369,13 @@ export default {
   font-weight: 600;
 }
 
-/* 3. Khung chứa Nguyên liệu & Cách làm */
-.shared-details {
-  font-size: 13px;
-  color: #555;
-  background: white;
-  padding: 10px;
-  border-radius: 8px;
-  border: 1px solid #eee;
-  margin-bottom: 8px;
-}
 
 /* 4. Tiêu đề nhỏ (Ingredients/Instructions) */
 .shared-section-label {
   font-weight: 700;
-  margin: 0 0 4px 0;
+  margin: 0 0 10px 0;
   font-size: 12px;
   color: #333;
-  text-decoration: underline; /* Gạch chân cho dễ nhìn */
 }
 
 /* 5. Nội dung text (Giữ xuống dòng) */
