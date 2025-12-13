@@ -208,6 +208,7 @@ export default {
   mounted() {
     this.loadUserFromStorage();
     document.addEventListener('click', this.handleClickOutside);
+    window.addEventListener('user-profile-updated', this.loadUserFromStorage);
   },
   beforeUnmount() {
     document.removeEventListener('click', this.handleClickOutside);

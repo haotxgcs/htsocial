@@ -117,14 +117,11 @@
             <div class="post-content-wrapper">
               <h3 class="recipe-title">{{ post.title }}</h3>
               <span class="recipe-category">{{ post.category }}</span>
-
-              <div class="recipe-body">
+              <div class="recipe-body"> 
                 
-                <div v-if="!expandedPosts[post._id]"> <p class="recipe-section-header">Ingredients:</p>
-                   <p class="post-text">{{ getTruncatedText(post.ingredients) }}</p>
-                   
-                   <p class="recipe-section-header" style="margin-top: 8px;">Instructions:</p>
-                   <p class="post-text">{{ getTruncatedText(post.instructions) }}</p>
+                <div v-if="!expandedPosts[post._id]">
+                  <p class="recipe-section-header">Ingredients:</p>
+                  <p class="post-text">{{ getTruncatedText(post.ingredients) }}</p>
                 </div>
 
                 <div v-else>
@@ -654,15 +651,11 @@ export default {
 
     // Toggle trạng thái hiển thị dựa trên Key duy nhất (uniqueId)
     // Key này phải được truyền chính xác từ template (post._id hoặc post._id + '_shared')
-    togglePostContent(uniqueId) {
-      // Logic toggle an toàn
-      if (this.expandedPosts[uniqueId]) {
-        this.expandedPosts[uniqueId] = false;
-      } else {
-        this.expandedPosts[uniqueId] = true;
-      }
-      // Force Vue reactivity (quan trọng để Vue nhận biết thay đổi sâu trong object)
-      this.expandedPosts = { ...this.expandedPosts };
+    togglePostContent(postId) {
+      // Tạo object mới để Vue nhận diện thay đổi (Reactivity)
+      const newExpanded = { ...this.expandedPosts };
+      newExpanded[postId] = !newExpanded[postId];
+      this.expandedPosts = newExpanded;
     },
 
     // Kiểm tra xem bài post có cần hiện nút Show More không
@@ -701,28 +694,19 @@ export default {
     // Lấy nội dung hiển thị (Full hoặc Cắt ngắn)
     // Tham số 1: Object bài viết chứa content
     // Tham số 2: ID duy nhất dùng để check trạng thái mở rộng trong expandedPosts
-    getDisplayedContent(postData, uniqueId) {
-      if (!postData || !postData.content) return '';
+    getDisplayedContent(post) {
+      if (!post?.content) return '';
       
-      // Nếu ID này đang được mở -> Trả về full nội dung
-      if (this.expandedPosts[uniqueId]) {
-        return postData.content;
+      const postId = post._id;
+      // Nếu đã bấm Show More hoặc nội dung ngắn -> Hiện hết
+      if (this.expandedPosts[postId] || !this.shouldShowReadMore(postId)) {
+        return post.content;
       }
       
-      // Logic cắt ngắn (Collapsed)
-      const lines = postData.content.split('\n');
-      
-      // Ưu tiên cắt theo dòng nếu nhiều dòng
-      if (lines.length > 6) {
-        return lines.slice(0, 6).join('\n') + '...';
-      }
-      
-      // Nếu ít dòng nhưng dài ký tự
-      if (postData.content.length > 250) {
-        return postData.content.substring(0, 250) + '...';
-      }
-      
-      return postData.content;
+      // Nếu chưa bấm -> Cắt ngắn
+      const lines = post.content.split('\n');
+      if (lines.length > 3) return lines.slice(0, 3).join('\n') + '...';
+      return post.content.substring(0, 200) + '...';
     },
 
     // Helper tìm post object (dùng để hỗ trợ các logic cũ nếu cần)

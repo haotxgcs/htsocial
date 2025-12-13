@@ -1,17 +1,16 @@
 <template>
   <div class="saved-posts-page">
-    <!-- Header -->
+    <div class="saved-content-wrapper">
+    
     <div class="header-section">
       <h2>Saved Posts</h2>
       <p class="saved-count">{{ savedPosts.length }} saved {{ savedPosts.length === 1 ? 'post' : 'posts' }}</p>
     </div>
 
-    <!-- Loading state -->
     <div v-if="loading" class="loading">
-      <p>Loading saved posts...</p>
+      <div class="spinner"></div> <p>Loading saved posts...</p>
     </div>
 
-    <!-- Empty state -->
     <div v-else-if="savedPosts.length === 0" class="empty-state">
       <img src="../assets/save.png" alt="No saved posts" class="empty-icon" />
       <h2>No Saved Posts</h2>
@@ -19,9 +18,9 @@
       <button @click="$router.push('/home')" class="browse-btn">Browse Posts</button>
     </div>
 
-    <!-- Saved posts list -->
     <div v-else class="posts-container">
-      <div class="post" v-for="post in savedPosts" :key="post._id">
+      <div class="post-item card" v-for="post in savedPosts" :key="post._id">
+        
         <div class="post-header">
           <div class="post-author-info">
             <img :src="getAvatarUrl(post.author)" alt="avatar" />
@@ -36,44 +35,42 @@
             </div>
           </div>
 
-          <!-- Unsave button -->
           <button @click="unsavePost(post)" class="unsave-btn">
             <img src="../assets/saved.png" class="action-icon" />
             <span>Unsave</span>
           </button>
         </div>
 
-        <!-- Post Content with Show More/Less -->
-<div class="post-text-container">
-  <div :class="{ 'content-collapsed': shouldShowReadMore(post) && !expandedPosts[post._id] }" class="post-text">
-    {{ getDisplayedContent(post) }}
-  </div>
-  <button 
-    v-if="shouldShowReadMore(post)" 
-    @click="togglePostContent(post._id)" 
-    class="read-more-btn"
-  >
-    {{ expandedPosts[post._id] ? 'Show Less' : 'Show More' }}
-  </button>
+        <div class="post-content-wrapper">
+          <h3 class="recipe-title">{{ post.title }}</h3>
+          <span class="recipe-category">{{ post.category }}</span>
 
-  <!-- Recipe content if exists -->
-  <div v-if="post.recipeName" class="recipe-content">
-    <h4 class="recipe-title">{{ post.recipeName }}</h4>
-    <div v-if="post.ingredients" class="recipe-section">
-      <strong>Ingredients:</strong>
-      <p class="recipe-text">{{ post.ingredients }}</p>
-    </div>
-    <div v-if="post.instructions" class="recipe-section">
-      <strong>Instructions:</strong>
-      <p class="recipe-text">{{ post.instructions }}</p>
-    </div>
-  </div>
-</div>
+          <div class="recipe-body">
+            <div v-if="!expandedPosts[post._id]">
+              <p class="recipe-section-header">Ingredients:</p>
+              <p class="post-text">{{ getTruncatedText(post.ingredients) }}</p>
+            </div>
 
-        <!-- Media -->
-        <div v-if="post.media" class="post-media">
-          <img v-if="post.mediaType === 'image'" :src="`http://localhost:3000/${post.media}`" class="post-image" />
-          <video v-else-if="post.mediaType === 'video'" controls class="post-video">
+            <div v-else>
+              <p class="recipe-section-header">Ingredients:</p>
+              <p class="post-text">{{ post.ingredients }}</p>
+              
+              <p class="recipe-section-header">Instructions:</p>
+              <p class="post-text">{{ post.instructions }}</p>
+            </div>
+          </div>
+
+          <button 
+            v-if="shouldShowReadMore(post)" 
+            @click="togglePostContent(post._id)" 
+            class="read-more-btn"
+          >
+            {{ expandedPosts[post._id] ? 'Show Less' : 'Show More' }}
+          </button>
+        </div>
+        <div v-if="post.media" class="post-media-container">
+          <img v-if="post.mediaType === 'image'" :src="`http://localhost:3000/${post.media}`" class="post-media" />
+          <video v-else-if="post.mediaType === 'video'" controls class="post-media">
             <source :src="`http://localhost:3000/${post.media}`" type="video/mp4" />
           </video>
         </div>
@@ -87,12 +84,11 @@
               </div>
             </div>
             <div class="rating-count">
-              <span>{{ post.totalRatings }} rating{{ post.totalRatings > 1 ? 's' : '' }}</span>
+              <span>{{ post.totalRatings }} ratings</span>
             </div>
           </div>
         </div>
 
-        <!-- Post stats -->
         <div class="post-stats">
           <span v-if="post.likes?.length > 0">{{ post.likes.length }} liked</span>
           <span v-if="getPostCommentCount(post) > 0">{{ getPostCommentCount(post) }} commented</span>
@@ -100,9 +96,8 @@
           <span v-if="post?.savesCount > 0">{{ post?.savesCount }} saved</span>
         </div>
 
-        <!-- Actions -->
         <div class="post-actions">
-          <button @click="toggleLike(post)">
+          <button @click="toggleLike(post)" :class="{ active: isLiked(post) }">
             <img :src="isLiked(post) ? require('../assets/like.png') : require('../assets/unlike.png')" class="action-icon" />
             <span>Like</span>
           </button>
@@ -118,7 +113,6 @@
       </div>
     </div>
 
-    <!-- Modals -->
     <ShareModal
       v-if="showShareModal && user"
       :post="postToShare"
@@ -141,8 +135,8 @@
       @comment-count-updated="onCommentCountUpdated"
       @save-status-changed="handleSaveStatusChanged"
       @rating-updated="handleRatingUpdated"
-      
     />
+  </div>
   </div>
 </template>
 
@@ -386,24 +380,41 @@ export default {
     }
   },
 
-  shouldShowReadMore(post) {
-  if (!post || !post.content) return false;
-  const lineCount = post.content.split('\n').length;
-  return lineCount > 10;
-},
+  // [MỚI] Hàm cắt ngắn text cho Ingredients khi chưa Show More
+    getTruncatedText(text) {
+      if (!text) return '';
+      const lines = text.split('\n');
+      
+      // Lấy 3 dòng đầu tiên
+      if (lines.length > 3) {
+        return lines.slice(0, 3).join('\n') + '...';
+      }
+      
+      // Hoặc lấy 150 ký tự đầu tiên nếu ít dòng nhưng dài
+      if (text.length > 150) {
+        return text.substring(0, 150) + '...';
+      }
+      
+      return text;
+    },
 
-getDisplayedContent(post) {
-  if (!post || !post.content) return '';
-  if (!this.shouldShowReadMore(post) || this.expandedPosts[post._id]) {
-    return post.content;
-  }
-  const lines = post.content.split('\n');
-  return lines.slice(0, 10).join('\n');
-},
+  // [SỬA] Kiểm tra độ dài dựa trên Ingredients + Instructions
+    shouldShowReadMore(post) {
+      if (!post) return false;
+      // Cộng gộp nội dung recipe để tính toán
+      const text = (post.ingredients || '') + (post.instructions || '');
+      const lines = text.split('\n');
+      
+      // Hiện nút nếu dài hơn 5 dòng hoặc 200 ký tự
+      return lines.length > 5 || text.length > 200;
+    },
 
-togglePostContent(postId) {
-  this.expandedPosts[postId] = !this.expandedPosts[postId];
-},
+    togglePostContent(postId) {
+          // Cách viết này đảm bảo Vue nhận diện thay đổi tốt hơn
+          const newExpanded = { ...this.expandedPosts };
+          newExpanded[postId] = !newExpanded[postId];
+          this.expandedPosts = newExpanded;
+        },
   },
 
   created() {
@@ -424,409 +435,140 @@ togglePostContent(postId) {
 </script>
 
 <style scoped>
+  
+/* --- 1. PAGE LAYOUT & RESPONSIVE --- */
 .saved-posts-page {
-  max-width: 600px;
-  margin: 0 auto;
-  padding: 20px;
+  width: 100%;             /* Chiếm hết chiều rộng */
   min-height: 100vh;
+  background-color: #fcf8f5; /* ✅ Đặt màu nền ở đây để phủ kín màn hình */
+  
+  /* Sidebar spacing */
   padding-left: 320px; 
   padding-top: 30px; 
-  padding-right: 40px;
+  padding-right: 20px;
+  
+  box-sizing: border-box; 
+  font-family: 'Segoe UI', system-ui, sans-serif;
 }
 
-.header-section {
-  text-align: center;
-  margin-bottom: 24px;
-  padding: 24px;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.header-section h2 {
-  margin: 0 0 8px 0;
-  font-size: 28px;
-  font-weight: bold;
-  color: #1c1e21;
-}
-
-.saved-count {
-  margin: 0;
-  font-size: 15px;
-  color: #65676b;
-  font-weight: 500;
-}
-
-.loading {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  padding: 60px 20px;
-  text-align: center;
-  color: #65676b;
-}
-
-.loading::after {
-  content: '';
-  width: 40px;
-  height: 40px;
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #FF642F; /* Màu chính */
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-.empty-state {
-  text-align: center;
-  padding: 80px 20px;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.empty-icon {
-  width: 80px;
-  height: 80px;
-  opacity: 0.4;
-  margin-bottom: 24px;
-}
-
-.empty-state h2 {
-  font-size: 24px;
-  color: #1c1e21;
-  margin-bottom: 12px;
-}
-
-.empty-state p {
-  color: #65676b;
-  font-size: 15px;
-  margin-bottom: 32px;
-}
-
-.browse-btn {
-  background: #FF642F;
-  color: white;
-  border: none;
-  padding: 12px 24px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 15px;
-  font-weight: 600;
-  transition: background 0.2s;
-}
-
-.browse-btn:hover {
-  background: #FF642F;
-}
-
-.browse-btn:active {
-  transform: scale(0.98);
-}
-
-.posts-container {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.post {
-  background: white;
-  padding: 20px;
-  border-radius: 12px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  transition: all 0.3s ease;
-}
-
-.post:hover {
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  transform: translateY(-2px);
-}
-
-.post-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
-.post-author-info {
-  display: flex;
-  align-items: center;
-  flex: 1;
-}
-
-.post-author-info img {
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  margin-right: 12px;
-  object-fit: cover;
-}
-
-.author-details strong {
-  font-size: 15px;
-  font-weight: 600;
-  color: #1c1e21;
-  display: block;
-}
-
-.author-details .time {
-  font-size: 13px;
-  color: #65676b;
-  margin-top: 4px;
-}
-
-.unsave-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  border: none;
-  background: #ffe6e6;
-  color: #FF642F;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.unsave-btn:hover {
-  background: #fdd;
-}
-
-/* Thay thế .post-text cũ */
-.post-text-container {
-  margin: 16px 0;
-}
-
-.post-text {
-  font-size: 15px;
-  line-height: 1.5;
-  white-space: pre-line;
-  word-wrap: break-word;
-  color: #1c1e21;
-}
-
-.content-collapsed {
-  position: relative;
-  max-height: none;
-  overflow: hidden;
-}
-
-.read-more-btn {
-  background: none;
-  border: none;
-  color: #FF642F;
-  font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
-  padding: 4px 0;
-  margin-top: 4px;
-  display: inline-block;
-  transition: all 0.2s ease;
-  font-style: italic;
-  font-weight: lighter;
-}
-
-.read-more-btn:hover {
-  color: #FF642F;
-  text-decoration: underline;
-}
-
-/* Recipe Content Styles */
-.recipe-content {
-  background: #f8f9fa;
-  border: 1px solid #e3e6ea;
-  border-radius: 12px;
-  padding: 16px;
-  margin-top: 12px;
-}
-
-.recipe-title {
-  color: #1c1e21;
-  font-size: 16px;
-  font-weight: 600;
-  margin: 0 0 12px 0;
-  border-bottom: 1px solid #e3e6ea;
-  padding-bottom: 8px;
-}
-
-.recipe-section {
-  margin-bottom: 12px;
-}
-
-.recipe-section:last-child {
-  margin-bottom: 0;
-}
-
-.recipe-section strong {
-  color: #FF642F;
-  font-size: 14px;
-  font-weight: 600;
-  display: block;
-  margin-bottom: 6px;
-}
-
-.recipe-text {
-  font-size: 14px;
-  line-height: 1.5;
-  color: #1c1e21;
-  margin: 0;
-  white-space: pre-line;
-  word-wrap: break-word;
-  background: white;
-  padding: 8px 12px;
-  border-radius: 8px;
-  border: 1px solid #e3e6ea;
-}
-
-/* Rating Statistics */
-.rating-statistics {
-  background: linear-gradient(135deg, #fff9e6 0%, #ffe9b8 100%);
-  border: 1px solid #ffd966;
-  border-radius: 12px;
-  padding: 12px 16px;
-  margin: 12px 0;
-}
-
-.rating-summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.average-rating {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.rating-number {
-  font-size: 28px;
-  font-weight: bold;
-  color: #f57c00;
-}
-
-.stars-display {
-  display: flex;
-  gap: 2px;
-}
-
-.star-icon {
-  font-size: 18px;
-  color: #ddd;
-}
-
-.star-icon.filled {
-  color: #ffc107;
-}
-
-.rating-count {
-  font-size: 14px;
-  color: #856404;
-  font-weight: 600;
-}
-
-.post-media {
-  margin: 16px 0;
-}
-
-.post-image, .post-video {
+/* 2. LỚP NỘI DUNG: Căn giữa, giới hạn chiều rộng */
+.saved-content-wrapper {
+  max-width:750px;  /* ✅ Giới hạn chiều rộng nội dung ở đây (tăng lên 900px cho to đẹp) */
+  margin: 0 auto;    /* ✅ Căn giữa nội dung trong phần còn lại */
   width: 100%;
-  border-radius: 10px;
-  max-height: 500px;
-  object-fit: cover;
 }
 
-.post-stats {
-  display: flex;
-  gap: 16px;
-  margin: 16px 0;
-  padding-top: 12px;
-  border-top: 1px solid #e4e6eb;
-  font-size: 14px;
-  color: #65676b;
-}
-
-.post-actions {
-  display: flex;
-  justify-content: space-around;
-  padding-top: 12px;
-  border-top: 1px solid #e4e6eb;
-}
-
-.post-actions button {
-  background: none;
-  border: none;
-  color: #65676b;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 14px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  border-radius: 8px;
-  transition: all 0.2s;
-  flex: 1;
-  justify-content: center;
-}
-
-.post-actions button:hover {
-  background-color: #f2f3f5;
-}
-
-.action-icon {
-  width: 20px;
-  height: 20px;
-}
-
+/* Tablet & Mobile Responsive */
 @media (max-width: 1024px) { 
-  
   .saved-posts-page {
-    padding-left: 0;  /* Trên màn hình nhỏ/mobile thì bỏ khoảng trống này đi */
-    padding-right: 0;
-    padding-top: 60px; /* Đẩy xuống một chút nếu có header fixed trên mobile */
+    padding-left: 16px;  
+    padding-right: 16px;
+    padding-top: 80px; /* Tránh header fixed */
+    max-width: 100%;
   }
 }
-@media (max-width: 768px) {
-  .saved-posts-page {
-    padding: 12px;
-  }
-  
-  .header-section {
-    padding: 20px;
-  }
-  
-  .header-section h2 {
-    font-size: 24px;
-  }
-  
-  .post {
-    padding: 16px;
-  }
-  
-  .post-author-info img {
-    width: 36px;
-    height: 36px;
-  }
-  
-  .post-actions {
-    flex-wrap: wrap;
-  }
-  
-  .post-actions button {
-    flex: 1 1 45%;
-    min-width: 120px;
-  }
+
+/* --- 2. HEADER & EMPTY STATE --- */
+.header-section {
+  text-align: center; margin-bottom: 24px; padding: 24px;
+  background: white; border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05); border: 1px solid #eee; font-weight: 600;
 }
+.header-section h2 { margin: 0 0 8px 0; font-size: 24px; font-weight: 800; color: #1c1e21; }
+.saved-count { margin: 0; font-size: 14px; color: #FF642F; font-weight: 500; }
+
+.loading { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 60px 0; color: #65676b; }
+.spinner { width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #FF642F; border-radius: 50%; animation: spin 1s linear infinite; }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+.empty-state { text-align: center; padding: 80px 20px; background: white; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+.empty-icon { width: 80px; height: 80px; opacity: 0.4; margin-bottom: 24px; }
+.browse-btn { background: #FF642F; color: white; border: none; padding: 12px 24px; border-radius: 20px; cursor: pointer; font-weight: 600; margin-top: 16px; transition: 0.2s; }
+.browse-btn:hover { background: #e04f1d; }
+
+/* --- 3. POST ITEM STYLES --- */
+.posts-container { display: flex; flex-direction: column; gap: 20px; }
+
+.post-item { 
+  background: white; border-radius: 16px; padding: 0; 
+  box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #f0f0f0; 
+  overflow: visible; /* Để dropdown menu không bị che nếu có */
+  
+}
+
+/* Post Header */
+.post-header { padding: 16px; display: flex; justify-content: space-between; align-items: center; }
+.post-author-info { display: flex; align-items: center; flex: 1; }
+.post-author-info img { width: 40px; height: 40px; border-radius: 50%; margin-right: 12px; object-fit: cover; border: 1px solid #eee; }
+.author-details strong { font-size: 15px; font-weight: 600; color: #1c1e21; display: block; }
+.author-details .time { font-size: 12px; color: #999; margin-top: 2px; }
+
+/* Unsave Button Style */
+.unsave-btn { 
+  display: flex; align-items: center; gap: 6px; padding: 6px 12px; 
+  border-radius: 8px; font-size: 13px; font-weight: 600; border: none; 
+  background: #fff5eb; color: #FF642F; cursor: pointer; transition: all 0.2s; 
+}
+.unsave-btn:hover { background: #ffe0d1; }
+
+/* --- 4. RECIPE CONTENT STYLES (NEW) --- */
+.post-content-wrapper { padding: 0 16px 12px 16px; }
+
+.recipe-title { 
+  font-size: 18px; font-weight: 700; color: #333; margin: 0 0 6px 0; 
+}
+.recipe-category { 
+  display: inline-block; font-size: 12px; font-weight: 600; 
+  color: #FF642F; background-color: #FFF0E6; 
+  padding: 4px 10px; border-radius: 20px; margin-bottom: 12px; 
+}
+.recipe-section-header {
+  font-weight: 700;
+  margin: 0 0 10px 0;
+  font-size: 13px;
+  color: #333;
+}
+.post-text { font-size: 15px; line-height: 1.5; color: #333; margin: 0; white-space: pre-line; }
+.read-more-btn { 
+  border: none; background: none; color: #FF642F; 
+  font-weight: 600; font-size: 13px; cursor: pointer; 
+  padding: 0; margin-top: 5px; 
+}
+.read-more-btn:hover { text-decoration: underline;}
+
+/* --- 5. MEDIA & STATS --- */
+.post-media-container { 
+  width: 100%; aspect-ratio: 1 / 1; background: #f0f0f0; 
+  display: flex; align-items: center; justify-content: center; 
+  overflow: hidden; margin-bottom: 12px; 
+}
+.post-media { width: 100%; height: 100%; object-fit: cover; }
+
+/* Rating */
+.rating-statistics { 
+  margin: 0 16px 12px 16px; background: #fff9e6; border: 1px solid #ffe9b8; 
+  padding: 8px 12px; border-radius: 10px; 
+}
+.rating-summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.average-rating { display: flex; align-items: center; gap: 8px; }
+.rating-number { font-size: 18px; font-weight: bold; color: #f57c00; }
+.stars-display { display: flex; gap: 2px; }
+.star-icon { font-size: 16px; color: #ddd; }
+.star-icon.filled { color: #ffc107; }
+.rating-count { font-size: 13px; color: #856404; font-weight: 600; }
+
+/* Stats & Actions */
+.post-stats { 
+  padding: 0 16px 12px; font-size: 13px; color: #65676b; 
+  display: flex; gap: 16px; border-bottom: 1px solid #f0f0f0; 
+}
+.post-actions { display: flex; justify-content: space-around; padding: 8px 0; }
+.post-actions button { 
+  background: none; border: none; color: #65676b; cursor: pointer; 
+  font-weight: 500; font-size: 14px; display: flex; align-items: center; 
+  gap: 8px; padding: 8px 12px; border-radius: 8px; transition: all 0.2s; 
+  flex: 1; justify-content: center;
+}
+.post-actions button:hover { background-color: #f2f3f5; color: #FF642F; }
+.action-icon { width: 20px; height: 20px; opacity: 0.7; }
 </style>
