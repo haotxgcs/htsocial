@@ -94,7 +94,7 @@
           </div>
         </div>
 
-        <div v-else class="shared-post">
+        <div v-else class="post shared-post" >
           <div class="post-header">
             <div class="post-author-info">
               <img :src="getAvatarUrl(item.username)" class="avatar" />
@@ -116,20 +116,24 @@
           </div>
 
           <div class="shared-content-box">
-            <div v-if="!item.post" class="post-header small restricted-bg">
-               <div class="post-content-wrapper restricted-bg">
-                  <p class="notice-message">This post has been deleted</p>
+            <div v-if="!item.post" class="restricted-post-warning">
+               <div class="restricted-content">
+                  <p class="notice-message " style="margin: 0; font-style: italic; color: #c00;">This content is currently unavailable.</p>
                </div>
             </div>
 
             <div v-else>
               <div v-if="canViewOriginalPost(item.post)">
-                <div class="post-header small origin-post">
+                <div class="post-header">
                   <div class="post-author-info">
                     <img :src="getAvatarUrl(item.post.author)" class="avatar-small" />
                     <div class="author-details">
                       <strong>{{ item.post.author.firstname }} {{ item.post.author.lastname }}</strong>
-                      <p class="time">{{ formatTime(item.post.createdAt) }}</p>
+                      <p class="time">{{ formatTime(item.post.createdAt) }}
+                        <span v-if="item.post.audience === 'public'" title="Public" style="margin-left: 4px;">🌍</span>
+                        <span v-else-if="item.post.audience === 'friends'" title="Friends" style="margin-left: 4px;">👥</span>
+                        <span v-else-if="item.post.audience === 'private'" title="Private" style="margin-left: 4px;">🔒</span>
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -168,17 +172,21 @@
                 </div>
               </div>
 
-              <div v-else class="post-header ">
-                <div class="post-header small origin-post">
-                  <div class="post-author-info">
-                    <img :src="getAvatarUrl(item.post.author)" class="avatar-small" />
-                    <div class="author-details">
-                      <strong>{{ item.post.author.firstname }} {{ item.post.author.lastname }}</strong>
-                      <p class="time">{{ formatTime(item.post.createdAt) }}</p>
-                    </div>
-                  </div>
-                </div>
-                <p class="notice-message">{{ getPostAccessMessage(item.post) }}</p>
+              <div v-else>
+                <div class="origin-post-author-info">
+                        <img :src="getAvatarUrl(item.post.author)" alt="avatar" />
+                        <div class="origin-author-details">
+                          <strong>{{ item.post.author.firstname }} {{ item.post.author.lastname }}</strong>
+                          
+                          <p class="origin-post-time">
+                            {{ formatTime(item.post.createdAt) }}
+                            
+                            <span v-if="item.post.audience === 'friends'">👥</span>
+                            <span v-else-if="item.post.audience === 'private'">🔒</span>
+                          </p>
+                          </div>
+                      </div >
+                        <p class="notice-message">{{ getPostAccessMessage(item.post) }}</p>
               </div>
             </div>
           </div>
@@ -442,9 +450,15 @@ export default {
 
 /* 2. LỚP NỘI DUNG: Căn giữa, giới hạn chiều rộng */
 .hidden-items-wrapper {
-  max-width:750px;  /* ✅ Giới hạn chiều rộng nội dung ở đây (tăng lên 900px cho to đẹp) */
-  margin: 0 auto;    /* ✅ Căn giữa nội dung trong phần còn lại */
   width: 100%;
+  max-width: 750px;
+  margin: 0 auto; 
+  /* Dùng Flexbox để tạo khoảng cách */
+  display: flex;
+  flex-direction: column;
+  /* Khoảng cách giữa các bài viết */
+  gap: 24px; 
+  padding-bottom: 60px;
 }
 
 /* Responsive Tablet/Mobile */
@@ -504,10 +518,17 @@ export default {
 }
 
 /* Post Header */
-.post-header { padding: 16px; display: flex; justify-content: space-between; align-items: center; }
-.post-author-info { display: flex; align-items: center; flex: 1; }
-.avatar, .avatar-small { width: 40px; height: 40px; border-radius: 50%; margin-right: 12px; object-fit: cover; border: 1px solid #eee; }
-.author-details strong { font-size: 15px; font-weight: 600; color: #1c1e21; display: block; }
+.post, .shared-post {
+  background: white; border-radius: 16px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+  border: 1px solid #f0f0f0; overflow: visible;
+  display: flex; flex-direction: column;
+}
+
+.post-header { padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; }
+.post-author-info { display: flex; align-items: center; gap: 12px;}
+.post-author-info img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 1px solid #eee; }
+.author-details strong { display: block; font-size: 14px; color: #333; }
 .author-details .time { font-size: 12px; color: #999; margin-top: 2px; }
 
 /* Unhide Button */
@@ -562,6 +583,11 @@ export default {
   margin: 0 16px 16px 16px; overflow: hidden; background-color: #fff; 
 }
 
+.origin-post-author-info { display: flex; align-items: center; gap: 12px; }
+.origin-post-author-info img { margin-left:15px; margin-top:10px; width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 1px solid #eee; }
+.origin-author-details strong { margin-top:10px; display: block; font-size: 14px; color: #333; }
+.origin-author-details .origin-post-time { font-size: 12px; color: #999; margin-top: 2px; }
+
 /* Header bài gốc (nhỏ hơn) */
 .origin-post.post-header.small { 
   padding: 10px 12px; 
@@ -578,9 +604,25 @@ export default {
 }
 
 /* Restricted / Deleted Style */
-.restricted-bg { background-color: #FFF5F5 !important; border-bottom: none !important; }
+.restricted-post-warning { 
+  padding: 15px; 
+  display: flex; 
+  align-items: center; /* Căn giữa dọc */
+  gap: 12px; 
+  border-bottom: 1px solid #ffebeb;
+  
+}
+
+.restricted-content {
+
+  display: block; font-size: 14px; color: #333;
+}
 .notice-message { 
-  color: #D32F2F; font-style: italic; font-size: 14px; 
-  margin: 0; padding: 10px; text-align: center; 
+  font-size: 13px; 
+  color: #c00; 
+  font-style: italic; 
+  margin: 4px 0 0 0; 
+  padding:10px;
+  margin-left:15px;
 }
 </style>

@@ -453,9 +453,15 @@ export default {
 
 /* 2. LỚP NỘI DUNG: Căn giữa, giới hạn chiều rộng */
 .saved-content-wrapper {
-  max-width:750px;  /* ✅ Giới hạn chiều rộng nội dung ở đây (tăng lên 900px cho to đẹp) */
-  margin: 0 auto;    /* ✅ Căn giữa nội dung trong phần còn lại */
   width: 100%;
+  max-width: 750px;
+  margin: 0 auto; 
+  /* Dùng Flexbox để tạo khoảng cách */
+  display: flex;
+  flex-direction: column;
+  /* Khoảng cách giữa các bài viết */
+  gap: 24px; 
+  padding-bottom: 60px;
 }
 
 /* Tablet & Mobile Responsive */

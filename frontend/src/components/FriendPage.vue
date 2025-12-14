@@ -2,7 +2,7 @@
   <div class="friend-page-wrapper">
     
     <div class="page-header">
-      <h1>Friends & Connections</h1>
+      <h2>Friends & Connections</h2>
       <p class="subtitle">Manage your network and discover new people</p>
     </div>
 
@@ -12,7 +12,7 @@
           :class="['nav-pill', { active: currentView === 'friends' || currentView === 'home' }]"
           @click="currentView = 'friends'"
         >My Friends
-          <span class="badge" v-if="allFriends.length">{{ allFriends.length }}</span>
+          
         </button>
 
         <button 
@@ -32,12 +32,86 @@
           :class="['nav-pill', { active: currentView === 'sent' }]"
           @click="currentView = 'sent'"
         >Sent
-          <span class="badge" v-if="sentRequests.length">{{ sentRequests.length }}</span>
+          
         </button>
       </div>
     </div>
 
     <div class="main-container">
+
+      <div v-if="currentView === 'friends' || currentView === 'home'" class="content-section">
+        <div class="section-header">
+          <h2>Your Friends</h2>
+          <span class="counter">{{ allFriends.length }} friends</span>
+        </div>
+
+        <div v-if="allFriends.length > 0" class="modern-grid"> <div v-for="friend in allFriends" :key="friend._id" class="modern-card">
+            
+            <div class="card-image-wrapper">
+              <img :src="getImageUrl(friend.avatar)" class="card-img" />
+              <div class="status-badge" v-if="friend.active">Online</div>
+            </div>
+
+            <div class="card-body">
+              <h4>{{ friend.firstname }} {{ friend.lastname }}</h4>
+              <p class="username">@{{ friend.username }}</p>
+              
+              <div class="action-group">
+                <button class="btn-primary" @click="$router.push(`/profile/${friend._id}`)">View Profile</button>
+                <div style="display: flex; gap: 8px;">
+                   <button class="btn-secondary" style="flex:1" title="Message">Message</button>
+                   <button class="btn-secondary" style="flex:1; color:#ef4444;" @click="unfriend(friend._id)" title="Unfriend">Unfriend</button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <div v-else class="empty-state">
+          <p>You don't have any friends yet.</p>
+          <button class="btn-primary mt-4" @click="currentView = 'suggestions'" style="width: auto; padding: 10px 24px;">Find Friends</button>
+        </div>
+      </div>
+
+      <div v-if="currentView === 'suggestions'" class="content-section">
+        <div class="section-header">
+          <h2>People You May Know</h2>
+          <div class="search-wrapper">
+            <input 
+              type="text" 
+              v-model="searchQuery" 
+              placeholder="Search for new friends..." 
+              @input="filterUsers"
+              class="glass-input"
+            />
+            
+          </div>
+        </div>
+
+        <div v-if="suggestedUsers.length > 0" class="modern-grid">
+          <div v-for="user in suggestedUsers" :key="user._id" class="modern-card">
+            <div class="card-image-wrapper">
+              <img :src="getImageUrl(user.avatar)" class="card-img" />
+            </div>
+            <div class="card-body">
+              <h4>{{ user.firstname }} {{ user.lastname }}</h4>
+              <p class="username">@{{ user.username }}</p>
+              <button 
+                class="btn-primary full-width" 
+                @click="sendFriendRequest(user._id)"
+                :disabled="isRequestSent(user._id)"
+              >
+                {{ isRequestSent(user._id) ? 'Request Sent' : 'Add Friend' }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div v-else class="empty-state">
+          <p>{{ searchQuery ? 'No users found' : 'No suggestions available' }}</p>
+        </div>
+      </div>
       
       <div v-if="currentView === 'requests'" class="content-section">
         <div class="section-header">
@@ -94,72 +168,9 @@
         </div>
       </div>
 
-      <div v-if="currentView === 'suggestions'" class="content-section">
-        <div class="section-header">
-          <h2>People You May Know</h2>
-          <div class="search-wrapper">
-            <input 
-              type="text" 
-              v-model="searchQuery" 
-              placeholder="Search for new friends..." 
-              @input="filterUsers"
-              class="glass-input"
-            />
-          </div>
-        </div>
+      
 
-        <div v-if="suggestedUsers.length > 0" class="modern-grid">
-          <div v-for="user in suggestedUsers" :key="user._id" class="modern-card">
-            <div class="card-image-wrapper">
-              <img :src="getImageUrl(user.avatar)" class="card-img" />
-            </div>
-            <div class="card-body">
-              <h4>{{ user.firstname }} {{ user.lastname }}</h4>
-              <p class="username">@{{ user.username }}</p>
-              <button 
-                class="btn-primary full-width" 
-                @click="sendFriendRequest(user._id)"
-                :disabled="isRequestSent(user._id)"
-              >
-                {{ isRequestSent(user._id) ? 'Request Sent' : 'Add Friend' }}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div v-else class="empty-state">
-          <p>{{ searchQuery ? 'No users found' : 'No suggestions available' }}</p>
-        </div>
-      </div>
-
-      <div v-if="currentView === 'friends' || currentView === 'home'" class="content-section">
-        <div class="section-header">
-          <h2>Your Friends</h2>
-          <span class="counter">{{ allFriends.length }} friends</span>
-        </div>
-
-        <div v-if="allFriends.length > 0" class="friends-list-grid">
-          <div v-for="friend in allFriends" :key="friend._id" class="friend-row-card">
-            <div class="friend-left">
-              <img :src="getImageUrl(friend.avatar)" class="friend-avatar-small" />
-              <div class="friend-info">
-                <h4>{{ friend.firstname }} {{ friend.lastname }}</h4>
-                <p>@{{ friend.username }}</p>
-                <span class="status-text" v-if="friend.active">● Online</span>
-              </div>
-            </div>
-            <div class="friend-actions">
-              <button class="btn-icon" title="Message"><img src="../assets/message.png" class="icon"></button>
-              <button class="btn-icon text-red" @click="unfriend(friend._id)" title="Unfriend"><img src="../assets/unfriend.png" class="icon"></button>
-            </div>
-          </div>
-        </div>
-
-        <div v-else class="empty-state">
-          <p>You don't have any friends yet.</p>
-          <button class="btn-primary mt-4" @click="currentView = 'suggestions'">Find Friends</button>
-        </div>
-      </div>
+      
 
     </div>
   </div>
@@ -418,434 +429,207 @@ export default {
 <style scoped>
 /* --- GLOBAL VARIABLES & WRAPPER --- */
 :root {
-  --primary-color: #6366f1; /* Indigo */
+  --primary-color: #FF642F; 
   --bg-color: #f3f4f6;
   --text-main: #111827;
   --text-sub: #6b7280;
 }
 
 .friend-page-wrapper {
-  background-color: #f3f4f6;
+  background-color: #fcf8f5; /* Màu nền đồng bộ các trang */
   min-height: 100vh;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  padding: 40px 20px;
-  padding-top: 20px;
+  
+  /* ⭐ QUAN TRỌNG: CĂN CHỈNH LAYOUT TRÁNH HEADER/SIDEBAR ⭐ */
+  padding-left: 320px;  /* Chừa chỗ cho Sidebar bên trái */
+  padding-right: 20px;
+  padding-top: 30px;    /* Cách Header trên một chút */
+  box-sizing: border-box;
+  
+}
+
+/* Responsive cho Tablet/Mobile: Reset padding */
+@media (max-width: 1024px) {
+  .friend-page-wrapper {
+    padding-left: 16px;
+    padding-right: 16px;
+    padding-top: 80px; /* Đẩy xuống nhiều hơn để tránh Header cố định */
+  }
 }
 
 /* --- 1. HEADER SECTION --- */
 .page-header {
-  text-align: center;
-  margin-bottom: 32px;
-  margin-top: 40px;
+  text-align: center; margin-bottom: 24px; padding: 24px;
+  background: white; border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05); border: 1px solid #eee; font-weight: 600;
+  max-width:950px; margin-left:auto; margin-right:auto;
 }
 
-.page-header h1 {
-  font-size: 32px;
-  font-weight: 800;
-  color: #111827;
-  margin: 0 0 8px;
-  letter-spacing: -0.5px;
+.page-header h2 {
+  margin: 0 0 8px 0; font-size: 24px; font-weight: 800; color: #1c1e21;
 }
-
-.subtitle {
-  color: #6b7280;
-  font-size: 16px;
-  margin: 0;
-}
-
+.subtitle { margin: 0; font-size: 14px; color: #FF642F; }
 .icon { width: 20px; height: 20px; }
+
 /* --- 2. NAVIGATION (PILLS) --- */
 .nav-wrapper {
   display: flex;
   justify-content: center;
   position: sticky;
-  top: 80px; /* Cách header chính của web */
+  top: 70px; /* ⭐ Vị trí dính: Cách mép trên 70px (dưới Header chính) */
   z-index: 90;
   margin-bottom: 40px;
   padding: 10px 0;
+  /* background: #fcf8f5; <-- Có thể bật nền nếu muốn che nội dung khi cuộn */
 }
 
 .glass-nav {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
   padding: 6px;
   border-radius: 100px;
   display: flex;
   gap: 6px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.05);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
   border: 1px solid rgba(255,255,255,0.6);
-  overflow-x: auto; /* Cho phép cuộn ngang trên mobile */
-  max-width: 100%;
+  flex-wrap: wrap; 
+  justify-content: center;
 }
 
 .nav-pill {
-  padding: 10px 24px;
+  padding: 8px 20px;
   border-radius: 40px;
   border: none;
   background: transparent;
   color: #6b7280;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  transition: all 0.2s;
+  display: flex; align-items: center; gap: 6px;
   font-size: 14px;
-  white-space: nowrap;
 }
 
-.nav-pill:hover {
-  background: rgba(0,0,0,0.04);
-  color: #111827;
-}
+.nav-pill:hover { background-color: #f2f2f2; }
 
 .nav-pill.active {
-  background: #111827;
+  background: #FF642F; /* Màu cam chủ đạo */
   color: white;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-}
-
-.nav-pill .icon {
-  font-size: 16px;
+  box-shadow: 0 4px 12px rgba(255, 100, 47, 0.3);
 }
 
 .badge {
-  background: #ef4444; /* Màu đỏ thông báo */
-  color: white;
-  font-size: 11px;
-  padding: 2px 8px;
-  border-radius: 10px;
-  font-weight: 700;
-  line-height: 1.2;
+  background: #fff; color: #FF642F; /* Đảo màu badge khi active */
+  font-size: 11px; padding: 2px 6px; border-radius: 10px; font-weight: 700;
 }
-.badge.red { background: #ef4444; }
+.nav-pill:not(.active) .badge { background: #e5e7eb; color: #6b7280; }
+.nav-pill:not(.active) .badge.red { background: #ef4444; color: white; }
 
-/* --- 3. MAIN CONTENT --- */
+/* --- 3. MAIN CONTAINER --- */
 .main-container {
-  max-width: 1100px;
+  max-width: 1000px; /* Độ rộng tối ưu cho lưới bạn bè */
   margin: 0 auto;
+  padding-bottom: 60px;
+  
 }
 
-.content-section {
-  animation: fadeIn 0.4s ease-out;
-}
+.content-section { animation: fadeIn 0.4s ease-out; }
 
 .section-header {
+  background: white;
+  padding: 20px 24px;
+  border-radius: 16px;
+  margin-bottom: 24px; /* Khoảng cách với lưới bạn bè */
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
-  padding: 0 8px;
-  flex-wrap: wrap;
-  gap: 16px;
+  justify-content: space-between; /* Đẩy tiêu đề sang trái, số lượng sang phải */
+  border: 1px solid #f3f4f6;
 }
-
-.section-header h2 {
-  font-size: 22px;
-  font-weight: 800;
-  color: #111827;
-  margin: 0;
-}
-
-.counter {
-  color: #6b7280;
-  font-weight: 600;
+.section-header h2 { font-size: 22px; font-weight: 800; color: #1c1e21; margin: 0; }
+.counter { background: #fdf4f0;
+  color: #FF642F;
+  padding: 6px 16px;
+  border-radius: 30px;
   font-size: 14px;
-  background: #e5e7eb;
-  padding: 4px 12px;
-  border-radius: 20px;
-}
+  font-weight: 700; }
 
 /* Search Box */
-.search-wrapper {
-  position: relative;
-  width: 100%;
-  max-width: 300px;
-}
-
+.search-wrapper { position: relative; width: 100%; max-width: 650px; }
 .glass-input {
-  width: 100%;
-  padding: 10px 16px;
-  border-radius: 30px;
-  border: 1px solid #e5e7eb;
-  background: white;
-  outline: none;
-  font-size: 14px;
-  transition: all 0.2s;
-  box-sizing: border-box;
+  width: 100%; padding: 10px 16px; border-radius: 30px; border: 1px solid #e5e7eb;
+  background: white; outline: none; font-size: 14px; transition: all 0.2s; box-sizing: border-box;
 }
-
-.glass-input:focus {
-  border-color: #6366f1;
-  box-shadow: 0 0 0 3px rgba(99,102,241,0.1);
-}
+.glass-input:focus { border-color: #FF642F; box-shadow: 0 0 0 3px rgba(255, 100, 47, 0.1); }
 
 /* --- GRID LAYOUT (MODERN CARDS) --- */
-/* Dùng cho Requests, Sent, Suggestions */
-.modern-grid {
+.modern-grid, .friends-list-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 24px;
+  /* Tự động chia cột: Tối thiểu 220px mỗi thẻ */
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 20px;
 }
 
-.modern-card {
+/* CARD STYLE */
+.modern-card, .friend-row-card {
   background: white;
-  border-radius: 20px;
-  overflow: hidden;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.03);
-  border: 1px solid rgba(243, 244, 246, 0.8);
-  transition: transform 0.2s, box-shadow 0.2s;
-  display: flex;
-  flex-direction: column;
-}
-
-.modern-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 12px 30px rgba(0,0,0,0.08);
-}
-
-.card-image-wrapper {
-  position: relative;
-  width: 100%;
-  height: 240px; /* Ảnh vuông/dọc lớn */
-}
-
-.card-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  background-color: #f3f4f6;
-}
-
-.status-badge {
-  position: absolute;
-  bottom: 10px;
-  right: 10px;
-  background: #10b981; /* Màu xanh online */
-  color: white;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 4px 8px;
-  border-radius: 6px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.card-body {
-  padding: 20px;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.card-body h4 {
-  margin: 0 0 4px;
-  font-size: 17px;
-  font-weight: 700;
-  color: #111827;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.username {
-  color: #6b7280;
-  font-size: 13px;
-  margin: 0 0 16px;
-  font-weight: 500;
-}
-
-.action-group {
-  margin-top: auto;
-  display: grid;
-  grid-template-columns: 1fr 1fr; /* Chia đôi 2 nút */
-  gap: 10px;
-}
-
-/* --- LIST LAYOUT (FRIENDS ROW) --- */
-/* Dùng cho tab All Friends */
-.friends-list-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 16px;
-}
-
-.friend-row-card {
-  background: white;
-  padding: 16px;
   border-radius: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.02);
-  border: 1px solid #f3f4f6;
-  transition: all 0.2s;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  border: 1px solid #f0f2f5;
+  transition: transform 0.2s;
+  display: flex; flex-direction: column;
+  
+}
+.modern-card:hover, .friend-row-card:hover { transform: translateY(-4px); box-shadow: 0 8px 16px rgba(0,0,0,0.08); }
+
+.card-image-wrapper { position: relative; width: 100%; aspect-ratio: 1/1; }
+.card-img { width: 100%; height: 100%; object-fit: cover; background-color: #f3f4f6; }
+.status-badge {
+  position: absolute; bottom: 8px; right: 8px;
+  background: #10b981; color: white; font-size: 10px; font-weight: 700;
+  padding: 2px 6px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.friend-row-card:hover {
-  border-color: #d1d5db;
-  transform: translateX(4px);
-  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-}
+.card-body { padding: 16px; flex: 1; display: flex; flex-direction: column; }
+.card-body h4 { margin: 0 0 4px; font-size: 16px; font-weight: 700; color: #111827; }
+.username { color: #6b7280; font-size: 13px; margin: 0 0 12px; }
 
-.friend-left {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  flex: 1;
-  min-width: 0;
-}
+.action-group { margin-top: auto; display: grid; gap: 8px; }
 
-.friend-avatar-small {
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 2px solid #f3f4f6;
-}
-
-.friend-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.friend-info h4 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 700;
-  color: #111827;
-}
-
-.friend-info p {
-  margin: 2px 0 4px;
-  font-size: 13px;
-  color: #6b7280;
-}
-
-.status-text {
-  font-size: 11px;
-  color: #10b981;
-  font-weight: 600;
-}
-
-/* --- BUTTONS --- */
+/* Buttons */
 .btn-primary {
-  background: #4f46e5;
-  color: white;
-  border: none;
-  padding: 10px 16px;
-  border-radius: 10px;
-  font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background 0.2s;
-  width: 100%;
+  background: #FF642F; color: white; border: none; padding: 8px;
+  border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; width: 100%; transition: background 0.2s;
 }
-
-.btn-primary:hover:not(:disabled) {
-  background: #4338ca;
-}
-
-.btn-primary:disabled {
-  background: #e5e7eb;
-  color: #9ca3af;
-  cursor: not-allowed;
-}
+.btn-primary:hover:not(:disabled) { background: #e04f1d; }
+.btn-primary:disabled { background: #e5e7eb; color: #9ca3af; cursor: not-allowed; }
 
 .btn-secondary {
-  background: #f3f4f6;
-  color: #374151;
-  border: none;
-  padding: 10px 16px;
-  border-radius: 10px;
-  font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background 0.2s;
-  width: 100%;
+  background: #f3f4f6; color: #374151; border: none; padding: 8px;
+  border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; width: 100%; transition: background 0.2s;
 }
-
-.btn-secondary:hover {
-  background: #e5e7eb;
-}
+.btn-secondary:hover { background: #e5e7eb; }
 
 .btn-icon {
-  background: #f3f4f6;
-  border: none;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-  font-size: 16px;
+  background: #f3f4f6; border: none; width: 32px; height: 32px;
+  border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;
 }
+.btn-icon:hover { background: #e5e7eb; transform: scale(1.1); }
+.text-red { color: #ef4444; } .text-red:hover { background: #fee2e2; }
+.full-width { width: 100%; }
 
-.btn-icon:hover {
-  background: #e5e7eb;
-  transform: scale(1.1);
-}
+/* FRIEND ROW STYLE (Chuyển sang dạng Card lưới) */
+.friend-row-card { align-items: center; padding: 16px; text-align: center; }
+.friend-avatar-small { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin-bottom: 10px; border: 2px solid #f3f4f6; }
+.friend-info { margin-bottom: 12px; }
+.friend-info h4 { margin: 0; font-size: 16px; font-weight: 700; color: #111827; }
+.friend-info p { margin: 2px 0 4px; font-size: 13px; color: #6b7280; }
+.status-text { font-size: 11px; color: #10b981; font-weight: 600; }
+.friend-actions { display: flex; justify-content: center; gap: 10px; width: 100%; }
 
-.text-red {
-  color: #ef4444;
-}
-.text-red:hover {
-  background: #fee2e2;
-}
+/* Empty State */
+.empty-state { text-align: center; padding: 60px 0; color: #9ca3af; grid-column: 1 / -1; }
+.empty-icon { font-size: 48px; display: block; margin-bottom: 16px; opacity: 0.5; }
 
-.full-width {
-  width: 100%;
-}
-
-/* --- EMPTY STATE --- */
-.empty-state {
-  grid-column: 1 / -1;
-  text-align: center;
-  padding: 80px 0;
-  color: #9ca3af;
-}
-
-.empty-icon {
-  font-size: 48px;
-  display: block;
-  margin-bottom: 16px;
-  opacity: 0.5;
-}
-
-/* --- ANIMATION --- */
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* --- RESPONSIVE --- */
-@media (max-width: 768px) {
-  .nav-wrapper {
-    justify-content: flex-start; /* Cuộn ngang trên mobile */
-    padding: 10px 16px;
-  }
-  
-  .glass-nav {
-    border-radius: 12px; /* Bo góc ít hơn trên mobile */
-  }
-
-  .modern-grid {
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); /* Thẻ nhỏ hơn trên mobile */
-    gap: 12px;
-  }
-  
-  .card-image-wrapper {
-    height: 160px;
-  }
-
-  .card-body {
-    padding: 12px;
-  }
-  
-  .action-group {
-    flex-direction: column; /* Nút xếp dọc trên mobile */
-  }
-}
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 </style>

@@ -70,6 +70,7 @@
           </div>
         </div>
       </div>
+      
 
       <div class="posts-section">
         <h3 v-if="searchQuery && filteredPosts.length > 0" class="section-title">Posts ({{ filteredPosts.length }})</h3>
@@ -98,9 +99,9 @@
                   <strong>{{ post.author?.firstname }} {{ post.author?.lastname }}</strong>
                   <p class="time">
                     {{ formatTime(post.createdAt) }}
-                    <span v-if="post.audience === 'public'">🌍</span>
-                    <span v-else-if="post.audience === 'friends'">👥</span>
-                    <span v-else>🔒</span>
+                    <span v-if="post.audience === 'public'" title="Public">🌍</span>
+                    <span v-else-if="post.audience === 'friends'" title="Friends">👥</span>
+                    <span v-else title="Private">🔒</span>
                   </p>
                 </div>
               </div>
@@ -247,7 +248,7 @@
                             {{ formatTime(post.post.createdAt) }}
                             
                             <span v-if="post.post.audience === 'friends'">👥</span>
-                              <span v-else-if="post.post.audience === 'private'">🔒</span>
+                            <span v-else-if="post.post.audience === 'private'">🔒</span>
                           </p>
                           </div>
                       </div>
@@ -306,6 +307,7 @@
                               <img src="../assets/arrow.png" class="action-icon"/> Open Origin Post
                           </button>
                       </div>
+                      
                    </template>
                 </template>
                 
@@ -419,79 +421,88 @@ export default {
       // Search History
       showHistory: false,
       searchHistory: [],
+
+      allUsers: [],
     }
   },
 
   computed: {
     searchedUsers() {
+      // Nếu không có từ khóa thì trả về rỗng
       if (!this.searchQuery) return [];
       
       const query = this.searchQuery.toLowerCase().trim();
       if (!query) return [];
 
-      // Dùng Map để lọc trùng lặp user (key là user._id)
-      const userMap = new Map();
+      // Lọc trong danh sách allUsers (chứa cả người chưa có post)
+      return this.allUsers.filter(user => {
+        // Bỏ qua chính mình (nếu muốn)
+        if (this.currentUser && user._id === this.currentUser.id) return false;
 
-      this.posts.forEach(post => {
-        // Kiểm tra tác giả bài post
-        if (post.author) {
-          const name = `${post.author.firstname} ${post.author.lastname}`.toLowerCase();
-          if (name.includes(query)) {
-            userMap.set(post.author._id, post.author);
-          }
-        }
-        // Kiểm tra tác giả bài share (nếu có)
-        if (post.type === 'share' && post.username) {
-          const shareName = `${post.username.firstname} ${post.username.lastname}`.toLowerCase();
-          if (shareName.includes(query)) {
-            userMap.set(post.username._id, post.username);
-          }
-        }
+        const fullName = `${user.firstname} ${user.lastname}`.toLowerCase();
+        const username = user.username ? user.username.toLowerCase() : '';
+
+        // Kiểm tra tên Hoặc username
+        return fullName.includes(query) || username.includes(query);
       });
-
-      return Array.from(userMap.values());
     },
+  
 
     // 2. DANH SÁCH BÀI VIẾT (FILTER & SEARCH)
     // Tìm trong computed
     filteredPosts() {
       let result = this.posts;
 
-      // Filter Category (Lọc theo danh mục)
+      // 1. Filter theo Tab Category (Giữ nguyên logic của bạn)
       if (this.selectedCategory !== 'All') {
         const targetCat = this.selectedCategory.toLowerCase();
         result = result.filter(post => {
-          // Lấy category từ post hoặc bài gốc trong share
+          // Lấy category ưu tiên bài gốc, nếu không có thì lấy bài được share
           const cat = post.category || (post.post ? post.post.category : '') || '';
           return cat.toLowerCase() === targetCat;
         });
       }
 
-      // Filter Search (Tìm kiếm từ khóa)
+      // 2. Filter theo thanh Search
       if (this.searchQuery) {
         const query = this.searchQuery.toLowerCase().trim();
+        
         if (query) {
           result = result.filter(post => {
-            // --- SỬA ĐOẠN NÀY ---
-            // Lấy dữ liệu 3 trường mới của bài viết
-            const title = post.title ? post.title.toLowerCase() : '';
-            const ing = post.ingredients ? post.ingredients.toLowerCase() : '';
-            const inst = post.instructions ? post.instructions.toLowerCase() : '';
-            
-            // Lấy dữ liệu bài gốc (nếu là bài share)
-            const oTitle = (post.post && post.post.title) ? post.post.title.toLowerCase() : '';
-            const oIng = (post.post && post.post.ingredients) ? post.post.ingredients.toLowerCase() : '';
-            const oInst = (post.post && post.post.instructions) ? post.post.instructions.toLowerCase() : '';
+            // --- A. Dữ liệu bài viết trực tiếp ---
+            const title = post.title?.toLowerCase() || '';
+            const ing = post.ingredients?.toLowerCase() || '';
+            const inst = post.instructions?.toLowerCase() || '';
+            const cat = post.category?.toLowerCase() || ''; // [MỚI] Tìm theo category
 
-            // Tên tác giả
+            // --- B. Dữ liệu bài gốc (nếu là Share) ---
+            const oTitle = post.post?.title?.toLowerCase() || '';
+            const oIng = post.post?.ingredients?.toLowerCase() || '';
+            const oInst = post.post?.instructions?.toLowerCase() || '';
+            const oCat = post.post?.category?.toLowerCase() || ''; // [MỚI]
+
+            // --- C. Dữ liệu con người ---
+            // Tác giả gốc
             const authorName = post.author 
               ? `${post.author.firstname} ${post.author.lastname}`.toLowerCase() 
               : '';
+            
+            // [MỚI] Người chia sẻ (Nếu là bài share)
+            const sharerName = (post.type === 'share' && post.username)
+              ? `${post.username.firstname} ${post.username.lastname}`.toLowerCase()
+              : '';
 
-            // Kiểm tra từ khóa có nằm trong bất kỳ trường nào không
-            return title.includes(query) || ing.includes(query) || inst.includes(query) ||
-                   oTitle.includes(query) || oIng.includes(query) || oInst.includes(query) ||
-                   authorName.includes(query);
+            // --- D. So khớp ---
+            return title.includes(query) || 
+                   ing.includes(query) || 
+                   inst.includes(query) ||
+                   cat.includes(query) || // Search được category
+                   oTitle.includes(query) || 
+                   oIng.includes(query) || 
+                   oInst.includes(query) ||
+                   oCat.includes(query) ||
+                   authorName.includes(query) || 
+                   sharerName.includes(query); // Search được người share
           });
         }
       }
@@ -565,7 +576,16 @@ export default {
     },
 
 
-    
+    async fetchAllUsers() {
+      try {
+        const res = await fetch('http://localhost:3000/users'); // API lấy list user
+        if (res.ok) {
+          this.allUsers = await res.json();
+        }
+      } catch (err) {
+        console.error("Lỗi tải danh sách user:", err);
+      }
+    },
 
     async loadSearchHistory() {
       if (!this.user) return;
@@ -1188,6 +1208,7 @@ export default {
       this.loadFriends();
       this.loadSavedPosts();
       this.loadSearchHistory();
+      this.fetchAllUsers();
     } else {
       this.$router.push("/login");
     }
