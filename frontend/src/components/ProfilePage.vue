@@ -9,33 +9,72 @@
         <img :src="user.coverPhoto ? `http://localhost:3000/${user.coverPhoto}` : defaultCover" class="cover-image clickable"/>
         <div class="cover-overlay"></div>
         
-        <div v-if="showCoverMenu" class="image-options-menu cover-menu" v-click-outside="closeMenus" @click.stop>
-          <div class="menu-item" @click="openImageViewer(user.coverPhoto || defaultCover)">
-            <img src="../assets/view-image.png" class="menu-icon" /> View Cover
-          </div>
-          <div class="menu-item" @click="triggerCoverUpload">
-            <img src="../assets/update.png" class="menu-icon" /> Update Cover
-          </div>
-          <div v-if="!isDefaultCover" class="menu-item delete" @click="deleteCoverPhoto">
-            <img src="../assets/delete.png" class="menu-icon" /> Remove
-          </div>
-        </div>
+        <div
+  v-if="showCoverMenu"
+  class="image-options-menu cover-menu"
+  v-click-outside="closeMenus"
+  @click.stop
+>
+  <!-- VIEW: ai cũng thấy -->
+  <div class="menu-item" @click="openImageViewer(user.coverPhoto || defaultCover)">
+    <img src="../assets/view-image.png" class="menu-icon" /> View Cover
+  </div>
+
+  <!-- UPDATE: chỉ chủ profile -->
+  <div
+    v-if="isMyProfile"
+    class="menu-item"
+    @click.stop="triggerCoverUpload"
+  >
+    <img src="../assets/update.png" class="menu-icon" /> Update Cover
+  </div>
+
+  <!-- DELETE: chỉ chủ profile & không phải cover mặc định -->
+  <div
+    v-if="isMyProfile && !isDefaultCover"
+    class="menu-item delete"
+    @click.stop="deleteCoverPhoto"
+  >
+    <img src="../assets/delete.png" class="menu-icon" /> Remove
+  </div>
+</div>
+
       </div>
 
       <div class="user-identity-card">
         <div class="avatar-wrapper">
           <img :src="getAvatarUrl(user)" class="profile-avatar clickable" @click.stop="toggleAvatarMenu"/>
-          <div v-if="showAvatarMenu" class="image-options-menu avatar-menu" v-click-outside="closeMenus">
-            <div class="menu-item" @click="openImageViewer(user.avatar || getDefaultAvatarPath(user))">
-              <img src="../assets/view-image.png" class="menu-icon" /> View Avatar
-            </div>
-            <div class="menu-item" @click="triggerAvatarUpload">
-              <img src="../assets/update.png" class="menu-icon" /> Update Avatar
-            </div>
-            <div v-if="!isDefaultAvatar" class="menu-item delete" @click="deleteAvatar">
-              <img src="../assets/delete.png" class="menu-icon" /> Remove
-            </div>
-          </div>
+          <div
+  v-if="showAvatarMenu"
+  class="image-options-menu avatar-menu"
+  v-click-outside="closeMenus"
+>
+  <!-- VIEW: ai cũng thấy -->
+  <div class="menu-item" @click="openImageViewer(user.avatar || getDefaultAvatarPath(user))">
+    <img src="../assets/view-image.png" class="menu-icon" /> View Avatar
+  </div>
+
+  <!-- UPDATE: chỉ chủ profile -->
+  <div
+    v-if="isMyProfile"
+    class="menu-item"
+    @click.stop="triggerAvatarUpload"
+  >
+    <img src="../assets/update.png" class="menu-icon" /> Update Avatar
+  </div>
+
+  <!-- DELETE: chỉ chủ profile & không phải avatar mặc định -->
+  <div
+    v-if="isMyProfile && !isDefaultAvatar"
+    class="menu-item delete"
+    @click.stop="deleteAvatar"
+  >
+    <img src="../assets/delete.png" class="menu-icon" /> Remove
+  </div>
+</div>
+
+
+          
         </div>
         
         <div class="identity-content">
@@ -43,16 +82,28 @@
           <p class="user-bio-short" v-if="user.bio">{{ user.bio }}</p>
           
           <div class="stats-row">
-            <div class="stat-item"><span class="stat-val">{{ userPosts.length }}</span><span class="stat-label">Posts</span></div>
+            <div class="stat-item"><span class="stat-val">{{ postStats.totalPosts }}</span><span class="stat-label">Posts</span></div>
             <div class="stat-divider"></div>
             <div class="stat-item"><span class="stat-val">{{ user.friends?.length || 0 }}</span><span class="stat-label">Friends</span></div>
             <div class="stat-divider"></div>
-            <div class="stat-item"><span class="stat-val">{{ postsWithImages.length }}</span><span class="stat-label">Photos</span></div>
+            <div class="stat-item"><span class="stat-val">{{ postStats.totalPhotos }}</span><span class="stat-label">Photos</span></div>
           </div>
 
           <div class="action-buttons">
-            <button class="btn-primary-gradient" @click="openEditProfileModal">Edit Profile</button>
+            <button v-if="isMyProfile" class="btn-primary-gradient" @click="openEditProfileModal">Edit Profile</button>
+            <button v-if="!isMyProfile"
+              class="btn-primary-gradient"
+              :class="friendStatus"
+              @click="handleFriendAction"
+              :disabled="loadingFriend"
+            >
+              {{ friendButtonText }}
+            </button>
+
           </div>
+
+          
+
         </div>
       </div>
     </div>
@@ -67,7 +118,7 @@
       
       <template v-if="activeTab === 'posts'">
         <main class="layout-feed">
-          <div class="create-post">
+          <div v-if="isMyProfile" class="create-post">
             <h3>Create your post</h3>
             <input type="text" @click="openCreatePostModal" :placeholder="`What's on your mind, ${user?.firstname} ${user?.lastname}?`"/>
           </div>
@@ -256,12 +307,14 @@
                           >
                             {{ expandedPosts[post._id + '_shared'] ? 'Show Less' : 'Show More' }}
                           </button>
+                          <div v-if="post.post.media" class="post-media">
+                          <img v-if="post.post.mediaType === 'image'" :src="`http://localhost:3000/${post.post.media}`" class="post-image" />
+                          <video v-else controls class="post-video"><source :src="`http://localhost:3000/${post.post.media}`" /></video>
                       </div>
 
-                      <div v-if="post.post.media" class="post-media-container small">
-                          <img v-if="post.post.mediaType === 'image'" :src="`http://localhost:3000/${post.post.media}`" class="post-media" />
-                          <video v-else controls class="post-media"><source :src="`http://localhost:3000/${post.post.media}`" /></video>
                       </div>
+
+                      
 
                       <div class="post-actions">
                           <button @click="openCommentModal(post.post)">
@@ -278,6 +331,7 @@
                       </p>
                    </div>
                 </div>
+             
              </div>
         </div>
 
@@ -288,6 +342,38 @@
              <p>No posts available.</p>
           </div>
         </main>
+
+        <div
+          v-if="pagination.totalPages > 1"
+          class="pagination"
+        >
+          <button
+            class="page-btn"
+            :disabled="pagination.currentPage === 1"
+            @click="changePage(pagination.currentPage - 1)"
+          >
+            Prev
+          </button>
+
+          <button
+            v-for="page in pagination.totalPages"
+            :key="page"
+            class="page-btn"
+            :class="{ active: page === pagination.currentPage }"
+            @click="changePage(page)"
+          >
+            {{ page }}
+          </button>
+
+          <button
+            class="page-btn"
+            :disabled="pagination.currentPage === pagination.totalPages"
+            @click="changePage(pagination.currentPage + 1)"
+          >
+            Next
+          </button>
+        </div>
+
       </template>
 
       <template v-else-if="activeTab === 'about'">
@@ -352,6 +438,9 @@
     <EditProfileModal :is-visible="editProfileModalVisible" :user="user" @close="closeEditProfileModal" @save="handleProfileSave" />
     <ImagePreviewModal :is-visible="imagePreviewVisible" :image-url="previewImageUrl" @close="closeImagePreview" />
     <NotificationModal :is-visible="notification.visible" :type="notification.type" :title="notification.title" :message="notification.message" @confirm="closeNotify" />
+    <ConfirmDialog v-if="confirmFriendVisible" :message="confirmFriendMessage" @confirm="confirmFriendAction" @cancel="confirmFriendVisible = false"
+/>
+
   </div>
 </template>
 
@@ -457,7 +546,25 @@ export default {
         message: ''
       },
 
-      
+      profileUser: null,
+      friendStatus: 'none', // 'none' | 'sent' | 'received' | 'friends'
+      loadingFriend: false,
+
+      confirmFriendVisible: false,
+      confirmFriendMessage: '',
+      pendingFriendAction: null, // 'cancel' | 'unfriend'
+
+      pagination: {
+        currentPage: 1,
+        totalPages: 1,
+        totalItems: 0,
+        limit: 10
+      },
+
+      postStats: {
+        totalPosts: 0,
+        totalPhotos: 0
+      }
     };
   },
   computed: {
@@ -494,6 +601,22 @@ export default {
       return this.user.coverPhoto.includes('cover.png');
     },
 
+    isMyProfile() {
+  const viewer = JSON.parse(localStorage.getItem("user"));
+  const viewerId = viewer?._id || viewer?.id;
+  return viewerId && viewerId === this.profileUser?._id;
+},
+
+    friendButtonText() {
+      switch (this.friendStatus) {
+        case 'friends': return 'Unfriend';
+        case 'sent': return 'Cancel Request';
+        case 'received': return 'Accept Friend';
+        default: return 'Add Friend';
+      }
+    },
+    
+
   },
   methods: {
     // === CÁC METHOD CŨ GIỮ NGUYÊN ===
@@ -521,6 +644,7 @@ export default {
       const defaultPath = this.getDefaultAvatarPath(user);
       return `http://localhost:3000/${defaultPath}`;
     },
+
     formatTime(dateStr) {
       return new Date(dateStr).toLocaleString();
     },
@@ -563,52 +687,70 @@ export default {
     // ... (Giữ nguyên các hàm fetchFriends, fetchUserProfile, fetchUserPosts, isMyPost) ...
     async fetchFriends() {
       try {
-        const savedUser = JSON.parse(localStorage.getItem("user"));
-        if (!savedUser) return;
-        const res = await fetch(`http://localhost:3000/users/${savedUser.id}/friends`);
-        const friendsData = await res.json();
-        if (Array.isArray(friendsData)) {
-           this.friendsList = friendsData;
-        }
+        const userId = this.getProfileUserId();
+        if (!userId) return;
+
+        const res = await fetch(`http://localhost:3000/users/${userId}/friends`);
+        const data = await res.json();
+
+        this.friendsList = Array.isArray(data) ? data : [];
       } catch (err) {
-        console.error("Lỗi tải danh sách bạn bè:", err);
+        console.error("Get friends error:", err);
       }
-    },
+    }, 
 
     async fetchUserProfile() {
       try {
-        const savedUser = JSON.parse(localStorage.getItem("user"));
-        if (!savedUser) return this.$router.push("/login");
-        const res = await fetch(`http://localhost:3000/users/${savedUser.id}`);
-        this.user = await res.json();
-      } catch (err) {
-        console.error("Lỗi tải thông tin user:", err);
-      }
-    },
+        const userId = this.getProfileUserId();
+        if (!userId) return;
 
-    async fetchUserPosts() {
-      try {
-        const savedUser = JSON.parse(localStorage.getItem("user"));
-        if (!savedUser) return;
-        const res = await fetch(`http://localhost:3000/feeds/users/${savedUser.id}`);
+        const res = await fetch(`http://localhost:3000/users/${userId}`);
+        if (!res.ok) throw new Error("User not found");
+
         const data = await res.json();
-        this.userPosts = Array.isArray(data) ? data : [];
-        this.fetchAllSaveCounts();
-        this.$nextTick(() => {
-          
-        });
+        this.user = data;
+        this.profileUser = data; // ⭐ BẮT BUỘC
       } catch (err) {
-        console.error("Lỗi tải bài viết:", err);
-        this.userPosts = [];
+        console.error("Get user error:", err);
+        this.user = null;
       }
-    },
+    }, 
+
+    async fetchUserPosts(page = 1) {
+  try {
+    const userId = this.getProfileUserId();
+    if (!userId) return;
+
+    const res = await fetch(
+      `http://localhost:3000/feeds/users/${userId}?page=${page}&limit=${this.pagination.limit}`
+    );
+
+    const data = await res.json();
+
+    this.userPosts = data.items || [];
+    this.pagination.currentPage = data.currentPage;
+    this.pagination.totalPages = data.totalPages;
+    this.pagination.totalItems = data.totalItems;
+
+    if (data.stats) {
+      this.postStats.totalPosts = data.stats.totalPosts;
+      this.postStats.totalPhotos = data.stats.totalPhotos;
+    }
+  } catch (err) {
+    console.error("User feed error:", err);
+    this.userPosts = [];
+  }
+},
+
+
 
     isMyPost(post) {
-      const savedUser = JSON.parse(localStorage.getItem("user"));
-      return savedUser && post.author && post.author._id === savedUser.id;
-    },
+  const savedUser = JSON.parse(localStorage.getItem("user"));
+  if (!savedUser || !post?.author) return false;
 
-    // 3. THÊM CÁC METHOD XỬ LÝ ẢNH AVATAR/COVER (MỚI)
+  const savedUserId = savedUser._id || savedUser.id;
+  return post.author._id === savedUserId;
+    },
     
     // --- Điều khiển Menu ---
     toggleAvatarMenu() {
@@ -644,11 +786,14 @@ export default {
 
     // --- Upload ảnh (Kích hoạt Input ẩn) ---
     triggerAvatarUpload() {
+      if (!this.isMyProfile) return;
       // Cần có ref="avatarInput" ở thẻ input trong template
       if(this.$refs.avatarInput) this.$refs.avatarInput.click();
       this.closeMenus();
     },
+
     triggerCoverUpload() {
+      if (!this.isMyProfile) return;
       // Cần có ref="coverInput" ở thẻ input trong template
       if(this.$refs.coverInput) this.$refs.coverInput.click();
       this.closeMenus();
@@ -715,6 +860,7 @@ export default {
 
     // --- Xóa ảnh ---
     async deleteAvatar() {
+      if (!this.isMyProfile) return;
       if (!confirm("Bạn có chắc muốn gỡ ảnh đại diện?")) return;
       this.closeMenus();
       
@@ -741,6 +887,7 @@ export default {
     },
 
     async deleteCoverPhoto() {
+      if (!this.isMyProfile) return;
       if (!confirm("Bạn có chắc muốn gỡ ảnh bìa?")) return;
       this.closeMenus();
 
@@ -938,7 +1085,8 @@ export default {
 
     isMyShare(share) {
       const savedUser = JSON.parse(localStorage.getItem("user"));
-      return savedUser && share.username && share.username._id === savedUser.id;
+      const userId = savedUser?._id || savedUser?.id;
+      return userId && share.username?._id === userId;
     },
 
     deleteShare(shareId) {
@@ -994,7 +1142,8 @@ export default {
 
     isLiked(post) {
       const savedUser = JSON.parse(localStorage.getItem("user"));
-      return savedUser && post.likes && post.likes.includes(savedUser.id);
+      const userId = savedUser?._id || savedUser?.id;
+      return userId && post.likes?.includes(userId);
     },
 
     // ===== SAVE POST =====
@@ -1205,20 +1354,223 @@ export default {
     // Hàm đóng thông báo
     closeNotify() {
       this.notification.visible = false;
+    },
+
+    getProfileUserId() {
+  const routeId = this.$route.params.id;
+  if (routeId && routeId !== 'undefined') return routeId;
+
+  const savedUser = JSON.parse(localStorage.getItem("user"));
+  return savedUser?._id || savedUser?.id || null;
+},
+
+
+  setFriendStatus() {
+  const viewer = JSON.parse(localStorage.getItem("user"));
+  if (!viewer || !this.profileUser) return;
+
+  const viewerId = viewer._id || viewer.id;
+  const profileId = this.profileUser._id;
+
+  // ✅ ĐÃ LÀ BẠN
+  if (this.profileUser.friends?.includes(viewerId)) {
+    this.friendStatus = 'friends';
+    return;
+  }
+
+  // ✅ VIEWER ĐÃ GỬI REQUEST
+  if (viewer.requestSent?.includes(profileId)) {
+    this.friendStatus = 'sent'; // Cancel Request
+    return;
+  }
+
+  // ✅ VIEWER ĐANG NHẬN REQUEST
+  if (viewer.requestReceived?.includes(profileId)) {
+    this.friendStatus = 'received'; // Accept Friend
+    return;
+  }
+
+  // ✅ CHƯA CÓ QUAN HỆ
+  this.friendStatus = 'none';
+}, 
+
+  addFriendToList(friend) {
+    // Tránh thêm trùng
+    const exists = this.friendsList.some(f => f._id === friend._id);
+    if (!exists) {
+      this.friendsList.unshift(friend);
+    }
+
+    
+  },
+
+  removeFriendFromList(friendId) {
+    this.friendsList = this.friendsList.filter(f => f._id !== friendId);
+  },
+
+  async handleFriendAction() {
+  const viewer = JSON.parse(localStorage.getItem("user"));
+  if (!viewer || !this.profileUser?._id) return;
+
+  // ⚠️ TRƯỜNG HỢP CẦN CONFIRM
+  if (this.friendStatus === 'sent') {
+    this.confirmFriendMessage = 'Do you want to cancel this friend request?';
+    this.pendingFriendAction = 'cancel';
+    this.confirmFriendVisible = true;
+    return;
+  }
+
+  if (this.friendStatus === 'friends') {
+    this.confirmFriendMessage = 'Do you want to unfriend this user?';
+    this.pendingFriendAction = 'unfriend';
+    this.confirmFriendVisible = true;
+    return;
+  }
+
+  // ❌ Các trường hợp KHÔNG cần confirm
+  this.loadingFriend = true;
+
+  try {
+    if (this.friendStatus === 'none') {
+      // ADD FRIEND
+      await fetch("http://localhost:3000/users/friend-request/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fromUserId: viewer.id,
+          toUserId: this.profileUser._id
+        })
+      });
+      this.friendStatus = 'sent';
+    }
+
+    else if (this.friendStatus === 'received') {
+      // ACCEPT FRIEND
+      await fetch("http://localhost:3000/users/friend-request/accept", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fromUserId: this.profileUser._id,
+          toUserId: viewer.id
+        })
+      });
+      this.friendStatus = 'friends';
+
+      const viewerUser = {
+        _id: viewer.id,
+        firstname: viewer.firstname,
+        lastname: viewer.lastname,
+        username: viewer.username,
+        avatar: viewer.avatar
+      };
+
+      this.addFriendToList(viewerUser);
+
+      // cập nhật counter
+      this.profileUser.friends = this.profileUser.friends || [];
+      this.profileUser.friends.push(viewer.id);
+
+    }
+
+  } catch (err) {
+    console.error(err);
+  } finally {
+    this.loadingFriend = false;
+  }
+  },
+
+  async confirmFriendAction() {
+    const viewer = JSON.parse(localStorage.getItem("user"));
+    if (!viewer) return;
+
+    this.loadingFriend = true;
+
+    try {
+      if (this.pendingFriendAction === 'cancel') {
+        await fetch("http://localhost:3000/users/friend-request/cancel", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fromUserId: viewer.id,
+            toUserId: this.profileUser._id
+          })
+        });
+        this.friendStatus = 'none';
+      }
+
+      if (this.pendingFriendAction === 'unfriend') {
+        await fetch("http://localhost:3000/users/unfriend", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: viewer.id,
+            friendId: this.profileUser._id
+          })
+        });
+        this.friendStatus = 'none';
+        this.removeFriendFromList(this.profileUser._id);
+
+        this.profileUser.friends = this.profileUser.friends.filter(
+          id => id !== viewer.id
+        );
+      }
+        
+
+    } catch (err) {
+      console.error(err);
+    } finally {
+      this.loadingFriend = false;
+      this.confirmFriendVisible = false;
+      this.pendingFriendAction = null;
     }
   },
-  mounted() {
-    this.fetchUserProfile();
-    this.fetchUserPosts();
-    this.loadSavedPosts();
-    this.fetchFriends();
-
-    window.addEventListener('scroll', this.handleScroll, true);
+ 
+  async initProfile() {
+      await this.fetchUserProfile();
+      await this.fetchUserPosts();
+      await this.fetchFriends();
+      this.setFriendStatus();
   },
+
+  changePage(page) {
+  if (
+    page < 1 ||
+    page > this.pagination.totalPages ||
+    page === this.pagination.currentPage
+  ) return;
+
+  this.fetchUserPosts(page);
+
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  },
+
+
+  },
+
+  mounted() {
+  this.initProfile();
+  this.loadSavedPosts();
+  window.addEventListener('scroll', this.handleScroll, true);
+},
   beforeUnmount() {
     // 4. [MỚI] Dọn dẹp sự kiện khi rời trang
     window.removeEventListener('scroll', this.handleScroll, true);
+  },
+  watch: {
+  '$route.params.id': {
+    async handler() {
+      this.pagination.currentPage = 1;
+      await this.fetchUserProfile();
+      await this.fetchUserPosts(1);
+      await this.fetchFriends();
+      this.setFriendStatus();
+    }
   }
+}
+
+
+
+
 };
 </script>
 
@@ -1559,7 +1911,16 @@ export default {
   margin: 0 0px 0px; 
   overflow: hidden; 
   background-color: #fff;
+  
+  
 }
+
+
+
+
+
+
+
 
 .origin-post-author-info { display: flex; align-items: center; gap: 12px; }
 .origin-post-author-info img { margin-left:20px; margin-top:10px; width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 1px solid #eee; }
@@ -1607,7 +1968,7 @@ export default {
 
 
 /* Media bài gốc */
- .post-media-container { width: 100%; aspect-ratio: 1 / 1; background: #f0f0f0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+ .post-media-container { width: 100%; aspect-ratio: 1 / 1; background: white; display: flex; align-items: center; justify-content: center; overflow: hidden; }
 
 /* Other Tabs (About/Friends) - NEW STYLE */
 .about-container-modern { grid-column: 1 / -1; }
@@ -1931,7 +2292,46 @@ export default {
   font-weight: 700;
 }
 
+/* ==========================================================================
+   6. PAGINATION STYLES
+   ========================================================================== */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  margin: 30px 0 10px;
+}
 
+.page-btn {
+  min-width: 36px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid #eee;
+  background: white;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: #555;
+  transition: 0.2s;
+}
+
+.page-btn:hover:not(:disabled) {
+  background: #FF642F;
+  color: white;
+  border-color: #FF642F;
+}
+
+.page-btn.active {
+  background: #FF642F;
+  color: white;
+  border-color: #FF642F;
+}
+
+.page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
 
 
 

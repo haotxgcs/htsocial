@@ -113,11 +113,16 @@ exports.getUnifiedFeed = async (req, res) => {
 exports.getUserFeed = async (req, res) => {
   try {
     const { userId } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
 
+    // ===== POSTS =====
     const posts = await Post.find({ author: userId })
       .populate("author", "firstname lastname username avatar friends")
       .lean();
 
+    // ===== SHARES =====
     const shares = await Share.find({ username: userId })
       .populate("username", "firstname lastname username avatar friends")
       .populate({
@@ -129,28 +134,53 @@ exports.getUserFeed = async (req, res) => {
       })
       .lean();
 
-    const formattedPosts = posts.map((p) => ({
+    // ===== FORMAT =====
+    const formattedPosts = posts.map(p => ({
       ...p,
       type: "original",
     }));
 
-    const formattedShares = shares.map((s) => ({
+    const formattedShares = shares.map(s => ({
       ...s,
       type: "share",
       commentCount: s.commentCount || 0,
       replyCommentCount: s.replyCommentCount || 0
     }));
 
+    // ===== ✅ STATS CHUẨN =====
+    const totalPosts = formattedPosts.length + formattedShares.length;
+
+    const totalPhotos = formattedPosts.filter(
+      p => p.mediaType === "image"
+    ).length;
+
+    // ===== FEED + PAGINATION =====
     const allFeed = [...formattedPosts, ...formattedShares].sort(
       (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
     );
 
-    res.status(200).json(allFeed);
+    const totalItems = allFeed.length;
+    const totalPages = Math.ceil(totalItems / limit);
+    const items = allFeed.slice(skip, skip + limit);
+
+    res.status(200).json({
+      items,
+      currentPage: page,
+      totalPages,
+      totalItems,
+      stats: {
+        totalPosts,   // 👈 post + share
+        totalPhotos   // 👈 chỉ post có ảnh
+      }
+    });
+
   } catch (err) {
     console.error("User feed error:", err);
     res.status(500).json({ msg: "Server error" });
   }
 };
+
+
 
 exports.getHiddenShares = async (req, res) => {
   try {
@@ -241,7 +271,10 @@ exports.getSavedItems = async (req, res) => {
         const authorId = post.author._id.toString();
         const viewerId = userId;
         const isAuthor = authorId === viewerId;
-        const isFriend = post.author.friends && post.author.friends.includes(viewerId);
+        const isFriend = post.author.friends?.some(
+          f => f.toString() === viewerId
+        );
+
 
         switch (post.audience) {
           case 'public': return true;

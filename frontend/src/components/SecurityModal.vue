@@ -232,20 +232,20 @@ export default {
 .sub-text { font-size: 12px; color: #6b7280; font-style: italic; }
 .input-group label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px; }
 .modern-input { width: 100%; padding: 12px 16px; border-radius: 12px; border: 1px solid #e5e7eb; background: #f9fafb; font-size: 15px; transition: all 0.2s; box-sizing: border-box; }
-.modern-input:focus { border-color: #6366f1; background: white; outline: none; box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1); }
+.modern-input:focus { border-color: #FF642F; background: white; outline: none; box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1); }
 .otp-input { letter-spacing: 4px; text-align: center; font-weight: 700; font-size: 18px; }
 .otp-sent-icon { font-size: 40px; text-align: center; margin-bottom: 16px; display: block; }
 .mt-4 { margin-top: 16px; }
 .modal-footer { padding: 16px 24px; background: #f9fafb; border-top: 1px solid #f0f2f5; display: flex; justify-content: flex-end; gap: 12px; }
 .btn-secondary { padding: 10px 20px; border-radius: 10px; background: white; border: 1px solid #d1d5db; color: #374151; font-weight: 600; cursor: pointer; }
-.btn-primary { padding: 10px 24px; border-radius: 10px; background: #6366f1; border: none; color: white; font-weight: 600; cursor: pointer; transition: background 0.2s; }
-.btn-primary:disabled { background: #a5b4fc; cursor: not-allowed; }
-.btn-primary:hover:not(:disabled) { background: #4f46e5; }
+.btn-primary { padding: 10px 24px; border-radius: 10px; background: #FF642F; border: none; color: white; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+.btn-primary:disabled { background: #FF642F; cursor: not-allowed; }
+.btn-primary:hover:not(:disabled) { background: #FF642F; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes zoomIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
 .label-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-.resend-link { background: none; border: none; color: #6366f1; font-size: 12px; font-weight: 600; cursor: pointer; padding: 0; }
+.resend-link { background: none; border: none; color: #FF642F; font-size: 12px; font-weight: 600; cursor: pointer; padding: 0; }
 .resend-link:hover { text-decoration: underline; }
 .resend-link.disabled { color: #9ca3af; cursor: not-allowed; text-decoration: none; }
 .password-wrapper { position: relative; }
@@ -264,5 +264,5 @@ export default {
   transition: color 0.2s;
 }
 .eye-icon svg { width: 20px; height: 20px; }
-.eye-icon:hover { color: #6366f1; }
+.eye-icon:hover { color: #FF642F; }
 </style>

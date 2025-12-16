@@ -9,7 +9,7 @@
               type="text" 
               v-model="searchQuery" 
               placeholder="Search for recipes..." 
-              @keyup.enter="saveSearchHistory" 
+              @keyup.enter="handleSearch" 
               @focus="openHistory"
             />
             
@@ -34,7 +34,7 @@
             </div>
           </div>
 
-          <button class="search-btn" @click="saveSearchHistory">Search</button>
+          <button class="search-btn" @click="handleSearch">Search</button>
         </div>
 
         <div class="filter-container" @wheel.prevent="handleFilterScroll">
@@ -50,12 +50,12 @@
         </div>
       </div>
 
-      <div v-if="!searchQuery" class="create-post">
+      <div v-if="!finalSearchQuery" class="create-post">
         <h3>Create your post</h3>
         <input type="text" @click="openCreatePostModal" :placeholder="`What's on your mind, ${user?.firstname } ${user?.lastname}?`"/>
       </div>
 
-      <div v-if="searchQuery && searchedUsers.length > 0" class="search-results-section">
+      <div v-if="finalSearchQuery && searchedUsers.length > 0" class="search-results-section">
         <h3 class="section-title">People ({{searchedUsers.length }}) </h3>
         <div class="user-results-list">
           <div v-for="u in searchedUsers" :key="u._id" class="user-result-card">
@@ -73,29 +73,30 @@
       
 
       <div class="posts-section">
-        <h3 v-if="searchQuery && filteredPosts.length > 0" class="section-title">Posts ({{ filteredPosts.length }})</h3>
+        <h3 v-if="finalSearchQuery && filteredPosts.length > 0" class="section-title">Posts ({{ filteredPosts.length }})</h3>
 
-        <div v-if="searchQuery && filteredPosts.length === 0 && searchedUsers.length === 0" class="no-posts-container">
-          <p>No results found for "<strong>{{ searchQuery }}</strong>"</p>
+        <div v-if="finalSearchQuery && filteredPosts.length === 0 && searchedUsers.length === 0" class="no-posts-container">
+          <p>No results found for "<strong>{{ finalSearchQuery }}</strong>"</p>
           <button @click="resetFilter" class="clear-filter-btn">Clear Search</button>
         </div>
 
-        <div v-if="searchQuery && filteredPosts.length === 0 && searchedUsers.length > 0" class="no-posts-container" style="margin-top: 10px;">
+        <div v-if="finalSearchQuery && filteredPosts.length === 0 && searchedUsers.length > 0" class="no-posts-container" style="margin-top: 10px;">
           <p>No posts found.</p>
         </div>
 
-        <div v-if="!searchQuery && filteredPosts.length === 0" class="no-posts-container">
+        <div v-if="!finalSearchQuery && filteredPosts.length === 0" class="no-posts-container">
           <p>No posts found matching "<strong>{{ selectedCategory }}</strong>"</p>
           <button @click="resetFilter" class="clear-filter-btn">View All Posts</button>
         </div>
 
-        <div v-for="post in filteredPosts" :key="post._id" class="feed-item">
+        <div v-for="post in paginatedPosts" :key="post._id" class="feed-item">
   
           <div v-if="post.type === 'post'" class="post">
             <div class="post-header">
               <div class="post-author-info">
-                <img :src="getAvatarUrl(post.author)" alt="avatar" />
-                <div class="author-details">
+                <img :src="getAvatarUrl(post.author)" alt="avatar" @click="$router.push(`/profile/${post.author._id}`)"
+/>
+                <div class="author-details" @click="$router.push(`/profile/${post.author._id}`)">
                   <strong>{{ post.author?.firstname }} {{ post.author?.lastname }}</strong>
                   <p class="time">
                     {{ formatTime(post.createdAt) }}
@@ -142,12 +143,13 @@
               >
                 {{ expandedPosts[post._id] ? 'Show Less' : 'Show More' }}
               </button>
+              <div v-if="post.media" class="post-media">
+              <img v-if="post.mediaType === 'image'" :src="`http://localhost:3000/${post.media}`" class="post-image" />
+              <video v-else controls class="post-video"><source :src="`http://localhost:3000/${post.media}`" /></video>
+            </div>
             </div>
 
-            <div v-if="post.media" class="post-media-container">
-              <img v-if="post.mediaType === 'image'" :src="`http://localhost:3000/${post.media}`" class="post-media" />
-              <video v-else controls class="post-media"><source :src="`http://localhost:3000/${post.media}`" /></video>
-            </div>
+            
 
             <div v-if="post.totalRatings > 0" class="rating-statistics">
               <div class="rating-summary">
@@ -192,8 +194,8 @@
 
           <div class="post-header">
             <div class="post-author-info">
-              <img :src="getAvatarUrl(post.username)" alt="avatar" />
-              <div class="author-details">
+              <img :src="getAvatarUrl(post.username)" alt="avatar" @click="$router.push(`/profile/${post.username._id}`)"/>
+              <div class="author-details" @click="$router.push(`/profile/${post.username._id}`)">
                 <strong>{{ post.username?.firstname }} {{ post.username?.lastname }}</strong>
                 
                 <p class="time">
@@ -235,13 +237,14 @@
             </button>
           </div>
 
+          
           <div class="shared-content-box">
                 <template v-if="post.post">
                    
                    <template v-if="post.canViewPost === false">
                       <div class="origin-post-author-info">
-                        <img :src="getAvatarUrl(post.post.author)" alt="avatar" />
-                        <div class="origin-author-details">
+                        <img :src="getAvatarUrl(post.post.author)" alt="avatar" @click="$router.push(`/profile/${post.post.author._id}`)"/>
+                        <div class="origin-author-details" @click="$router.push(`/profile/${post.post.author._id}`)">
                           <strong>{{ post.post.author.firstname }} {{ post.post.author.lastname }}</strong>
                           
                           <p class="origin-post-time">
@@ -258,8 +261,8 @@
                    <template v-else>
                       <div class="post-header small origin-post">
                           <div class="post-author-info">
-                            <img :src="getAvatarUrl(post.post.author)" class="avatar-small" />
-                            <div class="author-details">
+                            <img :src="getAvatarUrl(post.post.author)" class="avatar-small" @click="$router.push(`/profile/${post.post.author._id}`)"/>
+                            <div class="author-details" @click="$router.push(`/profile/${post.post.author._id}`)">
                                 <strong>{{ post.post.author.firstname }} {{ post.post.author.lastname }}</strong>
                                 <p class="time">
                                   {{ formatTime(post.post.createdAt) }}
@@ -295,12 +298,13 @@
                           >
                             {{ expandedPosts[post._id + '_shared'] ? 'Show Less' : 'Show More' }}
                           </button>
+                          <div v-if="post.post.media" class="post-media">
+                          <img v-if="post.post.mediaType === 'image'" :src="`http://localhost:3000/${post.post.media}`" class="post-image" />
+                          <video v-else controls class="post-video"><source :src="`http://localhost:3000/${post.post.media}`" /></video>
+                      </div>
                       </div>
 
-                      <div v-if="post.post.media" class="post-media-container small">
-                          <img v-if="post.post.mediaType === 'image'" :src="`http://localhost:3000/${post.post.media}`" class="post-media" />
-                          <video v-else controls class="post-media"><source :src="`http://localhost:3000/${post.post.media}`" /></video>
-                      </div>
+                      
 
                       <div class="post-actions">
                           <button @click="openCommentModal(post.post)">
@@ -319,10 +323,43 @@
                    </div>
                 </div>
              </div>
+             
         </div>
 
         </div>
       </div>
+
+      <!-- PAGINATION -->
+    <div v-if="totalPages > 1" class="pagination">
+
+      <button 
+        class="page-btn"
+        :disabled="currentPage === 1"
+        @click="changePage(currentPage - 1)"
+      >
+        ‹ Prev
+      </button>
+
+      <button
+        v-for="page in totalPages"
+        :key="page"
+        class="page-btn"
+        :class="{ active: page === currentPage }"
+        @click="changePage(page)"
+      >
+        {{ page }}
+      </button>
+
+      <button 
+        class="page-btn"
+        :disabled="currentPage === totalPages"
+        @click="changePage(currentPage + 1)"
+      >
+        Next ›
+      </button>
+
+    </div>
+
     </main>
 
     <CreatePostModal :is-visible="createPostModalVisible" :user="user" @close="createPostModalVisible = false" @posted="handlePostCreated" />
@@ -388,6 +425,7 @@ export default {
 
       // Filter & Search
       searchQuery: '',
+      finalSearchQuery: '',
       selectedCategory: 'All',
       categories: [
         "All", "Appetizer", "Main Course", "Side Dish", "Soup", "Salad", "Dessert", 
@@ -423,15 +461,19 @@ export default {
       searchHistory: [],
 
       allUsers: [],
+
+      // Pagination
+      currentPage: 1,
+      postsPerPage: 10,
     }
   },
 
   computed: {
     searchedUsers() {
       // Nếu không có từ khóa thì trả về rỗng
-      if (!this.searchQuery) return [];
+      if (!this.finalSearchQuery) return [];
       
-      const query = this.searchQuery.toLowerCase().trim();
+      const query = this.finalSearchQuery.toLowerCase().trim();
       if (!query) return [];
 
       // Lọc trong danh sách allUsers (chứa cả người chưa có post)
@@ -447,9 +489,6 @@ export default {
       });
     },
   
-
-    // 2. DANH SÁCH BÀI VIẾT (FILTER & SEARCH)
-    // Tìm trong computed
     filteredPosts() {
       let result = this.posts;
 
@@ -464,8 +503,8 @@ export default {
       }
 
       // 2. Filter theo thanh Search
-      if (this.searchQuery) {
-        const query = this.searchQuery.toLowerCase().trim();
+      if (this.finalSearchQuery) {
+        const query = this.finalSearchQuery.toLowerCase().trim();
         
         if (query) {
           result = result.filter(post => {
@@ -508,6 +547,18 @@ export default {
       }
       return result;
     },
+
+    totalPages() {
+  return Math.ceil(this.filteredPosts.length / this.postsPerPage);
+    },
+
+    paginatedPosts() {
+  const start = (this.currentPage - 1) * this.postsPerPage;
+  const end = start + this.postsPerPage;
+  return this.filteredPosts.slice(start, end);
+    },
+
+
   },
 
   methods: {
@@ -515,6 +566,7 @@ export default {
 
     selectCategory(category) {
       this.selectedCategory = category;
+      this.currentPage = 1;
     },
 
     handleFilterScroll(e) {
@@ -522,6 +574,45 @@ export default {
       // .prevent ở template đã chặn trang web bị cuộn xuống.
       const container = e.currentTarget;
       container.scrollLeft += e.deltaY;
+    },
+
+    async handleSearch() {
+      // 1. Kiểm tra đầu vào
+      const query = this.searchQuery.trim();
+      if (!query) return;
+
+      // 2. KÍCH HOẠT TÌM KIẾM (Quan trọng nhất)
+      // Dòng này sẽ báo cho computed 'filteredPosts' biết để lọc dữ liệu
+      this.finalSearchQuery = query;
+      this.currentPage = 1; 
+
+      // 3. Cập nhật giao diện Lịch sử (Local State)
+      // Xóa nếu trùng để đưa lên đầu
+      const index = this.searchHistory.indexOf(query);
+      if (index !== -1) {
+        this.searchHistory.splice(index, 1);
+      }
+      // Thêm vào đầu mảng
+      this.searchHistory.unshift(query);
+      // Giới hạn 10 item
+      if (this.searchHistory.length > 10) this.searchHistory.pop();
+      
+      // Đóng popup history
+      this.showHistory = false; 
+
+      // 4. Gửi API lưu ngầm xuống database (Không cần await để tránh chặn UI)
+      // Kiểm tra user có tồn tại không trước khi gọi
+      if (this.user && this.user.id) {
+        try {
+          fetch(`http://localhost:3000/users/${this.user.id}/search-history`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: query })
+          });
+        } catch (e) { 
+          console.error("Lỗi lưu lịch sử:", e); 
+        }
+      }
     },
 
     getAvatarUrl(author) {
@@ -554,7 +645,9 @@ export default {
 
     resetFilter() {
     this.searchQuery = '';         // 1. Xóa sạch chữ trong ô tìm kiếm
+    this.finalSearchQuery = '';   // Cập nhật finalSearchQuery
     this.selectedCategory = 'All'; // 2. Đưa bộ lọc Category về mặc định ("All")
+    this.currentPage = 1;
   },
 
   openHistory() {
@@ -571,6 +664,7 @@ export default {
     // 3. Xóa text nhanh
     clearSearch() {
       this.searchQuery = '';
+      this.finalSearchQuery = '';
       // Giữ focus vào ô input sau khi xóa
       // (Tùy chọn: document.querySelector('.search-container input').focus())
     },
@@ -632,6 +726,7 @@ export default {
 
     selectHistory(item) {
       this.searchQuery = item;
+      this.finalSearchQuery = item;
       this.showHistory = false;
     },
 
@@ -667,10 +762,6 @@ export default {
       } catch (e) { console.error(e); }
     },
 
-    // --- EXPAND / COLLAPSE LOGIC (ĐÃ SỬA LỖI & TỐI ƯU) ---
-
-    // Toggle trạng thái hiển thị dựa trên Key duy nhất (uniqueId)
-    // Key này phải được truyền chính xác từ template (post._id hoặc post._id + '_shared')
     togglePostContent(postId) {
       // Tạo object mới để Vue nhận diện thay đổi (Reactivity)
       const newExpanded = { ...this.expandedPosts };
@@ -678,8 +769,6 @@ export default {
       this.expandedPosts = newExpanded;
     },
 
-    // Kiểm tra xem bài post có cần hiện nút Show More không
-    // Tìm trong methods
     shouldShowReadMore(post) {
       if (!post) return false;
       
@@ -711,9 +800,6 @@ export default {
       return text;
     },
 
-    // Lấy nội dung hiển thị (Full hoặc Cắt ngắn)
-    // Tham số 1: Object bài viết chứa content
-    // Tham số 2: ID duy nhất dùng để check trạng thái mở rộng trong expandedPosts
     getDisplayedContent(post) {
       if (!post?.content) return '';
       
@@ -1198,6 +1284,17 @@ export default {
       }
       return "This content is restricted.";
     },
+
+    changePage(page) {
+      if (page < 1 || page > this.totalPages) return;
+      this.currentPage = page;
+
+      // Scroll lên đầu feed cho UX tốt
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+
+    
+
   },
 
   mounted() {
@@ -1261,6 +1358,8 @@ export default {
   width: 100%;
   /* Fallback nếu gap không chạy trên trình duyệt cũ */
   margin-bottom: 24px; 
+  
+ 
 }
 
 /* Đảm bảo bài viết cuối cùng không bị dính đáy */
@@ -1561,8 +1660,39 @@ export default {
   color: #333;
 }
 /* Media */
-.post-media-container { width: 100%; aspect-ratio: 1 / 1; background: #f0f0f0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-.post-media { width: 100%; height: 100%; object-fit: cover; }
+.post-media-container { width: 100%; aspect-ratio: 1 / 1; background: white; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+
+
+.post-media,
+.post-image {
+  width: 100%;
+  border-radius: 10px;
+  margin-top: 10px;
+  
+  
+}
+
+
+
+/* CSS MỚI RIÊNG CHO VIDEO ĐỂ TẠO KHUNG VUÔNG GỌN GÀNG */
+.post-video {
+  width: 100%;
+  height:100%;
+  /* aspect-ratio: 1 / 1; giúp tạo khung hình vuông */
+  aspect-ratio: 1 / 1; 
+  
+  /* object-fit: contain; đảm bảo video hiển thị đầy đủ không bị cắt, 
+     nếu tỷ lệ video khác vuông sẽ có viền đen trên dưới hoặc 2 bên */
+  object-fit: cover;
+  
+  background-color: black; /* Nền đen cho phần viền thừa (nếu có) */
+  border-radius: 10px;
+  margin-top: 10px;
+  
+  /* Đảm bảo chiều cao không vượt quá khung vuông */
+  height: auto; 
+  max-height: 500px; /* Giới hạn chiều cao tối đa nếu màn hình quá rộng */
+}
 
 /* Rating */
 .rating-statistics { margin: 12px 16px 10px 16px; background: #fff9e6; border: 1px solid #ffe9b8; padding: 10px 14px; border-radius: 10px; }
@@ -1614,7 +1744,10 @@ export default {
   margin: 0 16px 12px; 
   overflow: hidden; 
   background-color: #fff;
+  
 }
+
+
 
 
 
@@ -1649,6 +1782,47 @@ export default {
   margin: 4px 0 0 0; 
   padding:10px;
   margin-left:15px;
+}
+
+/* ==========================================================================
+   6. PAGINATION STYLES
+   ========================================================================== */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  margin: 30px 0 10px;
+}
+
+.page-btn {
+  min-width: 36px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid #eee;
+  background: white;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: #555;
+  transition: 0.2s;
+}
+
+.page-btn:hover:not(:disabled) {
+  background: #FF642F;
+  color: white;
+  border-color: #FF642F;
+}
+
+.page-btn.active {
+  background: #FF642F;
+  color: white;
+  border-color: #FF642F;
+}
+
+.page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 

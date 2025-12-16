@@ -972,6 +972,27 @@ exports.unFriend = async (req, res) => {
   }
 };
 
+exports.checkFriendStatus = async (req, res) => {
+  try {
+    const { id, viewerId } = req.params;
+
+    if (!id || !viewerId) {
+      return res.status(400).json({ isFriend: false });
+    }
+
+    const user = await User.findById(id);
+    if (!user) return res.status(404).json({ isFriend: false });
+
+    const isFriend = user.friends.includes(viewerId);
+    res.json({ isFriend });
+
+  } catch (err) {
+    console.error("Check friend status error:", err);
+    res.status(500).json({ isFriend: false });
+  }
+};
+
+
 
 // ===== 17. Cập nhật trạng thái online (Set Active Status) =====
 exports.setActiveStatus = async (req, res) => {

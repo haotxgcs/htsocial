@@ -159,7 +159,7 @@ export default {
     goToSettings() { console.log('Settings'); this.closeDropdowns(); },
     closeDropdowns() {
       this.showUserDropdown = false;
-      this.showMessageDropdown = false;
+      this.showMessageDropdown = false; 
       this.showNotificationDropdown = false;
     },
     

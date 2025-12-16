@@ -30,6 +30,8 @@ router.post("/friend-request/send", AuthController.sendFriendRequest);
 router.post("/friend-request/accept", AuthController.acceptFriendRequest);
 router.post("/friend-request/cancel", AuthController.cancelFriendRequest);
 router.post("/unfriend", AuthController.unFriend);
+router.get('/users/:id/is-friend/:viewerId', AuthController.checkFriendStatus);
+
 
 // Online status
 router.post("/active-status", AuthController.setActiveStatus);

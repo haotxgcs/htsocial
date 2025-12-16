@@ -26,6 +26,7 @@ const routes = [
   { path: '/message', component: MessagePage },
   { path: '/notification', component: NotificationPage },
   { path: '/profile', component: ProfilePage },
+  { path: '/profile/:id', component: ProfilePage },
   { path: '/hidden', component: HiddenItems},
   {path: '/saved', component: SavedPosts}
 ];
