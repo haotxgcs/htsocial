@@ -522,7 +522,7 @@ export default {
 .hint-text { font-size: 12px; color: #6b7280; margin-top: 6px; font-style: italic; }
 
 .email-wrapper { display: flex; gap: 10px; }
-.btn-verify { white-space: nowrap; padding: 0 16px; border-radius: 10px; border: 1px solid #e5e7eb; background: white; color: #FF642F; font-weight: 600; cursor: pointer; }
+.btn-verify { white-space: nowrap; padding: 0 16px; border-radius: 10px; border: 1px solid #e5e7eb; background: #fdf4f0; border-color: #FF642F;color: #FF642F; font-weight: 600; cursor: pointer; }
 
 /* --- Password Section Styles --- */
 .btn-outline-danger { width: 100%; padding: 10px; border: 1px solid #fca5a5; background: #fef2f2; color: #ef4444; border-radius: 10px; font-weight: 600; cursor: pointer; transition: all 0.2s; text-align: center; }

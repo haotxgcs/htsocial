@@ -84,14 +84,15 @@
             >
               {{ expandedPosts[item._id] ? 'Show Less' : 'Show More' }}
             </button>
-          </div>
-
-          <div v-if="item.media" class="post-media-container">
+            <div v-if="item.media" class="post-media-container">
             <img v-if="item.mediaType === 'image'" :src="getMediaUrl(item.media)" class="post-media" />
             <video v-else-if="item.mediaType === 'video'" controls class="post-media">
               <source :src="getMediaUrl(item.media)" type="video/mp4" />
             </video>
           </div>
+          </div>
+
+          
         </div>
 
         <div v-else class="post shared-post" >
@@ -162,14 +163,16 @@
                   >
                     {{ expandedPosts[item._id + '_shared'] ? 'Show Less' : 'Show More' }}
                   </button>
-                </div>
-
-                <div v-if="item.post.media" class="post-media-container small">
+                  <div v-if="item.post.media" class="post-media-container small">
                   <img v-if="item.post.mediaType === 'image'" :src="getMediaUrl(item.post.media)" class="post-media" />
                   <video v-else-if="item.post.mediaType === 'video'" controls class="post-media">
                     <source :src="getMediaUrl(item.post.media)" type="video/mp4" />
                   </video>
                 </div>
+
+                </div>
+
+                
               </div>
 
               <div v-else>
@@ -385,7 +388,6 @@ export default {
 }
 
 .glass-nav {
-  background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(10px);
   padding: 6px;
   border-radius: 100px; /* Bo tròn hình viên thuốc */
@@ -570,11 +572,11 @@ export default {
 
 /* --- 6. MEDIA --- */
 .post-media-container { 
-  width: 100%; aspect-ratio: 1 / 1; background: #f0f0f0; 
+  width: 100%; aspect-ratio: 1 / 1; 
   display: flex; align-items: center; justify-content: center; 
   overflow: hidden; margin-bottom: 16px; 
 }
-.post-media { width: 100%; height: 100%; object-fit: cover; }
+.post-media { width: 100%; height: 100%; object-fit: cover; border-radius:10px; margin-top:20px;}
 .action-icon { width: 18px; height: 18px; }
 
 /* --- 7. SHARED POST SPECIFICS (NEW) --- */

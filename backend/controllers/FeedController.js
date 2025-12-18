@@ -3,6 +3,9 @@ const Post = require("../models/PostModel");
 const Share = require("../models/ShareModel");
 const User = require("../models/UserModel");
 
+
+
+
 exports.getUnifiedFeed = async (req, res) => {
   try {
     const { viewerId } = req.params;
@@ -113,31 +116,101 @@ exports.getUnifiedFeed = async (req, res) => {
 exports.getUserFeed = async (req, res) => {
   try {
     const { userId } = req.params;
+    const { viewerId } = req.query;
+
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    // ===== POSTS =====
-    const posts = await Post.find({ author: userId })
+    // =========================
+    // 1. LOAD VIEWER (NGƯỜI ĐANG XEM)
+    // =========================
+    let viewer = null;
+    if (viewerId) {
+      viewer = await User.findById(viewerId)
+        .select("hiddenPosts hiddenShares friends")
+        .lean();
+    }
+
+    // =========================
+    // 2. LOAD POSTS (OWNER)
+    // =========================
+    let posts = await Post.find({ author: userId })
       .populate("author", "firstname lastname username avatar friends")
       .lean();
 
-    // ===== SHARES =====
-    const shares = await Share.find({ username: userId })
+    // 👉 FILTER HIDDEN POSTS (THEO VIEWER)
+    if (viewer?.hiddenPosts?.length) {
+      posts = posts.filter(
+        p => !viewer.hiddenPosts.some(
+          id => id.toString() === p._id.toString()
+        )
+      );
+    }
+
+    // 👉 FILTER AUDIENCE
+    posts = posts.filter(post => {
+      if (!viewerId) return post.audience === "public";
+
+      const isAuthor = post.author._id.toString() === viewerId;
+      const isFriend = post.author.friends?.some(
+        f => f.toString() === viewerId
+      );
+
+      switch (post.audience) {
+        case "public": return true;
+        case "friends": return isAuthor || isFriend;
+        case "private": return isAuthor;
+        default: return false;
+      }
+    });
+
+    // =========================
+    // 3. LOAD SHARES (OWNER)
+    // =========================
+    let shares = await Share.find({ username: userId })
       .populate("username", "firstname lastname username avatar friends")
       .populate({
         path: "post",
         populate: {
           path: "author",
-          select: "firstname lastname username avatar friends",
-        },
+          select: "firstname lastname username avatar friends"
+        }
       })
       .lean();
 
-    // ===== FORMAT =====
+    // 👉 FILTER HIDDEN SHARES (THEO VIEWER)
+    if (viewer?.hiddenShares?.length) {
+      shares = shares.filter(
+        s => !viewer.hiddenShares.some(
+          id => id.toString() === s._id.toString()
+        )
+      );
+    }
+
+    // 👉 FILTER AUDIENCE SHARE
+    shares = shares.filter(share => {
+      if (!viewerId) return share.audience === "public";
+
+      const isSharer = share.username?._id?.toString() === viewerId;
+      const isFriend = share.username?.friends?.some(
+        f => f.toString() === viewerId
+      );
+
+      switch (share.audience) {
+        case "public": return true;
+        case "friends": return isSharer || isFriend;
+        case "private": return isSharer;
+        default: return false;
+      }
+    });
+
+    // =========================
+    // 4. FORMAT DATA
+    // =========================
     const formattedPosts = posts.map(p => ({
       ...p,
-      type: "original",
+      type: "original"
     }));
 
     const formattedShares = shares.map(s => ({
@@ -147,14 +220,18 @@ exports.getUserFeed = async (req, res) => {
       replyCommentCount: s.replyCommentCount || 0
     }));
 
-    // ===== ✅ STATS CHUẨN =====
+    // =========================
+    // 5. STATS (KHÔNG PHỤ THUỘC PAGINATION)
+    // =========================
     const totalPosts = formattedPosts.length + formattedShares.length;
 
     const totalPhotos = formattedPosts.filter(
       p => p.mediaType === "image"
     ).length;
 
-    // ===== FEED + PAGINATION =====
+    // =========================
+    // 6. PAGINATION
+    // =========================
     const allFeed = [...formattedPosts, ...formattedShares].sort(
       (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
     );
@@ -163,14 +240,17 @@ exports.getUserFeed = async (req, res) => {
     const totalPages = Math.ceil(totalItems / limit);
     const items = allFeed.slice(skip, skip + limit);
 
+    // =========================
+    // 7. RESPONSE
+    // =========================
     res.status(200).json({
       items,
       currentPage: page,
       totalPages,
       totalItems,
       stats: {
-        totalPosts,   // 👈 post + share
-        totalPhotos   // 👈 chỉ post có ảnh
+        totalPosts,   // post + share
+        totalPhotos   // chỉ post có ảnh
       }
     });
 
@@ -179,6 +259,69 @@ exports.getUserFeed = async (req, res) => {
     res.status(500).json({ msg: "Server error" });
   }
 };
+
+
+const resolveMediaType = (post) => {
+  if (!post.media) return null;
+
+  if (post.mediaType === 'image') return 'image';
+  if (post.mediaType === 'video') return 'video';
+
+  if (/\.(jpg|jpeg|png|gif|webp)$/i.test(post.media)) return 'image';
+  if (/\.(mp4|webm|mov|ogg)$/i.test(post.media)) return 'video';
+
+  return null;
+};
+// FeedController.js
+exports.getUserMedia = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const posts = await Post.find({
+      author: userId,
+      media: { $exists: true, $ne: "" }
+    })
+      .select("_id media mediaType createdAt")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const normalized = posts
+      .map(p => {
+        const resolvedType = (() => {
+          if (p.mediaType === 'image') return 'image';
+          if (p.mediaType === 'video') return 'video';
+          if (/\.(jpg|jpeg|png|gif|webp)$/i.test(p.media)) return 'image';
+          if (/\.(mp4|webm|mov|ogg)$/i.test(p.media)) return 'video';
+          return null;
+        })();
+
+        return resolvedType
+          ? { ...p, mediaType: resolvedType }
+          : null;
+      })
+      .filter(Boolean);
+
+    const photos = normalized.filter(p => p.mediaType === 'image');
+    const videos = normalized.filter(p => p.mediaType === 'video');
+
+    res.json({
+      all: normalized,
+      photos,
+      videos,
+      stats: {
+        totalMedia: normalized.length,
+        totalPhotos: photos.length,
+        totalVideos: videos.length
+      }
+    });
+  } catch (err) {
+    console.error("Get user media error:", err);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
+
+
+
 
 
 

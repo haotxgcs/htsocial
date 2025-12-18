@@ -60,19 +60,20 @@
              <h4 class="shared-title">{{ share.post.title }}</h4>
              <span class="shared-category">{{ share.post.category }}</span>
 
-             <div class="shared-details">
+              <div class="shared-details">
                 <p class="shared-label">Ingredients:</p>
                 <p class="shared-text">{{ getTruncatedText(share.post.ingredients) }}</p>
-                
+                  
                 <p class="shared-label">Instructions:</p>
                 <p class="shared-text">{{ getTruncatedText(share.post.instructions) }}</p>
-             </div>
-          </div>
-
-          <div v-if="share.post.media" class="media-preview">
+              </div>
+             <div v-if="share.post.media" class="media-preview">
             <img v-if="share.post.mediaType === 'image'" :src="`http://localhost:3000/${share.post.media}`" />
             <video v-else controls :src="`http://localhost:3000/${share.post.media}`"></video>
           </div>
+          </div>
+
+          
         </div>
         
         <div v-else class="restricted-post-warning">
@@ -323,7 +324,7 @@ export default {
 .author-details strong { font-size: 14px; font-weight: 600; color: #333; display: block; }
 .timestamp { font-size: 12px; color: #777; margin: 0; }
 
-.post-content-wrapper { padding: 12px; }
+.post-content-wrapper { padding: 4px 16px 12px 16px; }
 .shared-title { font-size: 16px; font-weight: 700; color: #333; margin: 0 0 5px 0; }
 .shared-category { 
   display: inline-block;
@@ -332,14 +333,17 @@ export default {
   color: #FF642F;       /* Chữ cam đậm */
   padding: 2px 8px;
   border-radius: 12px;
-  margin-bottom: 12px;
+  
   font-weight: 600; 
 }
 .shared-details { font-size: 13px; color: #555; background: #fdfdfd; padding: 8px; border-radius: 6px;  }
-.shared-label { font-weight: 700; font-size: 12px; color: #444;  }
-.shared-text { margin: 0 0 8px 0; white-space: pre-line; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; }
+.shared-label { font-weight: 700;
+  margin: 0 0 5px 0;
+  font-size: 13px;
+  color: #333;  }
+.shared-text { font-size: 15px; line-height: 1.5; color: #333; margin: 0; white-space: pre-line; }
 
-.media-preview img, .media-preview video { width: 100%; aspect-ratio: 16/9; object-fit: cover; background: #000; display: block; }
+.media-preview img, .media-preview video { width: 100%; max-height: 300px;aspect-ratio: 16/9; object-fit: cover;  display: block; }
 .restricted-post-warning { border: 1px solid #ddd; border-radius: 8px; padding: 20px; text-align: center; color: #c00; font-style: italic;  }
 
 /* Footer Actions */

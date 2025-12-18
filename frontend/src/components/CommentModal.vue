@@ -313,9 +313,9 @@
         <div class="comment-input-container">
           <div class="rating-toggle">
             <button @click="showRatingOption = !showRatingOption" :disabled="userHasRated && !showRatingOption" class="toggle-rating-btn" :class="{ disabled: userHasRated && !showRatingOption }">
-              <span v-if="!showRatingOption && !userHasRated">⭐ Add Rating</span>
-              <span v-else-if="!showRatingOption && userHasRated">✅ Already Rated</span>
-              <span v-else>💬 Comment Only</span>
+              <span v-if="!showRatingOption && !userHasRated">Add Rating</span>
+              <span v-else-if="!showRatingOption && userHasRated">Already Rated</span>
+              <span v-else>Comment Only</span>
             </button>
           </div>
 
@@ -1333,7 +1333,7 @@ export default {
 .recipe-text { font-size: 14px; line-height: 1.5; color: #1c1e21; margin: 0; white-space: pre-line; background: white; padding: 8px 12px; border-radius: 8px; border: 1px solid #e3e6ea; }
 
 .post-media-modal { margin: 16px 0; text-align: center; }
-.post-image-modal, .post-video-modal { width: 100%; max-height: 200px; object-fit: contain; border-radius: 8px; }
+.post-image-modal, .post-video-modal { width: 100%;  max-height: 300px; object-fit: contain; border-radius: 8px; }
 .post-stats { display: flex; gap: 16px; margin: 16px 0 12px 0; font-size: 14px; color: #65676b; }
 
 .post-actions-modal { display: flex; justify-content: space-around; padding: 8px 0; border-top: 1px solid #e4e6eb; margin-top: 10px; }

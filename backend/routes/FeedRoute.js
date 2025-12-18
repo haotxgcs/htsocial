@@ -4,6 +4,7 @@ const router = express.Router();
 const { 
   getUnifiedFeed,
   getUserFeed,
+  getUserMedia,
   getHiddenShares,
   getHiddenPosts,
   getSavedItems,
@@ -13,6 +14,7 @@ const {
 
 router.get("/:viewerId", getUnifiedFeed);
 router.get("/users/:userId", getUserFeed);
+router.get("/users/:userId/media", getUserMedia);
 
 router.get('/hidden-shares/:viewerId', getHiddenShares);
 router.get("/hidden-posts/:viewerId", getHiddenPosts);

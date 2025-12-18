@@ -483,21 +483,10 @@ export default {
   /* background: #fcf8f5; <-- Có thể bật nền nếu muốn che nội dung khi cuộn */
 }
 
-.glass-nav {
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
-  padding: 6px;
-  border-radius: 100px;
-  display: flex;
-  gap: 6px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-  border: 1px solid rgba(255,255,255,0.6);
-  flex-wrap: wrap; 
-  justify-content: center;
-}
+.glass-nav {  backdrop-filter: blur(16px); padding: 6px; border-radius: 100px; display: flex; gap: 6px; box-shadow: 0 10px 30px rgba(0,0,0,0.08);  }
 
 .nav-pill {
-  padding: 8px 20px;
+  padding: 10px 20px;
   border-radius: 40px;
   border: none;
   background: transparent;

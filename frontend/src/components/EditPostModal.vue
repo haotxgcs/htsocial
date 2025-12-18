@@ -504,7 +504,8 @@ export default {
 .add-options { display: flex; justify-content: space-between; gap: 12px; padding: 0; margin-bottom: 16px; width: 100%; box-sizing: border-box; }
 .emoji-action-wrapper { flex: 1; position: relative; }
 .add-option { width: 100%; flex: 1; padding: 10px 12px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 10px; background: #f0f2f5; border: 1px solid #ccc; cursor: pointer; transition: background-color 0.2s; font-size: 14px; white-space: nowrap; box-sizing: border-box; margin: 0; }
-.add-option:hover { background: #e4e6ea; }
+.add-option:hover { background: #fdf4f0; color: #FF642F; border-color: #FF642F; }
+.add-option:hover img { filter: invert(53%) sepia(35%) saturate(3000%) hue-rotate(345deg) brightness(100%) contrast(105%);}
 .option-icon img { width: 20px; height: 20px; }
 .emoji-picker-popover { position: absolute; bottom: 100%; left: 0; z-index: 1001; margin-bottom: 10px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2); border-radius: 8px; background: white; }
 .post-actions-footer { padding: 16px 24px; border-top: 1px solid #e4e6ea; }

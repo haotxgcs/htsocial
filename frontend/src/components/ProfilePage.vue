@@ -395,18 +395,81 @@
 
       <template v-else-if="activeTab === 'photos'">
         <div class="photos-container-modern">
+
+          <!-- HEADER -->
           <div class="photos-header-card">
-            <h2>Photos</h2>
-            <span class="photo-count">{{ postsWithImages.length }} Photos </span>
+            <h2>Media</h2>
+            <span class="photo-count">{{ mediaCount }}
+          {{ mediaTab === 'videos'
+              ? 'Videos'
+              : mediaTab === 'photos'
+                ? 'Photos'
+                : 'Media'
+          }}</span>
           </div>
-          <div v-if="postsWithImages.length > 0" class="photos-grid-large">
-              <div v-for="post in postsWithImages" :key="post._id" class="photo-card" @click="openCommentModal(post)">
-                <img :src="`http://localhost:3000/${post.media}`" class="photo-large"/>
-              </div>
+
+          <!-- MEDIA TAB -->
+           <div class="media-nav-wrapper">
+          <div class="glass-nav" style="margin-bottom:16px">
+            <button
+              class="nav-pill"
+              :class="{ active: mediaTab === 'all' }"
+              @click="mediaTab = 'all'"
+            >
+              All
+            </button>
+
+            <button
+              class="nav-pill"
+              :class="{ active: mediaTab === 'photos' }"
+              @click="mediaTab = 'photos'"
+            >
+              Photos
+            </button>
+
+            <button
+              class="nav-pill"
+              :class="{ active: mediaTab === 'videos' }"
+              @click="mediaTab = 'videos'"
+            >
+              Videos
+            </button>
+          </div>
+        </div>
+
+          <!-- GRID -->
+          <div v-if="displayedMedia.length" class="photos-grid-large">
+            <div
+              v-for="item in displayedMedia"
+              :key="item._id"
+              class="photo-card"
+              @click="item.mediaType === 'image' && openMediaPost(item)" 
+            >
+              <img
+                v-if="item.mediaType === 'image'"
+                :src="`http://localhost:3000/${item.media}`"
+                class="photo-large"
+              />
+
+              <video
+                v-else
+                controls
+                class="photo-large"
+                @click="item.mediaType === 'video' && openMediaPost(item)"
+              >
+                <source :src="`http://localhost:3000/${item.media}`" />
+              </video>
             </div>
-            <div v-else class="empty-state"><p>No photos to show.</p></div>
+          </div>
+
+          <div v-else class="empty-state">
+            <p>No media to show.</p>
+          </div>
+
         </div>
       </template>
+
+
 
       <template v-else-if="activeTab === 'friends'">
         <div class="friends-tab-wrapper">
@@ -564,7 +627,22 @@ export default {
       postStats: {
         totalPosts: 0,
         totalPhotos: 0
+      },
+
+      mediaTab: "all", // 'all' | 'photos' | 'videos'
+
+      media: {
+        all: [],
+        photos: [],
+        videos: []
+      },
+
+      mediaStats: {
+        totalMedia: 0,
+        totalPhotos: 0,
+        totalVideos: 0
       }
+
     };
   },
   computed: {
@@ -613,6 +691,30 @@ export default {
         case 'sent': return 'Cancel Request';
         case 'received': return 'Accept Friend';
         default: return 'Add Friend';
+      }
+    },
+
+    displayedMedia() {
+    switch (this.mediaTab) {
+      case "photos":
+        return this.media.photos;
+      case "videos":
+        return this.media.videos;
+      default:
+        return this.media.all;
+    }
+  },
+
+    mediaCount() {
+      if (!this.media) return 0;
+
+      switch (this.mediaTab) {
+        case 'photos':
+          return this.media.photos?.length || 0;
+        case 'videos':
+          return this.media.videos?.length || 0;
+        default:
+          return this.media.all?.length || 0;
       }
     },
     
@@ -718,11 +820,15 @@ export default {
 
     async fetchUserPosts(page = 1) {
   try {
-    const userId = this.getProfileUserId();
-    if (!userId) return;
+    const profileUserId = this.getProfileUserId();
+    if (!profileUserId) return;
+
+    const viewer = JSON.parse(localStorage.getItem("user"));
+    const viewerId = viewer?._id || viewer?.id;
 
     const res = await fetch(
-      `http://localhost:3000/feeds/users/${userId}?page=${page}&limit=${this.pagination.limit}`
+      `http://localhost:3000/feeds/users/${profileUserId}` +
+      `?page=${page}&limit=${this.pagination.limit}&viewerId=${viewerId}`
     );
 
     const data = await res.json();
@@ -740,7 +846,7 @@ export default {
     console.error("User feed error:", err);
     this.userPosts = [];
   }
-},
+    }, 
 
 
 
@@ -1102,6 +1208,42 @@ export default {
       this.showEditShareModal = true;
     },
 
+    async hideThisPost(postId) {
+  const viewer = JSON.parse(localStorage.getItem("user"));
+  if (!viewer) return;
+
+  try {
+    await fetch(`http://localhost:3000/posts/hide-post/${postId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: viewer.id })
+    });
+
+    // ✅ cập nhật UI ngay, KHÔNG reload
+    this.userPosts = this.userPosts.filter(p => p._id !== postId);
+  } catch (err) {
+    console.error("Hide post error:", err);
+  }
+    },
+
+    async hideThisShare(shareId) {
+      const viewer = JSON.parse(localStorage.getItem("user"));
+      if (!viewer) return;
+
+      try {
+        await fetch(`http://localhost:3000/shares/hide-share/${shareId}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: viewer.id })
+        });
+
+        this.userPosts = this.userPosts.filter(p => p._id !== shareId);
+      } catch (err) {
+        console.error("Hide share error:", err);
+      }
+    },
+
+
     canViewSharedPost(post) {
       if (!post || !post.author || !this.user) return false;
       const authorId = post.author._id || post.author.id;
@@ -1362,132 +1504,78 @@ export default {
 
   const savedUser = JSON.parse(localStorage.getItem("user"));
   return savedUser?._id || savedUser?.id || null;
-},
+    },
 
 
-  setFriendStatus() {
-  const viewer = JSON.parse(localStorage.getItem("user"));
-  if (!viewer || !this.profileUser) return;
-
-  const viewerId = viewer._id || viewer.id;
-  const profileId = this.profileUser._id;
-
-  // ✅ ĐÃ LÀ BẠN
-  if (this.profileUser.friends?.includes(viewerId)) {
-    this.friendStatus = 'friends';
-    return;
-  }
-
-  // ✅ VIEWER ĐÃ GỬI REQUEST
-  if (viewer.requestSent?.includes(profileId)) {
-    this.friendStatus = 'sent'; // Cancel Request
-    return;
-  }
-
-  // ✅ VIEWER ĐANG NHẬN REQUEST
-  if (viewer.requestReceived?.includes(profileId)) {
-    this.friendStatus = 'received'; // Accept Friend
-    return;
-  }
-
-  // ✅ CHƯA CÓ QUAN HỆ
-  this.friendStatus = 'none';
-}, 
-
-  addFriendToList(friend) {
-    // Tránh thêm trùng
-    const exists = this.friendsList.some(f => f._id === friend._id);
-    if (!exists) {
-      this.friendsList.unshift(friend);
-    }
-
-    
-  },
-
-  removeFriendFromList(friendId) {
-    this.friendsList = this.friendsList.filter(f => f._id !== friendId);
-  },
-
-  async handleFriendAction() {
-  const viewer = JSON.parse(localStorage.getItem("user"));
-  if (!viewer || !this.profileUser?._id) return;
-
-  // ⚠️ TRƯỜNG HỢP CẦN CONFIRM
-  if (this.friendStatus === 'sent') {
-    this.confirmFriendMessage = 'Do you want to cancel this friend request?';
-    this.pendingFriendAction = 'cancel';
-    this.confirmFriendVisible = true;
-    return;
-  }
-
-  if (this.friendStatus === 'friends') {
-    this.confirmFriendMessage = 'Do you want to unfriend this user?';
-    this.pendingFriendAction = 'unfriend';
-    this.confirmFriendVisible = true;
-    return;
-  }
-
-  // ❌ Các trường hợp KHÔNG cần confirm
-  this.loadingFriend = true;
-
-  try {
-    if (this.friendStatus === 'none') {
-      // ADD FRIEND
-      await fetch("http://localhost:3000/users/friend-request/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fromUserId: viewer.id,
-          toUserId: this.profileUser._id
-        })
-      });
-      this.friendStatus = 'sent';
-    }
-
-    else if (this.friendStatus === 'received') {
-      // ACCEPT FRIEND
-      await fetch("http://localhost:3000/users/friend-request/accept", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fromUserId: this.profileUser._id,
-          toUserId: viewer.id
-        })
-      });
-      this.friendStatus = 'friends';
-
-      const viewerUser = {
-        _id: viewer.id,
-        firstname: viewer.firstname,
-        lastname: viewer.lastname,
-        username: viewer.username,
-        avatar: viewer.avatar
-      };
-
-      this.addFriendToList(viewerUser);
-
-      // cập nhật counter
-      this.profileUser.friends = this.profileUser.friends || [];
-      this.profileUser.friends.push(viewer.id);
-
-    }
-
-  } catch (err) {
-    console.error(err);
-  } finally {
-    this.loadingFriend = false;
-  }
-  },
-
-  async confirmFriendAction() {
+    setFriendStatus() {
     const viewer = JSON.parse(localStorage.getItem("user"));
-    if (!viewer) return;
+    if (!viewer || !this.profileUser) return;
 
+    const viewerId = viewer._id || viewer.id;
+    const profileId = this.profileUser._id;
+
+    // ✅ ĐÃ LÀ BẠN
+    if (this.profileUser.friends?.includes(viewerId)) {
+      this.friendStatus = 'friends';
+      return;
+    }
+
+    // ✅ VIEWER ĐÃ GỬI REQUEST
+    if (viewer.requestSent?.includes(profileId)) {
+      this.friendStatus = 'sent'; // Cancel Request
+      return;
+    }
+
+    // ✅ VIEWER ĐANG NHẬN REQUEST
+    if (viewer.requestReceived?.includes(profileId)) {
+      this.friendStatus = 'received'; // Accept Friend
+      return;
+    }
+
+    // ✅ CHƯA CÓ QUAN HỆ
+    this.friendStatus = 'none';
+    }, 
+
+    addFriendToList(friend) {
+      // Tránh thêm trùng
+      const exists = this.friendsList.some(f => f._id === friend._id);
+      if (!exists) {
+        this.friendsList.unshift(friend);
+      }
+
+      
+    },
+
+    removeFriendFromList(friendId) {
+      this.friendsList = this.friendsList.filter(f => f._id !== friendId);
+    },
+
+    async handleFriendAction() {
+    const viewer = JSON.parse(localStorage.getItem("user"));
+    if (!viewer || !this.profileUser?._id) return;
+
+    // ⚠️ TRƯỜNG HỢP CẦN CONFIRM
+    if (this.friendStatus === 'sent') {
+      this.confirmFriendMessage = 'Do you want to cancel this friend request?';
+      this.pendingFriendAction = 'cancel';
+      this.confirmFriendVisible = true;
+      return;
+    }
+
+    if (this.friendStatus === 'friends') {
+      this.confirmFriendMessage = 'Do you want to unfriend this user?';
+      this.pendingFriendAction = 'unfriend';
+      this.confirmFriendVisible = true;
+      return;
+    }
+
+    // ❌ Các trường hợp KHÔNG cần confirm
     this.loadingFriend = true;
 
     try {
-      if (this.pendingFriendAction === 'cancel') {
-        await fetch("http://localhost:3000/users/friend-request/cancel", {
+      if (this.friendStatus === 'none') {
+        // ADD FRIEND
+        await fetch("http://localhost:3000/users/friend-request/send", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -1495,54 +1583,163 @@ export default {
             toUserId: this.profileUser._id
           })
         });
-        this.friendStatus = 'none';
+        this.friendStatus = 'sent';
       }
 
-      if (this.pendingFriendAction === 'unfriend') {
-        await fetch("http://localhost:3000/users/unfriend", {
+      else if (this.friendStatus === 'received') {
+        // ACCEPT FRIEND
+        await fetch("http://localhost:3000/users/friend-request/accept", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            userId: viewer.id,
-            friendId: this.profileUser._id
+            fromUserId: this.profileUser._id,
+            toUserId: viewer.id
           })
         });
-        this.friendStatus = 'none';
-        this.removeFriendFromList(this.profileUser._id);
+        this.friendStatus = 'friends';
 
-        this.profileUser.friends = this.profileUser.friends.filter(
-          id => id !== viewer.id
-        );
+        const viewerUser = {
+          _id: viewer.id,
+          firstname: viewer.firstname,
+          lastname: viewer.lastname,
+          username: viewer.username,
+          avatar: viewer.avatar
+        };
+
+        this.addFriendToList(viewerUser);
+
+        // cập nhật counter
+        this.profileUser.friends = this.profileUser.friends || [];
+        this.profileUser.friends.push(viewer.id);
+
       }
-        
 
     } catch (err) {
       console.error(err);
     } finally {
       this.loadingFriend = false;
-      this.confirmFriendVisible = false;
-      this.pendingFriendAction = null;
     }
-  },
+    },
+
+    async confirmFriendAction() {
+      const viewer = JSON.parse(localStorage.getItem("user"));
+      if (!viewer) return;
+
+      this.loadingFriend = true;
+
+      try {
+        if (this.pendingFriendAction === 'cancel') {
+          await fetch("http://localhost:3000/users/friend-request/cancel", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              fromUserId: viewer.id,
+              toUserId: this.profileUser._id
+            })
+          });
+          this.friendStatus = 'none';
+        }
+
+        if (this.pendingFriendAction === 'unfriend') {
+          await fetch("http://localhost:3000/users/unfriend", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userId: viewer.id,
+              friendId: this.profileUser._id
+            })
+          });
+          this.friendStatus = 'none';
+          this.removeFriendFromList(this.profileUser._id);
+
+          this.profileUser.friends = this.profileUser.friends.filter(
+            id => id !== viewer.id
+          );
+        }
+          
+
+      } catch (err) {
+        console.error(err);
+      } finally {
+        this.loadingFriend = false;
+        this.confirmFriendVisible = false;
+        this.pendingFriendAction = null;
+      }
+    },
  
-  async initProfile() {
-      await this.fetchUserProfile();
-      await this.fetchUserPosts();
-      await this.fetchFriends();
-      this.setFriendStatus();
-  },
+    async initProfile() {
+        await this.fetchUserProfile();
+        await this.fetchUserPosts();
+        await this.fetchFriends();
+        await this.fetchUserMedia();
 
-  changePage(page) {
-  if (
-    page < 1 ||
-    page > this.pagination.totalPages ||
-    page === this.pagination.currentPage
-  ) return;
+        this.setFriendStatus();
+    },
 
-  this.fetchUserPosts(page);
+    changePage(page) {
+    if (
+      page < 1 ||
+      page > this.pagination.totalPages ||
+      page === this.pagination.currentPage
+    ) return;
 
-  window.scrollTo({ top: 0, behavior: "smooth" });
-  },
+    this.fetchUserPosts(page);
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    },
+
+    async fetchUserMedia() {
+      try {
+        const userId = this.getProfileUserId();
+        if (!userId) return;
+
+        const res = await fetch(
+          `http://localhost:3000/feeds/users/${userId}/media`
+        );
+        const data = await res.json();
+
+        // ✅ BACKEND ĐÃ PHÂN LOẠI SẴN
+        this.media.all = data.all || [];
+        this.media.photos = data.photos || [];
+        this.media.videos = data.videos || [];
+
+        this.mediaStats = data.stats || {
+          totalMedia: 0,
+          totalPhotos: 0,
+          totalVideos: 0
+        };
+
+      } catch (err) {
+        console.error("Fetch user media error:", err);
+      }
+    },
+
+    async openMediaPost(mediaItem) {
+    try {
+      const res = await fetch(
+        `http://localhost:3000/posts/${mediaItem._id}`
+      );
+
+      if (!res.ok) throw new Error("Cannot load post");
+
+      const fullPost = await res.json();
+
+      this.selectedPost = fullPost;
+      this.commentModalVisible = true;
+    } catch (err) {
+      console.error("Open media post error:", err);
+      alert("Cannot open this post");
+    }
+    }
+
+
+
+
+
+
+
+
+  
 
 
   },
@@ -1563,9 +1760,13 @@ export default {
       await this.fetchUserProfile();
       await this.fetchUserPosts(1);
       await this.fetchFriends();
+      await this.fetchUserMedia(); // ⭐ BẮT BUỘC
       this.setFriendStatus();
     }
   }
+
+
+
 }
 
 
@@ -1658,12 +1859,18 @@ export default {
 /* BUTTONS NEW */
 .btn-glass { background: rgba(255, 255, 255, 0.25); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.4); color: white; padding: 10px 20px; border-radius: 12px; cursor: pointer; font-weight: 600; }
 .btn-primary-gradient { background: #FF642F; color: white; border: none; padding: 10px 28px; border-radius: 24px; font-weight: 600; cursor: pointer; }
-.btn-glass-dark { background: white; color: #374151; border: 1px solid #e5e7eb; padding: 10px 24px; border-radius: 24px; font-weight: 600; cursor: pointer; }
+.btn-glass-dark {  color: #374151; border: 1px solid #e5e7eb; padding: 10px 24px; border-radius: 24px; font-weight: 600; cursor: pointer; }
 
 /* NAV NEW */
 .nav-wrapper { display: flex; justify-content: center; margin-bottom: 32px; position: sticky; top: 60px; z-index: 90; padding: 10px 0; }
-.glass-nav { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(16px); padding: 6px; border-radius: 100px; display: flex; gap: 6px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); border: 1px solid rgba(255,255,255,0.6); }
-.nav-pill { padding: 10px 28px; border-radius: 40px; border: none; background: transparent; color: #6b7280; font-weight: 600; cursor: pointer; transition: all 0.3s; }
+.media-nav-wrapper {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  margin-bottom: 20px;
+}
+.glass-nav {  backdrop-filter: blur(16px); padding: 6px; border-radius: 100px; display: flex; gap: 6px; box-shadow: 0 10px 30px rgba(0,0,0,0.08);  }
+.nav-pill { text-align: center; justify-content: center; display:flex; padding: 10px 28px; border-radius: 40px; border: none; background: transparent; color: #6b7280; font-weight: 600; cursor: pointer; transition: all 0.3s; }
 .nav-pill.active { background: #FF642F; color: white; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
 
 /* MAIN LAYOUT */
@@ -2256,14 +2463,16 @@ export default {
 }
 
 .photos-header-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
   background: white;
   padding: 20px 24px;
   border-radius: 16px;
-  margin-bottom: 24px; /* Khoảng cách với lưới bạn bè */
+  margin-bottom: 20px;
+
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-  display: flex;
-  align-items: center;
-  justify-content: space-between; /* Đẩy tiêu đề sang trái, số lượng sang phải */
   border: 1px solid #f3f4f6;
 }
 
@@ -2274,6 +2483,58 @@ export default {
   margin: 0;
 }
 
+.photo-count {
+  background: #fdf4f0;
+  color: #ff642f;
+  padding: 6px 16px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.glass-nav {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 24px;
+
+  
+  backdrop-filter: blur(16px);
+
+  padding: 6px;
+  border-radius: 999px;
+
+  box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+  border: 1px solid rgba(255,255,255,0.6);
+}
+
+/* .nav-pill {
+  padding: 10px 26px;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+
+  font-weight: 600;
+  font-size: 14px;
+  color: #6b7280;
+
+  cursor: pointer;
+  transition: all 0.25s ease;
+} */
+
+.nav-pill:hover {
+  background: #fdf4f0;
+  color: #ff642f;
+}
+
+.nav-pill.active {
+  background: #ff642f;
+  color: white;
+  box-shadow: 0 4px 12px rgba(255,100,47,0.35);
+}
+
+
 .friend-count {
   background: #fdf4f0;
   color: #FF642F;
@@ -2283,14 +2544,7 @@ export default {
   font-weight: 700;
 }
 
-.photo-count {
-  background: #fdf4f0;
-  color: #FF642F;
-  padding: 6px 16px;
-  border-radius: 30px;
-  font-size: 14px;
-  font-weight: 700;
-}
+
 
 /* ==========================================================================
    6. PAGINATION STYLES

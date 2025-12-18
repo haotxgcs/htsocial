@@ -9,12 +9,12 @@
           </svg>
         </div>
 
-        <h3>Xác nhận</h3>
+        <h3>Confirm</h3>
         <p class="message">{{ message }}</p>
 
         <div class="actions">
-          <button class="btn-cancel" @click="cancel">Hủy bỏ</button>
-          <button class="btn-confirm" @click="confirm">Đồng ý</button>
+          <button class="btn-cancel" @click="cancel">Cancel</button>
+          <button class="btn-confirm" @click="confirm">Confirm</button>
         </div>
 
       </div>
@@ -74,8 +74,8 @@ export default {
 /* 3. Icon */
 .icon-wrapper {
   width: 64px; height: 64px;
-  background-color: #e0e7ff; /* Màu nền xanh nhạt */
-  color: #4f46e5; /* Màu icon xanh đậm */
+  background-color: #fdf4f0; 
+  color: #FF642F; 
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   margin: 0 auto 20px;
@@ -129,7 +129,7 @@ export default {
   padding: 12px;
   border-radius: 10px;
   border: none;
-  background-color: #4f46e5; /* Màu xanh chủ đạo */
+  background-color: #FF642F; /* Màu xanh chủ đạo */
   color: white;
   font-weight: 600;
   font-size: 14px;
@@ -138,7 +138,7 @@ export default {
   transition: all 0.2s;
 }
 .btn-confirm:hover {
-  background-color: #4338ca;
+  background-color: #FF642F;
   transform: translateY(-1px);
 }
 

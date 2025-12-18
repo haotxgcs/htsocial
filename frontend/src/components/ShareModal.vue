@@ -333,7 +333,7 @@ export default {
 .recipe-item strong { display: block; color: #1c1e21; margin-bottom: 4px; }
 .recipe-item span { color: #65676b; white-space: pre-line; word-wrap: break-word; }
 .media-preview { margin-top: 8px; }
-.media-preview img, .media-preview video { width: 100%; max-height: 300px; object-fit: contain; border-radius: 8px; background: #000; }
+.media-preview img, .media-preview video { width: 100%; max-height: 300px; object-fit: contain; border-radius: 8px;  }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 16px 24px; border-top: 1px solid #e4e6eb; flex-shrink: 0; }
 .btn { padding: 10px 24px; border: none; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer; transition: all 0.2s ease; }
 .btn.share { background-color: #FF642F; color: white; }
