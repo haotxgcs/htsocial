@@ -1,11 +1,11 @@
 <template>
-  <div v-if="isVisible" class="create-post-modal-overlay" @click.self="!isLoading && closeModal()">
+  <div v-if="isVisible" class="create-post-modal-overlay" @click.self="!isLoading && requestClose()">
     
     <div class="create-post-modal-content relative-box">
       
       <div class="create-post-modal-header">
         <h3>Create Post</h3>
-        <button class="close-btn" @click="closeModal" :disabled="isLoading">&times;</button>
+        <button class="close-btn" @click="requestClose" :disabled="isLoading">&times;</button>
       </div>
 
       <div class="post-creator-info">
@@ -160,6 +160,12 @@
         @confirm="handleNotificationConfirm"
       />
     </div>
+    <ConfirmDialog
+  v-if="confirmVisible"
+  :message="confirmMessage"
+  @confirm="handleConfirmDiscard"
+  @cancel="confirmVisible = false"
+/>
 
   </div>
 </template>
@@ -168,6 +174,7 @@
 import EmojiPicker from 'vue3-emoji-picker';
 import 'vue3-emoji-picker/css';
 import NotificationModal from './NotificationModal.vue';
+import ConfirmDialog from './ConfirmDialog.vue';
 import LoadingOverlay from './LoadingOverlay.vue';
 
 export default {
@@ -175,6 +182,7 @@ export default {
   components: {
     EmojiPicker,
     NotificationModal,
+    ConfirmDialog,
     LoadingOverlay
   },
   props: {
@@ -207,7 +215,10 @@ export default {
         message: ''
       },
       isLoading: false,
-      createdPostData: null
+      createdPostData: null,
+
+      confirmVisible: false,
+      confirmMessage: ''
     }
   },
   computed: {
@@ -234,11 +245,11 @@ export default {
       }
     },
 
-    closeModal() {
-      if (this.isLoading) return;
-      this.resetForm();
-      this.$emit('close');
-    },
+    // closeModal() {
+    //   if (this.isLoading) return;
+    //   this.resetForm();
+    //   this.$emit('close');
+    // },
 
     // --- ⭐ MAIN SUBMIT FUNCTION (ĐÃ SỬA API) ⭐ ---
     async submitNewPost() {
@@ -361,8 +372,50 @@ export default {
       this.selectedMedia = null;
       this.mediaPreviewUrl = null;
     },
-    isImageFile(file) { return file && file.type.startsWith('image/'); },
-    isVideoFile(file) { return file && file.type.startsWith('video/'); }
+    isImageFile(file) { 
+      return file && file.type.startsWith('image/'); 
+    },
+    isVideoFile(file) { 
+      return file && file.type.startsWith('video/'); 
+    },
+
+    hasChanges() {
+    return (
+      this.title.trim() ||
+      this.category.trim() ||
+      this.ingredients.trim() ||
+      this.instructions.trim() ||
+      this.selectedMedia
+    );
+  },
+
+  requestClose() {
+    if (this.isLoading) return;
+
+    // Không có gì để mất → đóng luôn
+    if (!this.hasChanges()) {
+      this.closeModal(true);
+      return;
+    }
+
+    this.confirmMessage = "Are you sure you want to discard your changes?";
+    this.confirmVisible = true;
+  },
+
+  handleConfirmDiscard() {
+    this.confirmVisible = false;
+    this.closeModal(true);
+  },
+
+  closeModal(force = false) {
+    if (!force) {
+      this.requestClose();
+      return;
+    }
+
+    this.resetForm();
+    this.$emit('close');
+  },
   },
 
   watch: {
@@ -455,7 +508,8 @@ export default {
 .add-options { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 16px; width: 100%; box-sizing: border-box; flex:1; }
 .emoji-action-wrapper { flex: 1; position: relative; }
 .add-option { width: 100%; padding: 10px 12px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 10px; background: #f0f2f5; border: 1px solid #ccc; cursor: pointer; transition: background-color 0.2s; font-size: 14px; white-space: nowrap; box-sizing: border-box; flex:1; }
-.add-option:hover { background: #fdf4f0; color: #FF642F;}
+.add-option:hover { background: #fdf4f0; color: #FF642F; }
+.add-option:hover img { filter: invert(53%) sepia(35%) saturate(3000%) hue-rotate(345deg) brightness(100%) contrast(105%);}
 .option-icon img { width: 20px; height: 20px; }
 .emoji-picker-popover { position: absolute; bottom: 100%; left: 0; z-index: 1001; margin-bottom: 10px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2); border-radius: 8px; background: white; }
 .post-actions-footer { padding: 16px 24px; border-top: 1px solid #e4e6ea; }

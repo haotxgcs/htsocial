@@ -78,32 +78,69 @@
         <div class="section-header">
           <h2>People You May Know</h2>
           <div class="search-wrapper">
-            <input 
-              type="text" 
-              v-model="searchQuery" 
-              placeholder="Search for new friends..." 
-              @input="filterUsers"
+            <input
+              type="text"
+              v-model="searchQuery"
+              placeholder="Search for new friends..."
               class="glass-input"
+              @keyup.enter="handleSearch"
             />
-            
+            <button class="search-btn" @click="handleSearch">
+              Search
+            </button>
           </div>
         </div>
 
         <div v-if="suggestedUsers.length > 0" class="modern-grid">
           <div v-for="user in suggestedUsers" :key="user._id" class="modern-card">
-            <div class="card-image-wrapper">
+            <div class="card-image-wrapper" @click="$router.push(`/profile/${user._id}`)">
               <img :src="getImageUrl(user.avatar)" class="card-img" />
             </div>
-            <div class="card-body">
+            <div class="card-body" @click="$router.push(`/profile/${user._id}`)">
               <h4>{{ user.firstname }} {{ user.lastname }}</h4>
               <p class="username">@{{ user.username }}</p>
-              <button 
-                class="btn-primary full-width" 
-                @click="sendFriendRequest(user._id)"
-                :disabled="isRequestSent(user._id)"
+
+              <button
+                v-if="user.friendStatus === 'self'"
+                class="btn-secondary full-width"
+                @click.stop="$router.push(`/profile/${user._id}`)"
               >
-                {{ isRequestSent(user._id) ? 'Request Sent' : 'Add Friend' }}
+                View Profile
               </button>
+
+              <button
+                v-else-if="user.friendStatus === 'friends'"
+                class="btn-secondary full-width text-red"
+                @click.stop="unfriend(user._id)"
+              >
+                Unfriend
+              </button>
+
+              <button
+                v-else-if="user.friendStatus === 'sent'"
+                class="btn-secondary full-width"
+                disabled
+              >
+                Request Sent
+              </button>
+
+              <button
+                v-else-if="user.friendStatus === 'received'"
+                class="btn-primary full-width"
+                @click.stop="acceptFriendRequest(user._id)"
+              >
+                Accept Request
+              </button>
+
+              <button
+                v-else
+                class="btn-primary full-width"
+                @click.stop="sendFriendRequest(user._id)"
+              >
+                Add Friend
+              </button>
+
+
             </div>
           </div>
         </div>
@@ -174,11 +211,33 @@
 
     </div>
   </div>
+  <ConfirmDialog
+  v-if="confirmVisible"
+  :message="confirmMessage"
+  @confirm="handleConfirm"
+  @cancel="confirmVisible = false"
+/>
+
+<NotificationModal
+  :is-visible="notification.visible"
+  :type="notification.type"
+  :title="notification.title"
+  :message="notification.message"
+  @confirm="notification.visible = false"
+/>
+
 </template>
 
 <script>
+import ConfirmDialog from './ConfirmDialog.vue';
+import NotificationModal from './NotificationModal.vue';
+
 export default {
   name: "FriendPage",
+  components: {
+  ConfirmDialog,
+  NotificationModal
+  },
   data() {
     return {
       currentUser: null,
@@ -193,6 +252,18 @@ export default {
       searchQuery: '', 
       
       defaultAvatar: "uploads/user.png", // Đảm bảo đường dẫn đúng với backend
+
+      confirmVisible: false,
+    confirmMessage: '',
+    pendingAction: null,   // function sẽ chạy khi confirm
+
+    notification: {
+      visible: false,
+      type: 'success', // success | error | warning
+      title: '',
+      message: ''
+    }
+
     };
   },
   computed: {
@@ -222,9 +293,33 @@ export default {
       ];
     }
   },
+watch: {
+  currentView(newVal) {
+    if (newVal === 'suggestions') {
+      this.searchQuery = '';
+      this.filterSuggestedUsers();
+    }
+  }
+}, 
   mounted() {
     this.loadUserData();
+    window.addEventListener('friend-status-changed', () => {
+  this.loadAllFriends();
+  this.loadFriendRequests();
+  this.loadSentRequests();
+  this.filterSuggestedUsers();
+});
+
   },
+  beforeUnmount() {
+  window.addEventListener('friend-status-changed', () => {
+  this.loadAllFriends();
+  this.loadFriendRequests();
+  this.loadSentRequests();
+  this.filterSuggestedUsers();
+});
+
+}, 
   methods: {
     // Load dữ liệu người dùng
     async loadUserData() {
@@ -287,20 +382,27 @@ export default {
     },
 
     async loadAllFriends() {
-      try {
-        const res = await fetch(`http://localhost:3000/users/${this.currentUser.id}/friends`);
-        this.allFriends = await res.json();
-        this.filterSuggestedUsers(); // Cập nhật lại gợi ý sau khi load bạn bè
-      } catch (err) { console.error(err); }
-    },
+  try {
+    const res = await fetch(
+      `http://localhost:3000/users/${this.currentUser.id}/friends`
+    );
+    this.allFriends = await res.json();
+  } catch (err) {
+    console.error(err);
+  }
+},
 
-    async loadAllUsers() {
-      try {
-        const res = await fetch('http://localhost:3000/users');
-        this.allUsers = await res.json();
-        this.filterSuggestedUsers();
-      } catch (err) { console.error(err); }
-    },
+async loadAllUsers() {
+  try {
+    const res = await fetch(
+      `http://localhost:3000/users?viewerId=${this.currentUser.id}`
+    );
+    this.allUsers = await res.json();
+    this.filterSuggestedUsers();
+  } catch (err) {
+    console.error(err);
+  }
+},
 
     // --- ACTIONS ---
 
@@ -316,98 +418,164 @@ export default {
           // Cập nhật lại state ngay lập tức mà không cần reload trang
           this.friendRequests = this.friendRequests.filter(r => r._id !== requesterId);
           await this.loadAllFriends(); // Load lại list bạn bè mới
-          alert("Accepted friend request!");
+          this.showNotify(
+            "success",
+            "Friend Added",
+            "You are now friends!"
+          );
+
         }
       } catch (err) { console.error(err); }
     },
 
-    async declineFriendRequest(requesterId) {
-      if(!confirm("Delete this request?")) return;
+    declineFriendRequest(requesterId) {
+  this.showConfirm(
+    "Do you want to delete this friend request?",
+    async () => {
       try {
         const res = await fetch("http://localhost:3000/users/friend-request/cancel", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ fromUserId: requesterId, toUserId: this.currentUser.id })
+          body: JSON.stringify({
+            fromUserId: requesterId,
+            toUserId: this.currentUser.id
+          })
         });
-        
+
         if (res.ok) {
           this.friendRequests = this.friendRequests.filter(r => r._id !== requesterId);
+          this.showNotify("success", "Deleted", "Friend request has been removed.");
         }
-      } catch (err) { console.error(err); }
-    },
+      } catch (err) {
+        this.showNotify("error", "Error", "Failed to delete request.");
+      }
+    }
+  );
+},
 
-    async cancelFriendRequest(toUserId) {
-      if(!confirm("Cancel sent request?")) return;
+
+cancelFriendRequest(toUserId) {
+  this.showConfirm(
+    "Are you sure you want to cancel this friend request?",
+    async () => {
       try {
         const res = await fetch("http://localhost:3000/users/friend-request/cancel", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ fromUserId: this.currentUser.id, toUserId })
+          body: JSON.stringify({
+            fromUserId: this.currentUser.id,
+            toUserId
+          })
         });
-        
-        if (res.ok) {
-          this.sentRequests = this.sentRequests.filter(r => r._id !== toUserId);
-          this.filterSuggestedUsers(); // Người này lại trở thành gợi ý
-        }
-      } catch (err) { console.error(err); }
-    },
 
-    async sendFriendRequest(toUserId) {
-      try {
-        const res = await fetch("http://localhost:3000/users/friend-request/send", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ fromUserId: this.currentUser.id, toUserId })
-        });
-        
-        if (res.ok) {
-          await this.loadSentRequests();
-          this.filterSuggestedUsers(); // Loại bỏ khỏi danh sách gợi ý
-          alert("Friend request sent!");
+        if (!res.ok) {
+          throw new Error("Cancel request failed");
         }
-      } catch (err) { console.error(err); }
-    },
 
-    async unfriend(friendId) {
-      if (!confirm("Unfriend this person?")) return;
+        // Cập nhật state
+        this.sentRequests = this.sentRequests.filter(r => r._id !== toUserId);
+        this.loadAllUsers();
+        this.loadAllFriends();
+        this.loadFriendRequests();
+        this.loadSentRequests();
+
+        // Thông báo thành công
+        this.showNotify(
+          "success",
+          "Request Cancelled",
+          "Your friend request has been cancelled."
+        );
+
+      } catch (err) {
+        console.error(err);
+        this.showNotify(
+          "error",
+          "Error",
+          "Failed to cancel friend request."
+        );
+      }
+    }
+  );
+},
+
+
+async sendFriendRequest(toUserId) {
+  try {
+    const res = await fetch("http://localhost:3000/users/friend-request/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fromUserId: this.currentUser.id,
+        toUserId
+      })
+    });
+
+    if (res.ok) {
+      // ✅ update UI NGAY
+      const user = this.allUsers.find(u => u._id === toUserId);
+      if (user) user.friendStatus = 'sent';
+
+      // background sync
+      this.loadSentRequests();
+
+      this.showNotify(
+        "success",
+        "Request Sent",
+        "Your friend request has been sent."
+      );
+    }
+  } catch (err) {
+    this.showNotify("error", "Error", "Failed to send friend request.");
+  }
+},
+
+
+    unfriend(friendId) {
+  this.showConfirm(
+    "Are you sure you want to unfriend this person?",
+    async () => {
       try {
         const res = await fetch("http://localhost:3000/users/unfriend", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId: this.currentUser.id, friendId })
+          body: JSON.stringify({
+            userId: this.currentUser.id,
+            friendId
+          })
         });
-        
+
         if (res.ok) {
           this.allFriends = this.allFriends.filter(f => f._id !== friendId);
-          this.filterSuggestedUsers();
+          this.loadAllUsers();
+          this.loadAllFriends();
+          this.loadFriendRequests();
+          this.loadSentRequests();
+          this.showNotify("success", "Unfriended", "This user has been removed from your friends list.");
         }
-      } catch (err) { console.error(err); }
-    },
+      } catch (err) {
+        this.showNotify("error", "Error", "Failed to unfriend user.");
+      }
+    }
+  );
+},
+
 
     // --- FILTERS ---
 
     filterSuggestedUsers() {
-      const friendIds = this.allFriends.map(f => f._id);
-      const sentIds = this.sentRequests.map(r => r._id);
-      const receivedIds = this.friendRequests.map(r => r._id);
-
-      // Lọc ra những người chưa là bạn, chưa gửi/nhận request và không phải chính mình
-      this.suggestedUsers = this.allUsers.filter(user => {
-        return user._id !== this.currentUser.id &&
-               !friendIds.includes(user._id) &&
-               !sentIds.includes(user._id) &&
-               !receivedIds.includes(user._id);
-      });
-
-      // Nếu đang có từ khóa tìm kiếm thì lọc tiếp
-      if (this.searchQuery) {
-        this.filterUsers();
-      }
-    },
+  this.suggestedUsers = this.allUsers.filter(
+    u =>
+      u.friendStatus === 'none' &&
+      u._id !== this.currentUser.id
+  );
+}, 
 
     filterUsers() {
       if (!this.searchQuery.trim()) {
-        this.filterSuggestedUsers();
+        this.loadAllUsers();
+        this.loadAllFriends();
+        this.loadFriendRequests();
+        this.loadSentRequests();
         return;
       }
 
@@ -419,9 +587,61 @@ export default {
       });
     },
 
-    isRequestSent(userId) {
-      return this.sentRequests.some(r => r._id === userId);
-    }
+    handleSearch() {
+      const query = this.searchQuery.trim().toLowerCase();
+
+      // Nếu search rỗng → reset về gợi ý ban đầu
+      if (!query) {
+        this.loadAllUsers();
+        this.loadAllFriends();
+        this.loadFriendRequests();
+        this.loadSentRequests();
+        return;
+      }
+
+      this.suggestedUsers = this.allUsers.filter(user => {
+        if (user.friendStatus !== 'none') return false;
+
+        const fullName = `${user.firstname} ${user.lastname}`.toLowerCase();
+        const username = user.username.toLowerCase();
+
+        return (
+          fullName.includes(query) ||
+          username.includes(query)
+        );
+      });
+
+    },
+
+
+
+
+    showConfirm(message, action) {
+  this.confirmMessage = message;
+  this.pendingAction = action;
+  this.confirmVisible = true;
+},
+
+handleConfirm() {
+  this.confirmVisible = false;
+  if (this.pendingAction) {
+    this.pendingAction();
+    this.pendingAction = null;
+  }
+},
+
+showNotify(type, title, message) {
+  this.notification = {
+    visible: true,
+    type,
+    title,
+    message
+  };
+},
+
+
+
+
   }
 };
 </script>
@@ -543,7 +763,30 @@ export default {
   font-weight: 700; }
 
 /* Search Box */
-.search-wrapper { position: relative; width: 100%; max-width: 650px; }
+.search-wrapper {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  max-width: 650px;
+}
+
+.search-btn {
+  padding: 10px 18px;
+  border-radius: 30px;
+  border: none;
+  background: #FF642F;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.search-btn:hover {
+  background: #e04f1d;
+}
+
 .glass-input {
   width: 100%; padding: 10px 16px; border-radius: 30px; border: 1px solid #e5e7eb;
   background: white; outline: none; font-size: 14px; transition: all 0.2s; box-sizing: border-box;

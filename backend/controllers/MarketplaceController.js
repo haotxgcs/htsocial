@@ -1,0 +1,141 @@
+const MarketplaceItem = require("../models/MarketplaceItemModel");
+
+// ===== 1. CREATE ITEM =====
+exports.createItem = async (req, res) => {
+  try {
+    const { title, description, type, price, quantity, condition } = req.body;
+
+    const images = req.files
+      ? req.files.map(file => `uploads/${file.filename}`)
+      : [];
+
+    const item = new MarketplaceItem({
+      title,
+      description,
+      type,
+      price,
+      quantity,
+      condition: type === "tool" ? condition : null,
+      seller: req.user.id, // ✅ FIX
+      images,
+      status: "active"
+    });
+
+    await item.save();
+
+    res.status(201).json(item);
+  } catch (err) {
+    console.error("Create marketplace item error:", err);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
+
+
+// ===== 2. GET ALL ITEMS =====
+exports.getAllItems = async (req, res) => {
+  try {
+    const { type, search, mine } = req.query;
+
+    const filter = { status: "active" };
+
+    // Category
+    if (type) {
+      filter.type = type;
+    }
+
+    // My items
+    if (mine === "true") {
+      filter.seller = req.user.id;
+    }
+
+    // Search
+    if (search) {
+      filter.title = { $regex: search, $options: "i" };
+    }
+
+    const items = await MarketplaceItem.find(filter)
+      .populate("seller", "firstname lastname username avatar")
+      .sort({ createdAt: -1 });
+
+    res.status(200).json(items);
+  } catch (err) {
+    console.error("Get marketplace items error:", err);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
+
+
+// ===== 3. GET ITEM BY ID =====
+exports.getItemById = async (req, res) => {
+  try {
+    const item = await MarketplaceItem.findById(req.params.id)
+      .populate("seller", "firstname lastname username avatar");
+
+    if (!item) {
+      return res.status(404).json({ msg: "Item not found" });
+    }
+
+    res.status(200).json(item);
+  } catch (err) {
+    console.error("Get item error:", err);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
+
+// ===== 4. UPDATE ITEM =====
+exports.updateItem = async (req, res) => {
+  try {
+    const item = await MarketplaceItem.findById(req.params.id);
+    if (!item) return res.status(404).json({ msg: "Item not found" });
+
+    // ✅ CHECK OWNER
+    if (item.seller.toString() !== req.user.id) {
+      return res.status(403).json({ msg: "Forbidden" });
+    }
+
+    const allowedFields = [
+      "title",
+      "description",
+      "price",
+      "quantity",
+      "condition",
+      "type",
+      "status"
+    ];
+
+    allowedFields.forEach(field => {
+      if (req.body[field] !== undefined) {
+        item[field] = req.body[field];
+      }
+    });
+
+    await item.save();
+    res.status(200).json(item);
+  } catch (err) {
+    console.error("Update item error:", err);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
+
+
+// ===== 5. DELETE ITEM =====
+exports.deleteItem = async (req, res) => {
+  try {
+    const item = await MarketplaceItem.findById(req.params.id);
+    if (!item) return res.status(404).json({ msg: "Item not found" });
+
+    if (item.seller.toString() !== req.user.id) {
+      return res.status(403).json({ msg: "Forbidden" });
+    }
+
+    // Soft delete (KHUYÊN DÙNG)
+    item.status = "deleted";
+    await item.save();
+
+    res.status(200).json({ msg: "Item deleted" });
+  } catch (err) {
+    console.error("Delete item error:", err);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
+

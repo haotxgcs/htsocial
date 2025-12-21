@@ -1,10 +1,10 @@
 <template>
-  <div class="modal-backdrop" @click.self="!isLoading && close()">
+  <div class="modal-backdrop" @click.self="!isLoading && requestClose()">
     
     <div class="modal-box relative-box">
       <div class="modal-header">
         <h3>Edit Shared Post</h3>
-        <button class="close-btn" @click="close" :disabled="isLoading">&times;</button>
+        <button class="close-btn" @click="requestClose" :disabled="isLoading">&times;</button>
       </div>
 
       <div class="share-content">
@@ -62,11 +62,24 @@
 
               <div class="shared-details">
                 <p class="shared-label">Ingredients:</p>
-                <p class="shared-text">{{ getTruncatedText(share.post.ingredients) }}</p>
-                  
+                <p class="shared-text">
+                  {{ getDisplayedText(share.post.ingredients) }}
+                </p>
+
                 <p class="shared-label">Instructions:</p>
-                <p class="shared-text">{{ getTruncatedText(share.post.instructions) }}</p>
+                <p class="shared-text">
+                  {{ getDisplayedText(share.post.instructions) }}
+                </p>
+
+                <button
+                  v-if="shouldShowReadMore(share.post)"
+                  class="read-more-btn"
+                  @click="toggleOriginContent"
+                >
+                  {{ isOriginExpanded ? 'Show less' : 'Show more' }}
+                </button>
               </div>
+
              <div v-if="share.post.media" class="media-preview">
             <img v-if="share.post.mediaType === 'image'" :src="`http://localhost:3000/${share.post.media}`" />
             <video v-else controls :src="`http://localhost:3000/${share.post.media}`"></video>
@@ -101,7 +114,16 @@
         :message="notification.message"
         @confirm="handleNotificationConfirm"
       />
+
+      
     </div>
+<ConfirmDialog
+        v-if="confirmVisible"
+        :message="confirmMessage"
+        @confirm="handleConfirmDiscard"
+        @cancel="confirmVisible = false"
+      />
+
 
   </div>
 </template>
@@ -110,6 +132,7 @@
 import EmojiPicker from 'vue3-emoji-picker';
 import 'vue3-emoji-picker/css';
 import NotificationModal from './NotificationModal.vue';
+import ConfirmDialog from './ConfirmDialog.vue';
 import LoadingOverlay from './LoadingOverlay.vue';
 
 export default {
@@ -117,6 +140,7 @@ export default {
   components: {
     EmojiPicker,
     NotificationModal,
+    ConfirmDialog,
     LoadingOverlay
   },
   props: {
@@ -126,6 +150,10 @@ export default {
     return {
       editedContent: this.share?.content || "",
       audience: this.share?.audience || "public",
+
+      confirmVisible: false,
+      confirmMessage: "",
+
       showEmojiPicker: false,
       pickerStyle: { position: 'fixed', top: '0', left: '0', zIndex: 11001 },
       
@@ -135,7 +163,8 @@ export default {
         title: '',
         message: ''
       },
-      isLoading: false
+      isLoading: false,
+      isOriginExpanded: false
     };
   },
   watch: {
@@ -171,7 +200,7 @@ export default {
       this.notification.visible = false;
       if (this.notification.type === 'success') {
         this.$emit("updated"); // Báo ra ngoài để reload list
-        this.close();
+        this.close(true);
       }
     },
 
@@ -206,12 +235,6 @@ export default {
         this.isLoading = false;
         this.showNotify("error", "Error", "Failed to update shared post.");
       }
-    },
-
-    close() {
-      if (this.isLoading) return; 
-      this.$emit("close");
-      this.showEmojiPicker = false;
     },
 
     toggleEmojiPicker(event) {
@@ -255,6 +278,50 @@ export default {
     getAvatarUrl(user) {
       return user?.avatar ? `http://localhost:3000/${user.avatar}` : require("@/assets/user.png");
     },
+
+    requestClose() {
+    if (this.isLoading) return;
+    this.confirmMessage = "Are you sure you want to discard your changes?";
+    this.confirmVisible = true;
+  },
+
+  handleConfirmDiscard() {
+    this.confirmVisible = false;
+    this.close(true);
+  },
+
+  close(force = false) {
+    if (!force) {
+      this.requestClose();
+      return;
+    }
+    this.showEmojiPicker = false;
+    this.$emit("close");
+  },
+
+  shouldShowReadMore(post) {
+    if (!post) return false;
+    const text = (post.ingredients || '') + (post.instructions || '');
+    const lines = text.split('\n');
+    return lines.length > 5 || text.length > 200;
+  },
+
+  getDisplayedText(text) {
+  if (!text) return '';
+  if (this.isOriginExpanded) return text;
+
+  const lines = text.split('\n');
+  if (lines.length > 3) {
+    return lines.slice(0, 3).join('\n') + '...';
+  }
+  return text.substring(0, 150) + '';
+},
+
+toggleOriginContent() {
+  this.isOriginExpanded = !this.isOriginExpanded;
+},
+
+
   },
 };
 </script>
@@ -357,6 +424,22 @@ export default {
 .btn.cancel { background-color: #f0f2f5; color: #333; }
 .btn.cancel:hover { background-color: #e4e6eb; }
 .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.read-more-btn {
+  background: none;
+  border: none;
+  color: #FF642F;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px 0;
+  margin-top: 6px;
+}
+
+.read-more-btn:hover {
+  text-decoration: underline;
+}
+
 
 @media (max-width: 768px) { .modal-box { max-width: 100%; margin: 10px; } .share-content { padding: 16px; } }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }

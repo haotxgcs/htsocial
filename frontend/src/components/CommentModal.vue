@@ -1,5 +1,5 @@
 <template>
-  <div v-if="isVisible" class="comment-modal-overlay" @click="closeModal">
+  <div v-if="isVisible" class="comment-modal-overlay" @click="handleOverlayClick">
     <div class="comment-modal-content" @click.stop>
       
       <div class="comment-modal-header">
@@ -516,10 +516,10 @@ export default {
         });
 
         // Lắng nghe sự kiện click để đóng emoji picker
-        document.addEventListener('click', this.closeEmojiPickerOnClickOutside);
+        document.addEventListener('click', this.closeEmojiPickerOnClickOutside, true);
       } else {
         // Cleanup khi đóng modal
-        document.removeEventListener('click', this.closeEmojiPickerOnClickOutside);
+        document.removeEventListener('click', this.closeEmojiPickerOnClickOutside, true);
         this.activeEmojiPicker = null;
       }
     },
@@ -542,12 +542,23 @@ export default {
       }
     },
     
-    closeEmojiPickerOnClickOutside(event) {
-      // Nếu click không trúng bất kỳ wrapper emoji nào thì đóng
-      if (!event.target.closest('.emoji-wrapper-main') && !event.target.closest('.emoji-wrapper-small')) {
-        this.activeEmojiPicker = null;
-      }
-    },
+closeEmojiPickerOnClickOutside(event) {
+  // Nếu click nằm trong BẤT KỲ vùng emoji nào → bỏ qua
+  if (
+    event.target.closest('.emoji-wrapper-main') ||
+    event.target.closest('.emoji-wrapper-small') ||
+    event.target.closest('.emoji-wrapper-edit') ||
+    event.target.closest('.emoji-popover-main') ||
+    event.target.closest('.emoji-popover-up')
+  ) {
+    return;
+  }
+
+  // Click ngoài → đóng emoji
+  this.activeEmojiPicker = null;
+},
+
+
 
     // Theo dõi ô input nào đang được focus
     trackFocus(refName, modelType, key) {
@@ -1235,7 +1246,19 @@ export default {
 
     toggleContent() {
       this.isContentExpanded = !this.isContentExpanded;
-    }
+    },
+
+    handleOverlayClick() {
+  // Nếu đang mở emoji → chỉ đóng emoji, KHÔNG đóng modal
+  if (this.activeEmojiPicker) {
+    this.activeEmojiPicker = null;
+    return;
+  }
+
+  // Không mở emoji → đóng modal
+  this.closeModal();
+},
+
   },
 
   beforeUnmount() {
@@ -1476,15 +1499,18 @@ export default {
   background: white;
 }
 /* Cho reply (hiện thấp hơn chút) */
-.emoji-popover-up { 
-  position: absolute; 
-  bottom: 35px; 
-  right: 0; 
-  z-index: 100; 
-  box-shadow: 0 5px 15px rgba(0,0,0,0.2); 
-  border-radius: 8px; 
-  background: white;
+.emoji-wrapper-edit .emoji-popover-up {
+  position: absolute;
+  bottom: 35px;        /* giữ như cũ */
+  right: 30%;  
+  top:0;
+  margin-top:50px;  
+ 
+  transform: translateX(30px); /* 👈 NHÍCH NHẸ QUA PHẢI */
+  
+  z-index: 9999;
 }
+
 
 /* Nút gửi tin nhắn */
 .send-comment-btn, .send-reply-btn { 

@@ -13,7 +13,7 @@ const authMiddleware = async (req, res, next) => {
     }
 
     // 2. Giải mã Token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'htsocialsecrectkey');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
     // 3. Tìm user trong DB
     // Hỗ trợ cả trường hợp payload dùng 'id' hoặc 'userId'

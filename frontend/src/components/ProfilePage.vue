@@ -91,7 +91,7 @@
 
           <div class="action-buttons">
             <button v-if="isMyProfile" class="btn-primary-gradient" @click="openEditProfileModal">Edit Profile</button>
-            <button v-if="!isMyProfile"
+            <button v-if="!isMyProfile && friendStatus !== 'self'"
               class="btn-primary-gradient"
               :class="friendStatus"
               @click="handleFriendAction"
@@ -685,14 +685,15 @@ export default {
   return viewerId && viewerId === this.profileUser?._id;
 },
 
-    friendButtonText() {
-      switch (this.friendStatus) {
-        case 'friends': return 'Unfriend';
-        case 'sent': return 'Cancel Request';
-        case 'received': return 'Accept Friend';
-        default: return 'Add Friend';
-      }
-    },
+friendButtonText() {
+  switch (this.friendStatus) {
+    case 'self': return '';
+    case 'friends': return 'Unfriend';
+    case 'sent': return 'Cancel Request';
+    case 'received': return 'Accept Friend';
+    default: return 'Add Friend';
+  }
+},
 
     displayedMedia() {
     switch (this.mediaTab) {
@@ -806,12 +807,17 @@ export default {
         const userId = this.getProfileUserId();
         if (!userId) return;
 
-        const res = await fetch(`http://localhost:3000/users/${userId}`);
+        const viewer = JSON.parse(localStorage.getItem("user"));
+        const viewerId = viewer?._id || viewer?.id;
+        const res = await fetch(
+          `http://localhost:3000/users/${userId}?viewerId=${viewerId}`
+        );
         if (!res.ok) throw new Error("User not found");
 
         const data = await res.json();
         this.user = data;
         this.profileUser = data; // ⭐ BẮT BUỘC
+        this.friendStatus = data.friendStatus;
       } catch (err) {
         console.error("Get user error:", err);
         this.user = null;
@@ -1507,34 +1513,7 @@ export default {
     },
 
 
-    setFriendStatus() {
-    const viewer = JSON.parse(localStorage.getItem("user"));
-    if (!viewer || !this.profileUser) return;
-
-    const viewerId = viewer._id || viewer.id;
-    const profileId = this.profileUser._id;
-
-    // ✅ ĐÃ LÀ BẠN
-    if (this.profileUser.friends?.includes(viewerId)) {
-      this.friendStatus = 'friends';
-      return;
-    }
-
-    // ✅ VIEWER ĐÃ GỬI REQUEST
-    if (viewer.requestSent?.includes(profileId)) {
-      this.friendStatus = 'sent'; // Cancel Request
-      return;
-    }
-
-    // ✅ VIEWER ĐANG NHẬN REQUEST
-    if (viewer.requestReceived?.includes(profileId)) {
-      this.friendStatus = 'received'; // Accept Friend
-      return;
-    }
-
-    // ✅ CHƯA CÓ QUAN HỆ
-    this.friendStatus = 'none';
-    }, 
+ 
 
     addFriendToList(friend) {
       // Tránh thêm trùng
@@ -1550,122 +1529,108 @@ export default {
       this.friendsList = this.friendsList.filter(f => f._id !== friendId);
     },
 
-    async handleFriendAction() {
-    const viewer = JSON.parse(localStorage.getItem("user"));
-    if (!viewer || !this.profileUser?._id) return;
+async handleFriendAction() {
+  const viewer = JSON.parse(localStorage.getItem("user"));
+  if (!viewer || !this.profileUser?._id) return;
 
-    // ⚠️ TRƯỜNG HỢP CẦN CONFIRM
-    if (this.friendStatus === 'sent') {
-      this.confirmFriendMessage = 'Do you want to cancel this friend request?';
-      this.pendingFriendAction = 'cancel';
-      this.confirmFriendVisible = true;
-      return;
+  const viewerId = viewer._id || viewer.id;
+  if (this.friendStatus === 'self') return;
+
+  if (this.friendStatus === 'sent') {
+    this.confirmFriendMessage = 'Do you want to cancel this friend request?';
+    this.pendingFriendAction = 'cancel';
+    this.confirmFriendVisible = true;
+    return;
+  }
+
+  if (this.friendStatus === 'friends') {
+    this.confirmFriendMessage = 'Do you want to unfriend this user?';
+    this.pendingFriendAction = 'unfriend';
+    this.confirmFriendVisible = true;
+    return;
+  }
+
+  this.loadingFriend = true;
+
+  try {
+    // ADD FRIEND
+    if (this.friendStatus === 'none') {
+      await fetch("http://localhost:3000/users/friend-request/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fromUserId: viewerId,
+          toUserId: this.profileUser._id
+        })
+      });
     }
 
-    if (this.friendStatus === 'friends') {
-      this.confirmFriendMessage = 'Do you want to unfriend this user?';
-      this.pendingFriendAction = 'unfriend';
-      this.confirmFriendVisible = true;
-      return;
+    // ACCEPT FRIEND
+    else if (this.friendStatus === 'received') {
+      await fetch("http://localhost:3000/users/friend-request/accept", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: viewerId,
+          requesterId: this.profileUser._id
+        })
+      });
     }
 
-    // ❌ Các trường hợp KHÔNG cần confirm
-    this.loadingFriend = true;
+    await this.fetchUserProfile();
+    await this.fetchFriends();
+    window.dispatchEvent(new Event('friend-status-changed'));
 
-    try {
-      if (this.friendStatus === 'none') {
-        // ADD FRIEND
-        await fetch("http://localhost:3000/users/friend-request/send", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            fromUserId: viewer.id,
-            toUserId: this.profileUser._id
-          })
-        });
-        this.friendStatus = 'sent';
-      }
+  } catch (err) {
+    console.error("Friend action error:", err);
+  } finally {
+    this.loadingFriend = false;
+  }
+}, 
 
-      else if (this.friendStatus === 'received') {
-        // ACCEPT FRIEND
-        await fetch("http://localhost:3000/users/friend-request/accept", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            fromUserId: this.profileUser._id,
-            toUserId: viewer.id
-          })
-        });
-        this.friendStatus = 'friends';
+async confirmFriendAction() {
+  const viewer = JSON.parse(localStorage.getItem("user"));
+  if (!viewer || !this.profileUser?._id) return;
 
-        const viewerUser = {
-          _id: viewer.id,
-          firstname: viewer.firstname,
-          lastname: viewer.lastname,
-          username: viewer.username,
-          avatar: viewer.avatar
-        };
+  const viewerId = viewer._id || viewer.id;
+  this.loadingFriend = true;
 
-        this.addFriendToList(viewerUser);
-
-        // cập nhật counter
-        this.profileUser.friends = this.profileUser.friends || [];
-        this.profileUser.friends.push(viewer.id);
-
-      }
-
-    } catch (err) {
-      console.error(err);
-    } finally {
-      this.loadingFriend = false;
+  try {
+    if (this.pendingFriendAction === 'cancel') {
+      await fetch("http://localhost:3000/users/friend-request/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fromUserId: viewerId,
+          toUserId: this.profileUser._id
+        })
+      });
     }
-    },
 
-    async confirmFriendAction() {
-      const viewer = JSON.parse(localStorage.getItem("user"));
-      if (!viewer) return;
+    else if (this.pendingFriendAction === 'unfriend') {
+      await fetch("http://localhost:3000/users/unfriend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: viewerId,
+          friendId: this.profileUser._id
+        })
+      });
+    }
 
-      this.loadingFriend = true;
+    await this.fetchUserProfile();
+    await this.fetchFriends();
+    window.dispatchEvent(new Event('friend-status-changed'));
 
-      try {
-        if (this.pendingFriendAction === 'cancel') {
-          await fetch("http://localhost:3000/users/friend-request/cancel", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              fromUserId: viewer.id,
-              toUserId: this.profileUser._id
-            })
-          });
-          this.friendStatus = 'none';
-        }
-
-        if (this.pendingFriendAction === 'unfriend') {
-          await fetch("http://localhost:3000/users/unfriend", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              userId: viewer.id,
-              friendId: this.profileUser._id
-            })
-          });
-          this.friendStatus = 'none';
-          this.removeFriendFromList(this.profileUser._id);
-
-          this.profileUser.friends = this.profileUser.friends.filter(
-            id => id !== viewer.id
-          );
-        }
-          
-
-      } catch (err) {
-        console.error(err);
-      } finally {
-        this.loadingFriend = false;
-        this.confirmFriendVisible = false;
-        this.pendingFriendAction = null;
-      }
-    },
+  } catch (err) {
+    console.error("Confirm friend action error:", err);
+  } finally {
+    this.loadingFriend = false;
+    this.confirmFriendVisible = false;
+    this.pendingFriendAction = null;
+  }
+}
+,
  
     async initProfile() {
         await this.fetchUserProfile();
@@ -1673,7 +1638,7 @@ export default {
         await this.fetchFriends();
         await this.fetchUserMedia();
 
-        this.setFriendStatus();
+
     },
 
     changePage(page) {
@@ -1761,7 +1726,7 @@ export default {
       await this.fetchUserPosts(1);
       await this.fetchFriends();
       await this.fetchUserMedia(); // ⭐ BẮT BUỘC
-      this.setFriendStatus();
+
     }
   }
 

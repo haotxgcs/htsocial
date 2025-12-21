@@ -67,13 +67,14 @@
           >
             {{ expandedPosts[post._id] ? 'Show Less' : 'Show More' }}
           </button>
-        </div>
-        <div v-if="post.media" class="post-media-container">
+          <div v-if="post.media" class="post-media-container">
           <img v-if="post.mediaType === 'image'" :src="`http://localhost:3000/${post.media}`" class="post-media" />
           <video v-else-if="post.mediaType === 'video'" controls class="post-media">
             <source :src="`http://localhost:3000/${post.media}`" type="video/mp4" />
           </video>
         </div>
+        </div>
+        
 
         <div v-if="post.totalRatings > 0" class="rating-statistics">
           <div class="rating-summary">
@@ -544,11 +545,11 @@ export default {
 
 /* --- 5. MEDIA & STATS --- */
 .post-media-container { 
-  width: 100%; aspect-ratio: 1 / 1; background: #f0f0f0; 
+  width: 100%; aspect-ratio: 1 / 1; 
   display: flex; align-items: center; justify-content: center; 
   overflow: hidden; margin-bottom: 12px; 
 }
-.post-media { width: 100%; height: 100%; object-fit: cover; }
+.post-media { width: 100%; height: 100%; object-fit: cover; border-radius:10px;margin-top:10px;}
 
 /* Rating */
 .rating-statistics { 

@@ -2,6 +2,7 @@
 
 const User = require("../models/UserModel");
 const Post = require("../models/PostModel");
+const { getFriendStatus } = require("../services/userFriendLogic");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
@@ -145,7 +146,7 @@ exports.login = async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ msg: "Invalid credentials" });
 
-    const token = jwt.sign({ id: user._id , v: user.token_version || 0 }, process.env.JWT_SECRET || "default_secret", { expiresIn: "1h" });
+    const token = jwt.sign({ id: user._id , v: user.token_version || 0 }, process.env.JWT_SECRET, { expiresIn: "1h" });
 
     user.active = true;
     await user.save();
@@ -192,17 +193,26 @@ exports.logout = async (req, res) => {
 };
 
 
-// ===== 5. Lấy danh sách tất cả user (Get All Users) =====
+
+
 exports.getAllUsers = async (req, res) => {
   try {
-    const users = await User.find({}, "firstname lastname username email avatar role createdAt updatedAt");
+    const viewerId = req.query.viewerId;
+    const viewer = viewerId ? await User.findById(viewerId) : null;
+
+    const users = await User.find(
+      {},
+      "firstname lastname username email avatar role createdAt updatedAt friends requestSent requestReceived"
+    );
 
     const usersWithPostCount = await Promise.all(
       users.map(async (user) => {
         const postCount = await Post.countDocuments({ author: user._id });
+
         return {
           ...user.toObject(),
-          postCount
+          postCount,
+          friendStatus: viewer ? getFriendStatus(viewer, user) : "none"
         };
       })
     );
@@ -215,26 +225,42 @@ exports.getAllUsers = async (req, res) => {
 };
 
 
-// ===== 6. Lấy user theo ID (Get User By ID) =====
+
+
+
 exports.getUserById = async (req, res) => {
   try {
+    const viewerId = req.query.viewerId;
+
     const user = await User.findById(
       req.params.id,
-      "firstname lastname username email avatar coverPhoto role bio birthday location gender friends createdAt updatedAt active requestSent requestReceived last_name_change last_username_change"
+      "firstname lastname username email avatar coverPhoto role bio birthday location gender friends requestSent requestReceived createdAt updatedAt active"
     );
+
     if (!user) return res.status(404).json({ msg: "User not found" });
 
     const postCount = await Post.countDocuments({ author: user._id });
 
+    let friendStatus = "none";
+
+    if (viewerId) {
+      const viewer = await User.findById(viewerId);
+      if (viewer) {
+        friendStatus = getFriendStatus(viewer, user);
+      }
+    }
+
     res.status(200).json({
       ...user.toObject(),
-      postCount
+      postCount,
+      friendStatus
     });
   } catch (err) {
     console.error("Get user by ID error:", err);
     res.status(500).json({ msg: "Server error" });
   }
 };
+
 
 
 const checkChangeLimit = (lastChangeDate, daysLimit = 30) => {

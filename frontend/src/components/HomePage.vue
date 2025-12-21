@@ -1714,8 +1714,7 @@ export default {
 }
 .post-actions button:hover { background: #fff5eb; color: #FF642F; }
 .post-actions button img { width: 18px; height: 18px; opacity: 0.7; }
-.post-actions button.like-btn.active { color: #F44336; }
-.post-actions button.save-btn.active { color: #FFC107; }
+
 .post-actions button.active img { filter: none; opacity: 1; }
 
 /* Menus */
