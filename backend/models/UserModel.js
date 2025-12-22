@@ -54,10 +54,23 @@ const userSchema = new mongoose.Schema(
 
     token_version: { type: Number, default: 0 },
 
-    searchHistory: {
-      type: [String], // Mảng chứa các chuỗi từ khóa
-      default: [],    // Mặc định là rỗng
-    },
+    searchHistory: [
+      {
+        context: {
+          type: String,
+          enum: ["home", "marketplace"],
+          required: true
+        },
+        query: {
+          type: String,
+          required: true
+        },
+        createdAt: {
+          type: Date,
+          default: Date.now
+        }
+      }
+    ],
   },
   {
     timestamps: true,

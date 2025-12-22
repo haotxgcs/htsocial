@@ -10,13 +10,14 @@
       <div class="title">{{ item.title }}</div>
       <div class="seller">
         <img :src="avatarUrl" />
-        <span>{{ item.seller?.firstname }}</span>
+        <span>{{ item.seller?.firstname }} {{ item.seller?.lastname }}</span>
       </div>
     </div>
   </div>
 </template>
 
 <script>
+
 export default {
   name: "MarketplaceItemCard",
   props: {
@@ -60,13 +61,15 @@ export default {
 
 <style scoped>
 .item-card {
+  width: 100%;              /* 👈 QUAN TRỌNG */
   background: white;
   border-radius: 16px;
   overflow: hidden;
   cursor: pointer;
-  transition: 0.2s;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
   box-shadow: 0 2px 6px rgba(0,0,0,0.08);
-  
+  display: flex;
+  flex-direction: column;   /* 👈 đảm bảo nội dung xếp dọc */
 }
 
 .item-card:hover {
@@ -75,7 +78,9 @@ export default {
 
 .image-box {
   position: relative;
-  height: 180px;
+  width: 100%;
+  aspect-ratio: 1 / 1;      /* 👈 THAY cho height: 180px */
+  background: #f3f4f6;      /* 👈 tránh nhảy layout khi ảnh load */
 }
 
 .image-box img {

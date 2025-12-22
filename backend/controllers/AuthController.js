@@ -1176,28 +1176,39 @@ exports.uploadCover = async (req, res) => {
 // 1. Lấy lịch sử tìm kiếm
 exports.getSearchHistory = async (req, res) => {
   try {
+    const { context } = req.query; // 🔥
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ msg: "User not found" });
 
-    // Trả về mảng rỗng nếu chưa có lịch sử
-    res.status(200).json({ history: user.searchHistory || [] });
+    const history = context
+      ? user.searchHistory
+          .filter(h => h.context === context)
+          .slice(0, 10)
+      : [];
+
+    res.status(200).json({ history });
   } catch (err) {
     console.error("Get history error:", err);
     res.status(500).json({ error: err.message });
   }
 };
 
+
 // 2. Lưu từ khóa mới
 exports.saveSearchHistory = async (req, res) => {
   try {
-    const { query } = req.body;
+    const { query, context } = req.body;
     const userId = req.params.id;
 
-    if (!query) return res.status(400).json({ msg: "Query is required" });
+    if (!query || !context) {
+      return res.status(400).json({ msg: "Query and context are required" });
+    }
 
     // Bước 1: Xóa từ khóa cũ nếu trùng (để đưa lên đầu)
     await User.findByIdAndUpdate(userId, {
-      $pull: { searchHistory: query }
+       $pull: {
+        searchHistory: { query, context }
+      }
     });
 
     // Bước 2: Chèn lên đầu và giới hạn 10 item
@@ -1206,7 +1217,7 @@ exports.saveSearchHistory = async (req, res) => {
       {
         $push: {
           searchHistory: {
-            $each: [query],
+            $each: [{ query, context }],
             $position: 0,
             $slice: 10 // Chỉ giữ 10 cái mới nhất
           }
@@ -1215,7 +1226,11 @@ exports.saveSearchHistory = async (req, res) => {
       { new: true }
     );
 
-    res.status(200).json({ history: updatedUser.searchHistory });
+    res.json({
+      history: updatedUser.searchHistory.filter(
+        h => h.context === context
+      )
+    });
   } catch (err) {
     console.error("Save history error:", err);
     res.status(500).json({ error: err.message });
@@ -1225,11 +1240,15 @@ exports.saveSearchHistory = async (req, res) => {
 // 3. Xóa một từ khóa cụ thể
 exports.removeSearchHistoryItem = async (req, res) => {
   try {
-    const { query } = req.body;
+    const { query, context } = req.body; // ✅ Thêm context
     const userId = req.params.id;
 
+    if (!query || !context) {
+      return res.status(400).json({ msg: "Query and context are required" });
+    }
+
     await User.findByIdAndUpdate(userId, {
-      $pull: { searchHistory: query }
+      $pull: { searchHistory: { query, context } }
     });
 
     res.status(200).json({ msg: "Removed from history" });
@@ -1243,9 +1262,14 @@ exports.removeSearchHistoryItem = async (req, res) => {
 exports.clearSearchHistory = async (req, res) => {
   try {
     const userId = req.params.id;
+    const { context } = req.body; // 🔥 marketplace | home
+
+    if (!context) {
+      return res.status(400).json({ msg: "Context is required" });
+    }
 
     await User.findByIdAndUpdate(userId, {
-      $set: { searchHistory: [] }
+      $pull: { searchHistory: { context } }
     });
 
     res.status(200).json({ msg: "History cleared" });

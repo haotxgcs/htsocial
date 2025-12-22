@@ -11,9 +11,11 @@
               placeholder="Search for recipes..." 
               @keyup.enter="handleSearch" 
               @focus="openHistory"
+              @input="onInputSearch"
+              @click.stop
             />
             
-            <span v-if="searchQuery" class="clear-icon" @click="clearSearch">
+            <span v-if="searchQuery" class="clear-icon" @click.stop="clearSearch">
               ✕
             </span>
 
@@ -382,17 +384,20 @@ import CreatePostModal from './CreatePostModal.vue';
 // Custom directive để xử lý click ra ngoài menu (dropdown)
 const clickOutside = {
   mounted(el, binding) {
-    el.clickOutsideEvent = function(event) {
-      if (!(el === event.target || el.contains(event.target))) {
-        binding.value(event, el);
+    el._clickOutsideHandler = (event) => {
+      // composedPath chính xác hơn contains
+      const path = event.composedPath();
+      if (!path.includes(el)) {
+        binding.value(event);
       }
     };
-    document.body.addEventListener('click', el.clickOutsideEvent);
+    document.addEventListener('click', el._clickOutsideHandler);
   },
   unmounted(el) {
-    document.body.removeEventListener('click', el.clickOutsideEvent);
+    document.removeEventListener('click', el._clickOutsideHandler);
   },
 };
+
 
 export default {
   name: "HomePage",
@@ -577,43 +582,14 @@ export default {
     },
 
     async handleSearch() {
-      // 1. Kiểm tra đầu vào
-      const query = this.searchQuery.trim();
-      if (!query) return;
+  const query = this.searchQuery.trim();
+  if (!query) return;
 
-      // 2. KÍCH HOẠT TÌM KIẾM (Quan trọng nhất)
-      // Dòng này sẽ báo cho computed 'filteredPosts' biết để lọc dữ liệu
-      this.finalSearchQuery = query;
-      this.currentPage = 1; 
+  this.finalSearchQuery = query;
+  this.currentPage = 1;
 
-      // 3. Cập nhật giao diện Lịch sử (Local State)
-      // Xóa nếu trùng để đưa lên đầu
-      const index = this.searchHistory.indexOf(query);
-      if (index !== -1) {
-        this.searchHistory.splice(index, 1);
-      }
-      // Thêm vào đầu mảng
-      this.searchHistory.unshift(query);
-      // Giới hạn 10 item
-      if (this.searchHistory.length > 10) this.searchHistory.pop();
-      
-      // Đóng popup history
-      this.showHistory = false; 
-
-      // 4. Gửi API lưu ngầm xuống database (Không cần await để tránh chặn UI)
-      // Kiểm tra user có tồn tại không trước khi gọi
-      if (this.user && this.user.id) {
-        try {
-          fetch(`http://localhost:3000/users/${this.user.id}/search-history`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query: query })
-          });
-        } catch (e) { 
-          console.error("Lỗi lưu lịch sử:", e); 
-        }
-      }
-    },
+  await this.saveSearchHistory(); // 👈 gom logic về 1 chỗ
+},
 
     getAvatarUrl(author) {
       if (!author || !author.avatar) return 'http://localhost:3000/uploads/user.png';
@@ -650,11 +626,20 @@ export default {
     this.currentPage = 1;
   },
 
-  openHistory() {
-      if (this.searchHistory.length > 0) {
-        this.showHistory = true;
-      }
-    },
+// ✅ ĐÚNG - Luôn mở, nhưng dropdown tự ẩn nếu rỗng nhờ v-if
+openHistory() {
+  // this.showHistory = this.searchHistory.length > 0;
+  this.showHistory = true;
+},
+
+// ✅ ĐÚNG - Cập nhật finalSearchQuery real-time
+onInputSearch() {
+  // Nếu xóa hết text, reset search
+  if (!this.searchQuery.trim()) {
+    this.finalSearchQuery = '';
+  }
+}, 
+
 
     // 2. Đóng lịch sử khi click ra ngoài (đã gắn v-click-outside ở template)
     closeHistory() {
@@ -681,18 +666,25 @@ export default {
       }
     },
 
-    async loadSearchHistory() {
-      if (!this.user) return;
-      try {
-        const res = await fetch(`http://localhost:3000/users/${this.user.id}/search-history`);
-        if (res.ok) {
-          const data = await res.json();
-          this.searchHistory = data.history || [];
-        }
-      } catch (e) {
-        console.error("Lỗi tải lịch sử:", e);
-      }
-    },
+// ✅ ĐÚNG
+async loadSearchHistory() {
+  if (!this.user) return;
+  try {
+    const res = await fetch(
+      `http://localhost:3000/users/${this.user.id}/search-history?context=home`
+    );
+    if (res.ok) {
+      const data = await res.json();
+      this.searchHistory = (data.history || [])
+        .filter(h => h.context === "home")
+        .map(h => h.query);
+      
+      // ❌ BỎ DÒNG: this.showHistory = true;
+    }
+  } catch (e) {
+    console.error("Lỗi tải lịch sử:", e);
+  }
+},
 
     // MỚI: Lưu lên Server
     async saveSearchHistory() {
@@ -714,7 +706,7 @@ export default {
         await fetch(`http://localhost:3000/users/${this.user.id}/search-history`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query: query })
+          body: JSON.stringify({ query, context: "home" })
         });
       } catch (e) { 
         console.error(e); 
@@ -743,24 +735,29 @@ export default {
         await fetch(`http://localhost:3000/users/${this.user.id}/search-history`, {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query: itemToDelete })
+          body: JSON.stringify({ query: itemToDelete , context:"home"})
         });
       } catch (e) { console.error(e); }
     },
 
     // MỚI: Xóa tất cả trên Server
     async clearAllHistory() {
-      // 1. Xóa giao diện
-      this.searchHistory = [];
-      this.showHistory = false;
+  this.searchHistory = [];
+  this.showHistory = false;
 
-      // 2. Gọi API xóa sạch DB
-      try {
-        await fetch(`http://localhost:3000/users/${this.user.id}/search-history/all`, {
-          method: 'DELETE'
-        });
-      } catch (e) { console.error(e); }
-    },
+  try {
+    await fetch(
+      `http://localhost:3000/users/${this.user.id}/search-history/all`,
+      {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ context: "home" }) // 👈 QUAN TRỌNG
+      }
+    );
+  } catch (e) {
+    console.error(e);
+  }
+}, 
 
     togglePostContent(postId) {
       // Tạo object mới để Vue nhận diện thay đổi (Reactivity)
@@ -1316,7 +1313,18 @@ export default {
 
   beforeUnmount() {
     window.removeEventListener('scroll', this.handleScroll, true);
+  },
+
+  watch: {
+  searchHistory(newVal) {
+    if (newVal.length > 0) {
+      this.showHistory = true;
+    }
   }
+}
+
+
+  
 };
 </script>
 
