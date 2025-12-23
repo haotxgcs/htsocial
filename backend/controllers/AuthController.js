@@ -1219,7 +1219,7 @@ exports.saveSearchHistory = async (req, res) => {
           searchHistory: {
             $each: [{ query, context }],
             $position: 0,
-            $slice: 10 // Chỉ giữ 10 cái mới nhất
+            $slice: 50 // Chỉ giữ 10 cái mới nhất
           }
         }
       },

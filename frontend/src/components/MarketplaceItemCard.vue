@@ -1,6 +1,22 @@
 <template>
   <div class="item-card" @click="$emit('open', item)">
     <div class="image-box">
+
+      <!-- MENU 3 CHẤM -->
+      <div
+        v-if="isOwner"
+        class="menu-wrapper"
+        v-click-outside="closeMenu"
+        @click.stop
+      >
+        <span class="menu-icon" @click.stop="toggleMenu"><img src="../assets/menu.png"></span>
+
+        <div v-if="showMenu" class="menu-dropdown" @click.stop>
+          <button class="menu-item" @click="editItem"><img src="../assets/edit.png"><span>Edit</span></button>
+          <button class="menu-item danger" @click="deleteItem"><img src="../assets/delete.png"><span>Delete</span></button>
+        </div>
+      </div>
+
       <img :src="imageUrl" />
       <span class="badge">{{ typeLabel }}</span>
     </div>
@@ -16,14 +32,46 @@
   </div>
 </template>
 
+
 <script>
+  const clickOutside = {
+  mounted(el, binding) {
+    el._handler = (e) => {
+      const path = e.composedPath();
+      if (!path.includes(el)) {
+        binding.value();
+      }
+    };
+    document.addEventListener("click", el._handler);
+  },
+  unmounted(el) {
+    document.removeEventListener("click", el._handler);
+  }
+};
 
 export default {
   name: "MarketplaceItemCard",
+  data() {
+  return {
+    showMenu: false,
+    currentUser: JSON.parse(localStorage.getItem("user"))
+  };
+},
   props: {
     item: Object
   },
+  directives: {
+    clickOutside
+  },
   computed: {
+    isOwner() {
+      if (!this.currentUser || !this.item?.seller) return false;
+
+      return (
+        this.item.seller._id ===
+        (this.currentUser._id || this.currentUser.id)
+      );
+    },
     imageUrl() {
       if (this.item.images?.length) {
         return `http://localhost:3000/${this.item.images[0]}`;
@@ -44,10 +92,26 @@ export default {
       tool: "Tools"
     };
     return map[this.item.type] || "Item";
-  }
+  },
+  
 
   },
   methods: {
+
+    toggleMenu() {
+      this.showMenu = !this.showMenu;
+    },
+    closeMenu() {
+      this.showMenu = false;
+    },
+    editItem() {
+      this.showMenu = false;
+      this.$emit("edit", this.item); // 👉 để parent mở modal
+    },
+    deleteItem() {
+      this.showMenu = false;
+      this.$emit("delete", this.item); // 👉 để parent xử lý API
+    },
     formatPrice(v) {
       return new Intl.NumberFormat("en-US", {
         style: "currency",
@@ -64,7 +128,7 @@ export default {
   width: 100%;              /* 👈 QUAN TRỌNG */
   background: white;
   border-radius: 16px;
-  overflow: hidden;
+  overflow: visible;
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   box-shadow: 0 2px 6px rgba(0,0,0,0.08);
@@ -129,4 +193,123 @@ export default {
   height: 26px;
   border-radius: 50%;
 }
+
+/* menu style */
+/* ===== MENU WRAPPER ===== */
+.menu-wrapper {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 10;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+/* chỉ hiện menu khi hover card */
+.item-card:hover .menu-wrapper {
+  opacity: 1;
+}
+
+/* ===== ICON ===== */
+.menu-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  color: #555;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+
+.menu-icon:hover {
+  background: #fdf4f0;
+  color: white;
+}
+
+/* ===== DROPDOWN ===== */
+.menu-dropdown {
+  position: absolute;
+  top: 34px;
+  right: 0;
+  background: white;
+  border-radius: 10px;
+  min-width: 140px;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.15);
+  overflow: hidden;
+  animation: fadeDown 0.15s ease;
+}
+
+@keyframes fadeDown {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.menu-dropdown button {
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  background: white;
+  text-align: left;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.menu-dropdown button:hover {
+  background: #f5f5f5;
+}
+
+.menu-dropdown .danger {
+  color: #ff4d4f;
+}
+
+/* ===== MENU ITEM ===== */
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  background: white;
+  font-size: 14px;
+  cursor: pointer;
+  color: #333;
+}
+
+.menu-item:hover {
+  background: #f5f5f5;
+}
+
+/* ===== ICON ===== */
+.menu-item img {
+  width: 24px !important;
+  height: 24px !important;
+  min-width: 24px;
+  min-height: 24px;
+  object-fit: contain;
+  opacity: 0.75;
+  flex-shrink: 0;
+}
+
+/* ===== DELETE STYLE ===== */
+.menu-item.danger {
+  color: #ff4d4f;
+}
+
+.menu-item.danger .menu-icon-img {
+  filter: brightness(0) saturate(100%) invert(33%) sepia(77%) saturate(3936%)
+    hue-rotate(344deg) brightness(98%) contrast(101%);
+}
+
+
 </style>

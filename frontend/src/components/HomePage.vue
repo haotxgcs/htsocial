@@ -96,8 +96,7 @@
           <div v-if="post.type === 'post'" class="post">
             <div class="post-header">
               <div class="post-author-info">
-                <img :src="getAvatarUrl(post.author)" alt="avatar" @click="$router.push(`/profile/${post.author._id}`)"
-/>
+                <img :src="getAvatarUrl(post.author)" alt="avatar" @click="$router.push(`/profile/${post.author._id}`)"/>
                 <div class="author-details" @click="$router.push(`/profile/${post.author._id}`)">
                   <strong>{{ post.author?.firstname }} {{ post.author?.lastname }}</strong>
                   <p class="time">
@@ -1315,13 +1314,7 @@ async loadSearchHistory() {
     window.removeEventListener('scroll', this.handleScroll, true);
   },
 
-  watch: {
-  searchHistory(newVal) {
-    if (newVal.length > 0) {
-      this.showHistory = true;
-    }
-  }
-}
+  
 
 
   

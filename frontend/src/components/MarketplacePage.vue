@@ -1,14 +1,21 @@
 <template>
-  <div class="marketplace-wrapper" @click="showHistory = false">
-    <div class="marketplace-container">
+  <div class="marketplace-wrapper" @click="closeHistory">
+    <div class="marketplace-container" >
     <!-- SEARCH + FILTER -->
     <div class="marketplace-header">
       <div class="search-box" @click.stop>
         <input
           v-model="search"
           placeholder="Search ingredients, dishes, tools..."
-          @focus="showHistory = true"
+          @focus="openHistory"
+          @keyup.enter="handleSearch"
+          @click.stop
         />
+
+        <span v-if="search" class="clear-icon" @click.stop="clearSearch">
+              ✕
+            </span>
+
 
         <button @click="handleSearch">Search</button>
 
@@ -19,27 +26,23 @@
         >
           <div class="history-header">
             <span>Recent</span>
-            <button class="clear-btn" @click="clearAllHistory">
+            <span class="clear-btn" @click="clearAllHistory">
               Clear All
-            </button>
+            </span>
           </div>
 
-          <div class="history-list">
-            <div
-              v-for="(item, index) in searchHistory"
-              :key="index"
-              class="history-item"
-              @click="searchFromHistory(item)"
-            >
-              <span class="history-text">{{ item }}</span>
-              <button
-                class="remove-btn"
-                @click.stop="removeHistoryItem(item)"
-              >
+          <ul class="history-list">
+            <li v-for="(item, index) in searchHistory" :key="index" class="history-item" @click="searchFromHistory(item)">
+              <div class="history-item-content">
+                  <span class="clock-icon">🕒</span>
+                  <span class="history-text">{{ item }}</span>
+                </div>
+              
+              <span class="remove-btn" @click.stop="removeHistoryItem(item)" >
                 ✕
-              </button>
-            </div>
-          </div>
+              </span>
+            </li>
+          </ul>
         </div>
       </div>
 
@@ -90,6 +93,8 @@
           :key="item._id"
           :item="item"
           @open="openItem"
+          @edit="openEditModal"
+          @delete="confirmDelete"
         />
       </div>
     </div>
@@ -107,6 +112,14 @@
       @close="showCreateModal = false"
       @created="onItemCreated"
     />
+
+    <MarketplaceEditModal
+      v-if="showEditModal"
+      :item="editingItem"
+      @close="showEditModal = false"
+      @updated="fetchItems"
+    />
+
   </div>
 </template>
 
@@ -114,6 +127,7 @@
 <script>
 import MarketplaceItemCard from "../components/MarketplaceItemCard.vue";
 import MarketplaceCreateModal from "../components/MarketplaceCreateModal.vue";
+import MarketplaceEditModal from "../components/MarketplaceEditModal.vue"
 import LoadingOverlay from "../components/LoadingOverlay.vue";
 
 
@@ -122,6 +136,7 @@ export default {
   components: {
     MarketplaceItemCard,
     MarketplaceCreateModal,
+    MarketplaceEditModal,
     LoadingOverlay
   },
   data() {
@@ -142,7 +157,11 @@ export default {
         { label: "Ingredients", value: "ingredient" },
         { label: "Dishes", value: "dish" },
         { label: "Tools", value: "tool" }
-      ]
+      ],
+
+      showEditModal: false,
+      editingItem: null,
+
     };
   },
   methods: {
@@ -255,14 +274,30 @@ async fetchSearchHistory() {
 },
 
 handleSearch() {
-    this.showHistory = false;
-    this.fetchItems(); // 🔥 chỉ search khi click
-  },
+  const query = this.search.trim();
+  if (!query) return;
+
+  // 1️⃣ UPDATE UI NGAY (QUAN TRỌNG)
+  const index = this.searchHistory.indexOf(query);
+  if (index !== -1) {
+    this.searchHistory.splice(index, 1);
+  }
+  this.searchHistory.unshift(query);
+  if (this.searchHistory.length > 10) {
+    this.searchHistory.pop();
+  }
+
+  // 2️⃣ ĐÓNG DROPDOWN
+  this.showHistory = false;
+
+  // 3️⃣ SEARCH + LƯU BACKEND
+  this.fetchItems({ saveHistory: true });
+},
 
   searchFromHistory(keyword) {
     this.search = keyword;
     this.showHistory = false;
-    this.fetchItems();
+    this.fetchItems({saveHistory:false}); // 🔥 không lưu lại lịch sử khi search từ lịch sử
   },
 
   async removeHistoryItem(keyword) {
@@ -271,7 +306,7 @@ handleSearch() {
     if (!user || !token) return;
 
     await fetch(
-      `http://localhost:3000/users/${user.id || user._id}/search-history`,
+      `http://localhost:3000/users/${user.id || user._id}/search-history?context=marketplace`,
       {
         method: "DELETE",
         headers: {
@@ -281,6 +316,8 @@ handleSearch() {
         body: JSON.stringify({ query: keyword , context: "marketplace"})
       }
     );
+
+    await this.fetchSearchHistory();
 
     this.searchHistory = this.searchHistory.filter(
       q => q !== keyword
@@ -307,7 +344,33 @@ handleSearch() {
   );
 
   this.searchHistory = [];
-}
+},
+
+openHistory() {
+  this.showHistory = this.searchHistory.length > 0;
+},
+
+closeHistory() {
+  this.showHistory = false;
+},
+
+clearSearch() {
+  this.search = "";
+},
+
+openEditModal(item) {
+  this.editingItem = item;      // 👈 GÁN TRƯỚC
+  this.showEditModal = true;    // 👈 MỞ SAU
+},
+
+  async confirmDelete(item) {
+    if (!confirm("Delete this item?")) return;
+    await fetch(`http://localhost:3000/marketplace/${item._id}`, {
+      method: "DELETE"
+    });
+    this.fetchItems();
+  }
+
 
 
 
@@ -360,6 +423,14 @@ handleSearch() {
   border-radius: 999px;
   border: 1px solid #eee;
 }
+
+.search-box input:focus {
+  outline: none;
+  border-color: #ff642f;
+  box-shadow: 0 0 0 2px rgba(255, 100, 47, 0.1);
+}
+
+
 
 .search-box button {
   background: #ff642f;
@@ -435,37 +506,49 @@ handleSearch() {
 /* search history dropdown */
 .search-history-dropdown {
   position: absolute;
-  top: 100%;
+  top: 100%; /* Nằm ngay dưới input */
   left: 0;
-  right: 0;
+  width: 85%; /* Rộng bằng input */
   background: white;
   border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  border: 1px solid #eee;
+  z-index: 100;
   margin-top: 6px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
-  z-index: 20;
   overflow: hidden;
+  animation: fadeIn 0.15s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .history-header {
-  display: flex;
-  justify-content: space-between;
-  padding: 12px 16px;
-  font-size: 14px;
-  color: #666;
+display: flex; justify-content: space-between;
+  padding: 8px 16px;
+  background: #f8f9fa;
+  font-size: 12px;
+  font-weight: 600;
+  color: #888;
   border-bottom: 1px solid #eee;
 }
 
 .clear-btn {
-  background: none;
-  border: none;
-  color: #ff642f;
-  cursor: pointer;
-  font-weight: 600;
+  cursor: pointer; color: #FF642F; font-size: 11px;
+}
+
+.clear-btn:hover{
+  text-decoration: underline;
 }
 
 .history-list {
-  max-height: 260px;
-  overflow-y: auto;
+  list-style: none; padding: 0; margin: 0;
+  max-height: 250px; overflow-y: auto;
+}
+
+.history-list li:hover{
+  background: #fdf4f0;
 }
 
 .history-item {
@@ -480,21 +563,37 @@ handleSearch() {
   background: #f9f9f9;
 }
 
+.history-item-content {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 14px; color: #333;
+}
+
+
+.clock-icon { font-size: 12px; opacity: 0.6; }
+
 .history-text {
   font-size: 14px;
 }
 
 .remove-btn {
-  background: none;
-  border: none;
-  font-size: 16px;
-  color: #aaa;
-  cursor: pointer;
+font-size: 14px; color: #ddd; padding: 4px; border-radius: 50%;
 }
 
 .remove-btn:hover {
   color: #ff642f;
 }
+
+
+.clear-icon {
+  position: absolute;
+  right: 110px;
+  color: #999;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+  padding: 8px;
+}
+.clear-icon:hover { color: #FF642F; }
 
 
 
