@@ -44,6 +44,7 @@ router.get(
 router.put(
   "/:id",
   auth,
+  upload.array("images", 5),
   MarketplaceController.updateItem
 );
 

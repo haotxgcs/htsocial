@@ -2,7 +2,7 @@
   <div class="marketplace-wrapper" @click="closeHistory">
     <div class="marketplace-container" >
     <!-- SEARCH + FILTER -->
-    <div class="marketplace-header">
+    <div class="marketplace-header" >
       <div class="search-box" @click.stop>
         <input
           v-model="search"
@@ -115,10 +115,13 @@
 
     <MarketplaceEditModal
       v-if="showEditModal"
+      :isVisible="showEditModal"
       :item="editingItem"
-      @close="showEditModal = false"
+      :user="currentUser"
+      @close="closeEdit"
       @updated="fetchItems"
     />
+
 
   </div>
 </template>
@@ -220,6 +223,12 @@ async fetchItems({ saveHistory = false } = {}) {
     this.loading = false;
   }
 },
+
+closeEdit() {
+  this.showEditModal = false;
+  this.editingItem = null;
+},
+
 
     changeCategory(cat) {
       this.category = cat;
@@ -359,17 +368,40 @@ clearSearch() {
 },
 
 openEditModal(item) {
-  this.editingItem = item;      // 👈 GÁN TRƯỚC
-  this.showEditModal = true;    // 👈 MỞ SAU
+  this.editingItem = JSON.parse(JSON.stringify(item)); // 👈 CLONE
+  this.showEditModal = true;
 },
 
   async confirmDelete(item) {
-    if (!confirm("Delete this item?")) return;
-    await fetch(`http://localhost:3000/marketplace/${item._id}`, {
-      method: "DELETE"
-    });
-    this.fetchItems();
+  if (!confirm("Delete this item?")) return;
+
+  const token = localStorage.getItem("token");
+  if (!token) {
+    alert("Login required");
+    return;
   }
+
+  const res = await fetch(
+    `http://localhost:3000/marketplace/${item._id}`,
+    {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
+
+  if (!res.ok) {
+    const err = await res.text();
+    alert("Delete failed");
+    console.error(err);
+    return;
+  }
+
+  // ✅ XÓA NGAY TRÊN UI (UX tốt hơn)
+  this.items = this.items.filter(i => i._id !== item._id);
+}
+
 
 
 

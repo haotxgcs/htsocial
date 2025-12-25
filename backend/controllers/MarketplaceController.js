@@ -14,7 +14,7 @@ exports.createItem = async (req, res) => {
       description,
       type,
       price,
-      quantity,
+      quantity: quantity ?? 1,
       condition: type === "tool" ? condition : null,
       seller: req.user.id, // ✅ FIX
       images,
@@ -36,7 +36,7 @@ exports.getAllItems = async (req, res) => {
   try {
     const { type, search, mine } = req.query;
 
-    const filter = { status: "active" };
+    const filter = { status: { $ne: "hidden" } };
 
     // Category
     if (type) {
@@ -45,8 +45,12 @@ exports.getAllItems = async (req, res) => {
 
     // My items
     if (mine === "true") {
+      if (!req.user) {
+        return res.status(401).json({ msg: "Unauthorized" });
+      }
       filter.seller = req.user.id;
     }
+
 
     // Search
     if (search) {
@@ -82,13 +86,14 @@ exports.getItemById = async (req, res) => {
   }
 };
 
+
 // ===== 4. UPDATE ITEM =====
 exports.updateItem = async (req, res) => {
   try {
     const item = await MarketplaceItem.findById(req.params.id);
     if (!item) return res.status(404).json({ msg: "Item not found" });
 
-    // ✅ CHECK OWNER
+    // CHECK OWNER
     if (item.seller.toString() !== req.user.id) {
       return res.status(403).json({ msg: "Forbidden" });
     }
@@ -103,11 +108,29 @@ exports.updateItem = async (req, res) => {
       "status"
     ];
 
+    // ✅ UPDATE BASIC FIELDS
     allowedFields.forEach(field => {
       if (req.body[field] !== undefined) {
         item[field] = req.body[field];
       }
     });
+
+    // ✅ VALIDATE STATUS
+    if (req.body.status) {
+      if (!["active", "sold", "hidden"].includes(req.body.status)) {
+        return res.status(400).json({ msg: "Invalid status" });
+      }
+    }
+
+    // ✅ HANDLE NEW IMAGES
+    if (req.files && req.files.length > 0) {
+      item.images = req.files.map(file => `uploads/${file.filename}`);
+    }
+
+    // ✅ TOOL CONDITION LOGIC
+    if (item.type !== "tool") {
+      item.condition = null;
+    }
 
     await item.save();
     res.status(200).json(item);
@@ -116,6 +139,8 @@ exports.updateItem = async (req, res) => {
     res.status(500).json({ msg: "Server error" });
   }
 };
+
+
 
 
 // ===== 5. DELETE ITEM =====
@@ -129,8 +154,10 @@ exports.deleteItem = async (req, res) => {
     }
 
     // Soft delete (KHUYÊN DÙNG)
-    item.status = "deleted";
+    item.status = "hidden";
     await item.save();
+
+
 
     res.status(200).json({ msg: "Item deleted" });
   } catch (err) {

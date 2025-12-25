@@ -1,6 +1,6 @@
 <template>
-  <div class="item-card" @click="$emit('open', item)">
-    <div class="image-box">
+  <div class="item-card" >
+    <div class="image-box" @click="$emit('open', item)">
 
       <!-- MENU 3 CHẤM -->
       <div
@@ -12,8 +12,8 @@
         <span class="menu-icon" @click.stop="toggleMenu"><img src="../assets/menu.png"></span>
 
         <div v-if="showMenu" class="menu-dropdown" @click.stop>
-          <button class="menu-item" @click="editItem"><img src="../assets/edit.png"><span>Edit</span></button>
-          <button class="menu-item danger" @click="deleteItem"><img src="../assets/delete.png"><span>Delete</span></button>
+          <button class="menu-item" @click.stop="editItem"><img src="../assets/edit.png"><span>Edit</span></button>
+          <button class="menu-item danger" @click.stop="deleteItem"><img src="../assets/delete.png"><span>Delete</span></button>
         </div>
       </div>
 
@@ -21,7 +21,7 @@
       <span class="badge">{{ typeLabel }}</span>
     </div>
 
-    <div class="content">
+    <div class="content" @click="$emit('open', item)">
       <div class="price">{{ formatPrice(item.price) }}</div>
       <div class="title">{{ item.title }}</div>
       <div class="seller">
@@ -143,6 +143,8 @@ export default {
 .image-box {
   position: relative;
   width: 100%;
+  height: 200px;        /* 🔥 CỐ ĐỊNH CHIỀU CAO */
+  overflow: hidden;
   aspect-ratio: 1 / 1;      /* 👈 THAY cho height: 180px */
   background: #f3f4f6;      /* 👈 tránh nhảy layout khi ảnh load */
 }

@@ -27,6 +27,7 @@
       </div>
 
       <!-- BODY -->
+      <!-- BODY -->
       <div class="post-content-area">
 
         <div class="recipe-field">
@@ -40,6 +41,48 @@
         </div>
 
         <div class="recipe-field">
+          <label class="field-label">Type</label>
+          <select v-model="form.type" class="category-select">
+            <option value="ingredient">Ingredient</option>
+            <option value="dish">Dish</option>
+            <option value="tool">Cooking Tool</option>
+          </select>
+        </div>
+
+        <div v-if="form.type === 'tool'" class="recipe-field">
+          <label class="field-label">Condition</label>
+          <select v-model="form.condition" class="category-select">
+            <option value="new">New</option>
+            <option value="used">Used</option>
+          </select>
+        </div>
+
+        <div class="recipe-field">
+          <label class="field-label">Price ($)</label>
+          <input
+            type="text"
+            class="recipe-input"
+            placeholder="0.00"
+            v-model="priceInput"
+            @input="onPriceInput"
+            @blur="formatPrice"
+            :disabled="loading"
+          />
+        </div>
+
+        <!-- ❗ FIX Ở ĐÂY: bỏ div bọc dư -->
+        <div class="recipe-field">
+          <label class="field-label">Quantity</label>
+          <input
+            type="text"
+            class="recipe-input"
+            v-model="form.quantity"
+            @input="onQuantityInput"
+            @blur="onQuantityBlur"
+          />
+        </div>
+
+        <div class="recipe-field">
           <label class="field-label">Description</label>
           <textarea
             v-model="form.description"
@@ -47,52 +90,6 @@
             placeholder="Describe your item..."
             :disabled="loading"
           />
-        </div>
-
-        <div class="recipe-field row-2">
-          <div>
-            <label class="field-label">Price ($)</label>
-            <input
-              type="text"
-              class="recipe-input"
-              placeholder="0.00"
-              v-model="priceInput"
-              @input="onPriceInput"
-              @blur="formatPrice"
-              :disabled="loading"
-            />
-
-          </div>
-
-          <div>
-            <label class="field-label">Type</label>
-            <select v-model="form.type" class="category-select">
-              <option value="ingredient">Ingredient</option>
-              <option value="dish">Dish</option>
-              <option value="tool">Cooking Tool</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="recipe-field row-2">
-          <div>
-            <label class="field-label">Quantity</label>
-            <input
-              type="text"
-              class="recipe-input"
-              v-model="form.quantity"
-              @input="onQuantityInput"
-            />
-
-          </div>
-
-          <div v-if="form.type === 'tool'">
-            <label class="field-label">Condition</label>
-            <select v-model="form.condition" class="category-select">
-              <option value="new">New</option>
-              <option value="used">Used</option>
-            </select>
-          </div>
         </div>
 
         <div class="recipe-field">
@@ -106,7 +103,6 @@
               @change="handleFiles"
               hidden
             />
-            
             <span>Upload images</span>
           </label>
 
@@ -115,8 +111,7 @@
           </p>
         </div>
 
-
-        <div class="media-preview" v-if="previews.length">
+        <div v-if="previews.length">
           <div class="image-preview-list">
             <div
               v-for="(img, i) in previews"
@@ -134,7 +129,9 @@
             </div>
           </div>
         </div>
+
       </div>
+
 
       <!-- FOOTER -->
       <div class="post-actions-footer">
@@ -340,11 +337,19 @@ export default {
     this.priceInput = Number(this.priceInput).toFixed(2);
   },
 
-  onQuantityInput(e) {
-  let value = e.target.value.replace(/[^0-9]/g, "");
-  if (!value || Number(value) < 1) value = "1";
-  this.form.quantity = Number(value);
+onQuantityInput(e) {
+  const value = e.target.value.replace(/[^0-9]/g, "");
+  // ❗ cho phép rỗng
+  this.form.quantity = value === "" ? "" : Number(value);
 },
+
+onQuantityBlur() {
+  if (!this.form.quantity || this.form.quantity < 1) {
+    this.form.quantity = 1;
+  }
+},
+
+
 
   removeImage(index) {
   URL.revokeObjectURL(this.previews[index]);
@@ -399,7 +404,7 @@ export default {
 .privacy-selector select { background: #f0f2f5; border: none; border-radius: 6px; padding: 4px 8px; font-size: 13px; color: #65676b; cursor: pointer; }
 .post-content-area { padding: 0 24px; position: relative; }
 .recipe-field { margin-bottom: 20px; }
-.field-label { display: block; font-size: 16px; font-weight: 600; color: #1c1e21; margin-bottom: 8px; }
+.field-label { display: block; font-size: 16px; font-weight: 600; color: #1c1e21; margin-bottom: 10px; }
 .recipe-input, .category-select { width: 100%; padding: 12px; font-size: 15px; font-family: inherit; line-height: 1.2; color: #1c1e21; background: #f8f9fa; border: 1px solid #e4e6ea; border-radius: 8px; box-sizing: border-box; transition: border-color 0.2s, background-color 0.2s; }
 .recipe-input { font-size: 18px; }
 .category-select { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 12px center; background-size: 20px; padding-right: 40px; }
@@ -409,7 +414,6 @@ export default {
 .recipe-textarea::placeholder { color: #8a8d91; font-style: italic; }
 .ingredients-textarea { font-family: monospace; font-size: 14px; }
 .instructions-textarea { min-height: 120px; }
-.media-preview { padding: 0 24px 16px; }
 .media-preview-container { position: relative; border: 1px solid #e4e6ea; border-radius: 12px; overflow: hidden; background: #f8f9fa; }
 .preview-image, .preview-video { width: 100%; max-height: 300px; object-fit: cover; display: block; }
 .remove-media-btn { position: absolute; top: 8px; right: 8px; background: rgba(0, 0, 0, 0.6); color: white; border: none; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 18px; transition: background-color 0.2s; }
