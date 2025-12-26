@@ -1,5 +1,5 @@
 <template>
-  <div class="item-card" >
+  <div class="item-card" @click="$router.push(`/marketplace/${item._id}`)">
     <div class="image-box" @click="$emit('open', item)">
 
       <!-- MENU 3 CHẤM -->

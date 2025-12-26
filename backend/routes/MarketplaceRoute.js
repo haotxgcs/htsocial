@@ -36,7 +36,6 @@ router.get(
 // GET ITEM DETAIL
 router.get(
   "/:id",
-  auth,
   MarketplaceController.getItemById
 );
 
