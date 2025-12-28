@@ -1,9 +1,11 @@
 <template>
     <div class="marketplace-detail-page">
+      <div class="detail-wrapper">
+        <div class="detail-content">
         
   <!-- LOADING -->
   <div v-if="!item" class="loading">
-    Đang tải...
+    Loading...
   </div>
 
   <!-- CONTENT -->
@@ -23,60 +25,68 @@
         </div>
     </div>
 
-    <div class="marketplace-detail">
-      <!-- IMAGE SLIDER -->
-      <div>
-        <div class="image-wrapper">
-          <img
-            :src="currentImage"
-            alt="item image"
-            @click="openFullscreen"
-          />
-        </div>
+<div class="marketplace-detail">
+<div class="image-block">
 
-        <div class="thumbnails" v-if="item.images && item.images.length > 1">
-          <img
-            v-for="(img, i) in item.images"
-            :key="i"
-            :src="imageFromPath(img)"
-            :class="{ active: i === currentIndex }"
-            @click="currentIndex = i"
-          />
-        </div>
-      </div>
+  <!-- IMAGE -->
+  <div class="image-wrapper">
+    <img
+      :src="currentImage"
+      alt="item image"
+      @click="openFullscreen"
+    />
+  </div>
 
-      <!-- INFO -->
-      <div class="info">
-        <h1>{{ item.title }}</h1>
+  <!-- THUMBNAILS (PHÍA DƯỚI ẢNH) -->
+  <div
+    class="thumbnails"
+    v-if="item.images && item.images.length > 1"
+  >
+    <img
+      v-for="(img, i) in item.images"
+      :key="i"
+      :src="imageFromPath(img)"
+      :class="{ active: i === currentIndex }"
+      @click="currentIndex = i"
+    />
+  </div>
 
-        <p class="price">{{ formatPrice(item.price) }}</p>
+</div>
 
-        <p class="quantity">Số lượng: {{ item.quantity }}</p>
 
-        <p class="type">Loại: {{ item.type }}</p>
+  <!-- INFO -->
+  <div class="info">
+    <h1>{{ item.title }}</h1>
 
-        <p class="description">
-          {{ item.description || "Không có mô tả" }}
-        </p>
+    <p class="price">{{ formatPrice(item.price) }}</p>
 
-        <!-- SELLER -->
-        <div class="seller">
-          <img
-            v-if="item.seller?.avatar"
-            :src="item.seller.avatar"
-            class="avatar"
-          />
-          <span>
-            {{ item.seller?.firstname }} {{ item.seller?.lastname }}
-          </span>
-        </div>
+    <p class="quantity">Số lượng: {{ item.quantity }}</p>
 
-        <!-- CHAT BUTTON (UI ONLY) -->
-        <button class="chat-btn">
-          💬 Chat với người bán
-        </button>
-      </div>
+    <p class="type">Loại: {{ item.type }}</p>
+
+    <p class="description">
+      {{ item.description || "Không có mô tả" }}
+    </p>
+
+    <!-- SELLER -->
+    <div class="seller">
+      <img
+        v-if="item.seller?.avatar"
+        :src="item.seller.avatar"
+        class="avatar"
+      />
+      <span>
+        {{ item.seller?.firstname }} {{ item.seller?.lastname }}
+      </span>
     </div>
+
+    <!-- CHAT BUTTON -->
+    <button class="chat-btn">
+      💬 Chat với người bán
+    </button>
+  </div>
+</div>
+
 
     <!-- FULLSCREEN IMAGE -->
     <div
@@ -87,6 +97,8 @@
       <img :src="currentImage" />
     </div>
   </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -174,19 +186,40 @@ export default {
 }
 
 .marketplace-detail-page {
-  padding-top: 72px; /* nếu header cao ~64px */
-  padding-left: 320px;
-  padding-right: 24px;
+  min-height: 100vh;
+  padding-top: 72px;          /* header top */
+  background: #fdf4f0;  
 }
+
+.detail-wrapper {
+
+  padding: 0 32px;
+  margin-left:300px;
+}
+
+.detail-content {
+  max-width: 1200px;     /* desktop rộng, nhìn đã */
+
+
+  
+}
+
 
 
 .marketplace-detail {
-  max-width: 1100px;   /* tăng width */
-  margin: 24px 0;     /* KHÔNG center ngang */
   display: grid;
-  grid-template-columns: 1.2fr 1fr;
-  gap: 40px;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 20px;
+  margin-top: 24px;
+
 }
+
+.image-block {
+  display: flex;
+  flex-direction: column;
+}
+
+
 
 
 .image-wrapper {
@@ -211,6 +244,8 @@ export default {
   padding: 24px;
   border-radius: 16px;
   box-shadow: 0 6px 16px rgba(0,0,0,0.05);
+  padding-bottom:40px;
+
 }
 
 
@@ -267,6 +302,7 @@ export default {
 }
 
 .detail-header {
+  color:#FF642F;
   padding: 16px 20px;
   margin-bottom: 24px;
   display: flex;
@@ -278,11 +314,12 @@ export default {
 .breadcrumb {
   margin-bottom: 16px;
   font-size: 14px;
+ margin-left:0;
 }
 
 .breadcrumb span:first-child {
   cursor: pointer;
-  color: var(--orange-main);
+  color: #FF642F;
   font-weight: 500;
 }
 
@@ -311,15 +348,25 @@ export default {
 }
 
 
+.thumbnails {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
 .thumbnails img {
-  width: 64px;
-  height: 64px;
-  object-fit:contain;
+  width: 90px;
+  height: 90px;
+  object-fit: cover;
   cursor: pointer;
   border-radius: 8px;
   opacity: 0.6;
   transition: all 0.2s ease;
+  flex-shrink: 0;
 }
+
 
 .thumbnails img:hover {
   opacity: 1;
@@ -351,7 +398,7 @@ export default {
   padding: 12px;
   width: 100%;
   background: var(--orange-main);
-  color: white;
+  color: black;
   border-radius: 12px;
   border: none;
   cursor: pointer;
@@ -360,18 +407,46 @@ export default {
 }
 
 .chat-btn:hover {
-  background: var(--orange-dark);
+   background: #fdf4f0;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
+  .detail-wrapper {
+    margin-left: 0;
+  }
+
   .marketplace-detail {
     grid-template-columns: 1fr;
   }
 
   .image-wrapper {
-    height: 280px;
+    height: 320px;
   }
 }
+
+
+@media (max-width: 600px) {
+  .detail-wrapper {
+    padding: 0 16px;
+    margin-left:0;
+  }
+
+  .detail-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .image-wrapper {
+    height: 240px;
+  }
+
+  .thumbnails img {
+    width: 70px;
+    height: 70px;
+  }
+}
+
 
 
 
