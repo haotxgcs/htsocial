@@ -27,31 +27,51 @@
 
 <div class="marketplace-detail">
 <div class="image-block">
-
-  <!-- IMAGE -->
   <div class="image-wrapper">
     <img
       :src="currentImage"
       alt="item image"
       @click="openFullscreen"
     />
-  </div>
 
-  <!-- THUMBNAILS (PHÍA DƯỚI ẢNH) -->
-  <div
-    class="thumbnails"
-    v-if="item.images && item.images.length > 1"
-  >
+    <!-- ARROW LEFT -->
+    <button
+      v-if="hasMultipleImages"
+      class="nav-arrow left"
+      @click.stop="prevImage"
+    >
+      ‹
+    </button>
+
+    <!-- ARROW RIGHT -->
+    <button
+      v-if="hasMultipleImages"
+      class="nav-arrow right"
+      @click.stop="nextImage"
+    >
+      ›
+    </button>
+
+
+    <!-- THUMBNAILS OVERLAY -->
+<div
+  class="thumbnails-overlay"
+  v-if="item.images && item.images.length > 1"
+>
+  <div class="thumbnail-strip">
     <img
       v-for="(img, i) in item.images"
       :key="i"
       :src="imageFromPath(img)"
       :class="{ active: i === currentIndex }"
-      @click="currentIndex = i"
+      @click.stop="currentIndex = i"
     />
   </div>
-
 </div>
+
+  </div>
+</div>
+
 
 
   <!-- INFO -->
@@ -60,19 +80,21 @@
 
     <p class="price">{{ formatPrice(item.price) }}</p>
 
-    <p class="quantity">Số lượng: {{ item.quantity }}</p>
+    <p class="quantity">Quantity: {{ item.quantity }}</p>
 
-    <p class="type">Loại: {{ item.type }}</p>
+    <p class="type">{{ typeLabel }}</p>
 
-    <p class="description">
-      {{ item.description || "Không có mô tả" }}
-    </p>
+    <!-- <p class="description">
+  <strong>Description:</strong><br />
+  {{ item.description || "No Description." }}
+</p> -->
+
 
     <!-- SELLER -->
     <div class="seller">
       <img
         v-if="item.seller?.avatar"
-        :src="item.seller.avatar"
+        :src="imageFromPath(item.seller.avatar)"
         class="avatar"
       />
       <span>
@@ -82,9 +104,18 @@
 
     <!-- CHAT BUTTON -->
     <button class="chat-btn">
-      💬 Chat với người bán
+      Chat with Seller 
     </button>
   </div>
+
+  
+</div>
+
+  <div class="info info-extra">
+  <p class="description">
+    <strong>Description:</strong><br />
+    {{ item.description || "No Description." }}
+  </p>
 </div>
 
 
@@ -95,6 +126,23 @@
       @click="closeFullscreen"
     >
       <img :src="currentImage" />
+
+      <!-- ARROWS -->
+      <button
+        v-if="hasMultipleImages"
+        class="nav-arrow left"
+        @click.stop="prevImage"
+      >
+        ‹
+      </button>
+
+      <button
+        v-if="hasMultipleImages"
+        class="nav-arrow right"
+        @click.stop="nextImage"
+      >
+        ›
+      </button>
     </div>
   </div>
       </div>
@@ -144,6 +192,20 @@ export default {
       const userId = localStorage.getItem("userId");
       return userId && userId === this.item?.seller?._id;
     },
+
+    hasMultipleImages() {
+      return this.item?.images?.length > 1;
+    },
+
+    typeLabel() {
+    const map = {
+      ingredient: "Ingredients",
+      dish: "Dishes",
+      tool: "Tools"
+    };
+    return map[this.item.type] || "Item";
+  },
+
   },
 
   methods: {
@@ -152,7 +214,10 @@ export default {
     },
 
     formatPrice(price) {
-      return new Intl.NumberFormat("vi-VN").format(price) + " đ";
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD"
+      }).format(price);
     },
 
     openFullscreen() {
@@ -172,6 +237,20 @@ export default {
         alert("Delete item (UI only)");
       }
     },
+
+    nextImage() {
+      if (!this.item?.images?.length) return;
+      this.currentIndex =
+        (this.currentIndex + 1) % this.item.images.length;
+    },
+
+    prevImage() {
+      if (!this.item?.images?.length) return;
+      this.currentIndex =
+        (this.currentIndex - 1 + this.item.images.length) %
+        this.item.images.length;
+    },
+
   },
 };
 </script>
@@ -188,13 +267,15 @@ export default {
 .marketplace-detail-page {
   min-height: 100vh;
   padding-top: 72px;          /* header top */
-  background: #fdf4f0;  
+  background: #fdf4f0;
+ 
 }
 
 .detail-wrapper {
 
   padding: 0 32px;
   margin-left:300px;
+  margin-bottom:40px;
 }
 
 .detail-content {
@@ -210,19 +291,16 @@ export default {
   display: grid;
   grid-template-columns: 1.3fr 1fr;
   gap: 20px;
-  margin-top: 24px;
-
+  align-items: stretch; /* 👈 QUAN TRỌNG */
 }
+
 
 .image-block {
-  display: flex;
-  flex-direction: column;
+  width: 100%;
 }
 
-
-
-
 .image-wrapper {
+  position: relative;              /* BẮT BUỘC */
   width: 100%;
   height: 420px;
   overflow: hidden;
@@ -232,21 +310,145 @@ export default {
   cursor: zoom-in;
 }
 
-
 .image-wrapper img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
+.nav-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+
+  background: rgba(0,0,0,0.45);
+  backdrop-filter: blur(4px);
+
+  color: white;
+  font-size: 28px;
+  font-weight: 500;
+
+  border: none;
+  cursor: pointer;
+  z-index: 5;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  transition: all 0.2s ease;
+}
+
+.nav-arrow:hover {
+  background: rgba(0,0,0,0.65);
+  transform: translateY(-50%) scale(1.05);
+}
+
+.nav-arrow.left {
+  left: 12px;
+}
+
+.nav-arrow.right {
+  right: 12px;
+}
+
+
+.thumbnails-overlay {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+
+  max-width: calc(100% - 32px);
+  padding: 10px 16px;
+
+  background: rgba(0,0,0,0.35);
+  backdrop-filter: blur(6px);
+  border-radius: 14px;
+
+}
+
+
+.thumbnails-overlay img {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 8px;
+  cursor: pointer;
+  opacity: 0.6;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+
+
+
+
+.thumbnail-strip {
+  
+  display: flex;
+  gap: 16px;                 /* 👈 GIÃN RA Ở ĐÂY */
+  padding:4px;
+  justify-content: center;
+  overflow-x: auto;
+
+  scrollbar-width: none;
+}
+
+.thumbnail-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.thumbnail-strip img {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 8px;
+  cursor: pointer;
+  opacity: 0.6;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+  background-color:white;
+}   
+
+.thumbnail-strip img:hover,
+.thumbnail-strip img.active {
+  opacity: 1;
+  box-shadow: 0 0 0 2px #FF642F;
+}
+
+
+
+
 .info {
   background: white;
   padding: 24px;
   border-radius: 16px;
   box-shadow: 0 6px 16px rgba(0,0,0,0.05);
-  padding-bottom:40px;
+  
+
+  display: flex;
+  flex-direction: column;
 
 }
+
+.info-extra {
+  margin-top: 24px;
+  background: white;
+  padding: 24px;
+  border-radius: 16px;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.05);
+
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+
 
 
 .info h1 {
@@ -258,21 +460,36 @@ export default {
 .price {
   font-size: 22px;
   font-weight: 700;
-  color: var(--orange-main);
+  color: #ff642f;
   margin-bottom: 14px;
 }
 
 
-.quantity,
-.type {
+.quantity{
   font-size: 14px;
-  color: var(--gray-text);
+  font-style: italic;
+  font-weight: 600;
+  margin-bottom: 8px;
+
 }
 
+.type{
+  position: right;
+  display: inline-block;
+  top: 8px;
+  left: 8px;
+  width:fit-content;
+  background: #ff642f;
+  color: white;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+}
 
 .description {
   margin: 16px 0;
   line-height: 1.5;
+
 }
 
 .seller {
@@ -348,36 +565,6 @@ export default {
 }
 
 
-.thumbnails {
-  display: flex;
-  gap: 12px;
-  margin-top: 12px;
-  overflow-x: auto;
-  padding-bottom: 4px;
-}
-
-.thumbnails img {
-  width: 90px;
-  height: 90px;
-  object-fit: cover;
-  cursor: pointer;
-  border-radius: 8px;
-  opacity: 0.6;
-  transition: all 0.2s ease;
-  flex-shrink: 0;
-}
-
-
-.thumbnails img:hover {
-  opacity: 1;
-}
-
-.thumbnails img.active {
-  opacity: 1;
-  outline: 2px solid var(--orange-main);
-}
-
-
 .fullscreen {
   position: fixed;
   inset: 0;
@@ -391,13 +578,24 @@ export default {
 .fullscreen img {
   max-width: 90%;
   max-height: 90%;
+  background:white;
 }
 
+.fullscreen .nav-arrow {
+  background: rgba(255,255,255,0.15);
+  color: white;
+}
+
+.fullscreen .nav-arrow:hover {
+  background: rgba(255,255,255,0.3);
+}
+
+
 .chat-btn {
-  margin-top: 24px;
+  margin-top: auto;
   padding: 12px;
   width: 100%;
-  background: var(--orange-main);
+  background: #fdf4f0;
   color: black;
   border-radius: 12px;
   border: none;
@@ -407,7 +605,8 @@ export default {
 }
 
 .chat-btn:hover {
-   background: #fdf4f0;
+   background: #ff642f;
+   color:white;
 }
 
 @media (max-width: 1024px) {
