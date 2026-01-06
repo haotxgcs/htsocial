@@ -23,7 +23,7 @@
 
     <div class="content" @click="$emit('open', item)">
       <div class="price">{{ formatPrice(item.price) }}</div>
-      <div class="title">{{ item.title }}</div>
+      <div class="title" :title="item.title">{{ item.title }}</div>
       <div class="seller">
         <img :src="avatarUrl" />
         <span>{{ item.seller?.firstname }} {{ item.seller?.lastname }}</span>
@@ -180,6 +180,16 @@ export default {
   font-size: 14px;
   font-weight: 600;
   margin-bottom: 8px;
+
+  line-height: 1.3;
+
+  display: -webkit-box;
+  -webkit-line-clamp: 2;     /* 👈 GIỚI HẠN 2 DÒNG */
+  -webkit-box-orient: vertical;
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
 }
 
 .seller {

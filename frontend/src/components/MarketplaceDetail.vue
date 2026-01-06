@@ -1,12 +1,12 @@
 <template>
     <div class="marketplace-detail-page">
+
       <div class="detail-wrapper">
         <div class="detail-content">
         
-  <!-- LOADING -->
-  <div v-if="!item" class="loading">
-    Loading...
-  </div>
+    <!-- LOADING -->
+  <LoadingOverlay v-if="isLoading" />
+
 
   <!-- CONTENT -->
   <div v-else>
@@ -15,13 +15,7 @@
         <div class="breadcrumb">
         <span @click="$router.push('/marketplace')">Marketplace</span>
         <span> / </span>
-        <span>{{ item.title }}</span>
-        </div>
-
-        <!-- ACTION MENU -->
-        <div class="action-menu" v-if="isOwner">
-        <button @click="onEdit">✏️ Edit</button>
-        <button class="danger" @click="onDelete">🗑 Delete</button>
+        <span class="breadcrumb-title" :title="item.title">{{ item.title }}</span>
         </div>
     </div>
 
@@ -76,7 +70,7 @@
 
   <!-- INFO -->
   <div class="info">
-    <h1>{{ item.title }}</h1>
+    <h1 class="item-title" :title="item.title">{{ item.title }}</h1>
 
     <p class="price">{{ formatPrice(item.price) }}</p>
 
@@ -84,39 +78,70 @@
 
     <p class="type">{{ typeLabel }}</p>
 
-    <!-- <p class="description">
-  <strong>Description:</strong><br />
-  {{ item.description || "No Description." }}
-</p> -->
 
 
-    <!-- SELLER -->
-    <div class="seller">
-      <img
-        v-if="item.seller?.avatar"
-        :src="imageFromPath(item.seller.avatar)"
-        class="avatar"
-      />
-      <span>
-        {{ item.seller?.firstname }} {{ item.seller?.lastname }}
-      </span>
-    </div>
+      <!-- SELLER INFO (CHỈ HIỆN KHI KHÔNG PHẢI OWNER) -->
+  <div class="seller" v-if="!isOwner">
+    <img
+      v-if="item.seller?.avatar"
+      :src="imageFromPath(item.seller.avatar)"
+      class="avatar"
+    />
+    <span>
+      {{ item.seller?.firstname }} {{ item.seller?.lastname }}
+    </span>
+  </div>
 
-    <!-- CHAT BUTTON -->
-    <button class="chat-btn">
-      Chat with Seller 
+  <!-- ACTION BUTTON -->
+  <button
+    v-if="!isOwner"
+    class="chat-btn"
+    @click="onChat"
+  >
+    💬 Chat với người bán
+  </button>
+
+<!-- OWNER ACTIONS -->
+  <div v-if="isOwner" class="owner-actions">
+    <button class="edit-btn" @click="openEditModal">
+      ✏️ Chỉnh sửa item
+    </button>
+
+    <MarketplaceEditModal
+  :isVisible="showEditModal"
+  :item="item"
+  @close="showEditModal = false"
+  @updated="onItemUpdated"
+/>
+
+
+
+    <button class="delete-btn" @click="onDelete">
+      🗑 Xóa item
     </button>
   </div>
 
-  
-</div>
+  </div>
 
-  <div class="info info-extra">
+    <div class="info info-extra">
   <p class="description">
     <strong>Description:</strong><br />
     {{ item.description || "No Description." }}
   </p>
 </div>
+
+<div class="info info-extra">
+  <strong>Rating</strong>
+  <span style="font-style:italic">⭐⭐⭐⭐⭐ 5/5 (999 ratings)</span>
+
+  <button>Write a review</button>
+
+</div>
+
+  
+</div>
+
+
 
 
     <!-- FULLSCREEN IMAGE -->
@@ -153,32 +178,46 @@
 
 <script>
 import axios from "axios";
+import LoadingOverlay from "../components/LoadingOverlay.vue";
+import MarketplaceEditModal from "../components/MarketplaceEditModal.vue";
+
 
 export default {
   name: "MarketplaceDetail",
+  components: {
+    LoadingOverlay,
+    MarketplaceEditModal,
+  },
 
   data() {
     return {
       item: null,
       currentIndex: 0,
       showFullscreen: false,
+      isLoading:true,
+
+      showEditModal: false,
+
     };
   },
 
   async created() {
-    try {
-      const res = await axios.get(
-        `http://localhost:3000/marketplace/${this.$route.params.id}`
-      );
-      this.item = res.data;
-    } catch (err) {
-      console.error(
-        "DETAIL ERROR:",
-        err.response?.status,
-        err.response?.data
-      );
-    }
-  },
+  this.isLoading = true;
+  try {
+    const res = await axios.get(
+      `http://localhost:3000/marketplace/${this.$route.params.id}`
+    );
+    this.item = res.data;
+  } catch (err) {
+    console.error(
+      "DETAIL ERROR:",
+      err.response?.status,
+      err.response?.data
+    );
+  } finally {
+    this.isLoading = false; // 👈 TẮT LOADING
+  }
+},
 
   computed: {
     currentImage() {
@@ -188,9 +227,17 @@ export default {
       return `http://localhost:3000/${this.item.images[this.currentIndex]}`;
     },
 
-    isOwner() {
-      const userId = localStorage.getItem("userId");
-      return userId && userId === this.item?.seller?._id;
+    // isOwner() {
+    //   const userId = localStorage.getItem("userId");
+    //   return userId && userId === this.item?.seller?._id;
+    // },
+    isOwner(){
+      const user = JSON.parse(localStorage.getItem("user"));
+      if(!user || !this.item?.seller) return false;
+
+      return (
+        this.item.seller._id === (user._id || user.id)
+      );
     },
 
     hasMultipleImages() {
@@ -228,15 +275,52 @@ export default {
       this.showFullscreen = false;
     },
 
-    onEdit() {
-      alert("Edit item (UI only)");
-    },
+    // onEdit() {
+    //   alert("Edit item (UI only)");
+    // },
 
-    onDelete() {
-      if (confirm("Bạn chắc chắn muốn xóa item này?")) {
-        alert("Delete item (UI only)");
+    // onDelete() {
+    //   if (confirm("Bạn chắc chắn muốn xóa item này?")) {
+    //     alert("Delete item (UI only)");
+    //   }
+    // },
+
+    openEditModal() {
+    this.showEditModal = true;
+  },
+
+  onItemUpdated(updatedItem) {
+    this.item = updatedItem;
+    this.showEditModal = false;
+  },
+
+  async onDelete() {
+  if (!confirm("Bạn chắc chắn muốn xóa item này?")) return;
+
+  try {
+    await axios.delete(
+      `http://localhost:3000/marketplace/${this.item._id}`,
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`
+        }
       }
-    },
+    );
+
+    this.$router.push("/marketplace");
+  } catch (err) {
+    alert("Xóa item thất bại");
+    console.error(err);
+  }
+},
+
+    
+    
+    onChat() {
+    // Sau này có thể redirect sang chat page
+    alert("Open chat (UI only)");
+  },
+
 
     nextImage() {
       if (!this.item?.images?.length) return;
@@ -457,6 +541,44 @@ export default {
   font-weight: 600;
 }
 
+.item-title {
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.3;
+  max-height: 370px;    /* 👈 GIỚI HẠN CHIỀU CAO */
+
+  display: -webkit-box;
+  -webkit-line-clamp: 2;     /* 👈 GIỚI HẠN 2 DÒNG */
+  -webkit-box-orient: vertical;
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
+}
+
+.item-title {
+  position: relative;
+}
+
+.item-title:hover::after {
+  content: attr(title);
+  position: absolute;
+  left: 0;
+  top: 100%;
+  margin-top: 6px;
+
+  background: #111;
+  color: white;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+
+  white-space: normal;
+  max-width: 300px;
+  z-index: 10;
+}
+
+
 .price {
   font-size: 22px;
   font-weight: 700;
@@ -498,7 +620,7 @@ export default {
   gap: 10px;
   margin-top: 24px;
   padding-top: 16px;
-  border-top: 1px solid #f3f4f6;
+  border-top: 1px solid #eae9e9;
 }
 
 .seller span {
@@ -544,25 +666,20 @@ export default {
   text-decoration: underline;
 }
 
-
-.action-menu button {
-  padding: 6px 12px;
-  border-radius: 8px;
-  border: 1px solid #fed7aa;
-  background: var(--orange-light);
-  color: var(--orange-main);
-  font-weight: 500;
+.breadcrumb-title{
+  max-width: 370px;
+  display: inline-block;
+  vertical-align: bottom;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.action-menu button:hover {
-  background: #ffedd5;
-}
 
-.action-menu .danger {
-  background: #fff1f2;
-  color: #dc2626;
-  border-color: #fecaca;
-}
+
+
+
+
 
 
 .fullscreen {
@@ -609,6 +726,52 @@ export default {
    color:white;
 }
 
+.owner-actions {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px dashed #e5e7eb;
+
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.edit-btn {
+  margin-top: auto;
+  padding: 12px;
+  width: 100%;
+  background: #fdf4f0;
+  color: black;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.edit-btn:hover {
+   background: #ff642f;
+   color:white;
+}
+
+.delete-btn{
+  margin-top: auto;
+  padding: 12px;
+  width: 100%;
+  background: #ffdddd;
+  color: #ff4d4f;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.delete-btn:hover {
+   background: #ff4d4f;
+   color:white;
+}
+
 @media (max-width: 1024px) {
   .detail-wrapper {
     margin-left: 0;
@@ -643,6 +806,18 @@ export default {
   .thumbnails img {
     width: 70px;
     height: 70px;
+  }
+
+  .nav-arrow.left {
+    left: 6px;
+    color:white;
+    background-color:rgba(75, 75, 75, 0.45)
+  }
+
+  .nav-arrow.right {
+    right: 6px;
+    color:white;
+    background-color:rgba(75, 75, 75, 0.45)
   }
 }
 
