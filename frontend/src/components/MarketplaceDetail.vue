@@ -15,7 +15,14 @@
         <div class="breadcrumb">
         <span @click="$router.push('/marketplace')">Marketplace</span>
         <span> / </span>
-        <span class="breadcrumb-title" :title="item.title">{{ item.title }}</span>
+        <span
+          v-if="item"
+          class="breadcrumb-title"
+          :title="item.title"
+        >
+          {{ item.title }}
+        </span>
+
         </div>
     </div>
 
@@ -110,6 +117,7 @@
     <MarketplaceEditModal
   :isVisible="showEditModal"
   :item="item"
+  :user="currentUser"
   @close="showEditModal = false"
   @updated="onItemUpdated"
 />
@@ -220,6 +228,11 @@ export default {
 },
 
   computed: {
+
+    currentUser() {
+      return JSON.parse(localStorage.getItem("user"));
+    },
+
     currentImage() {
       if (!this.item?.images?.length) {
         return "/no-image.png";
@@ -289,10 +302,17 @@ export default {
     this.showEditModal = true;
   },
 
-  onItemUpdated(updatedItem) {
-    this.item = updatedItem;
-    this.showEditModal = false;
-  },
+  async onItemUpdated() {
+  this.showEditModal = false;
+  this.isLoading = true;
+
+  const res = await axios.get(
+    `http://localhost:3000/marketplace/${this.$route.params.id}`
+  );
+
+  this.item = res.data;
+  this.isLoading = false;
+},
 
   async onDelete() {
   if (!confirm("Bạn chắc chắn muốn xóa item này?")) return;

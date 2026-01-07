@@ -150,7 +150,8 @@ export default {
         quantity: 1,
         type: "ingredient",
         condition: null
-      }
+      },
+      removedImages: []
     };
   },
 
@@ -160,63 +161,79 @@ export default {
         this.form.title.trim() &&
         this.form.description.trim() &&
         Number(this.priceInput) > 0 &&
-        this.form.quantity >= 1
+        this.form.quantity >= 1 &&
+        this.totalImagesCount > 0 
       );
-    }
+    },
+
+    totalImagesCount() {
+    return this.previews.length;
+  }
   },
 
-  watch: {
-    item: {
-      immediate: true,
-      handler(item) {
-        if (!item) return;
-
-        this.form.title = item.title ?? "";
-        this.form.description = item.description ?? "";
-        this.form.quantity = item.quantity ?? 1;
-        this.form.type = item.type ?? "ingredient";
-        this.form.condition = item.condition ?? null;
-
-        this.priceInput = Number(item.price).toFixed(2);
-        this.previews = item.images?.map(
-          img => `http://localhost:3000/${img}`
-        ) || [];
-
-        this.files = []; // 👈 QUAN TRỌNG
-      }
-
+watch: {
+  isVisible(val) {
+    if (val && this.item) {
+      this.initForm();
     }
-  },
+  }
+},
+
 
   methods: {
     requestClose() {
-      this.resetForm();
       this.$emit("close");
     },
 
-    resetForm() {
-      this.form = {
-        title: "",
-        description: "",
-        quantity: 1,
-        type: "ingredient",
-        condition: null
-      };
-      this.priceInput = "";
-      this.files = [];
-      this.previews = [];
-    },
+    initForm() {
+    this.form.title = this.item.title ?? "";
+    this.form.description = this.item.description ?? "";
+    this.form.quantity = this.item.quantity ?? 1;
+    this.form.type = this.item.type ?? "ingredient";
+    this.form.condition = this.item.condition ?? null;
+
+    this.priceInput = Number(this.item.price).toFixed(2);
+    this.previews = this.item.images?.map(
+      img => `http://localhost:3000/${img}`
+    ) || [];
+
+    this.files = [];
+    this.removedImages = [];
+  },
 
 
     handleFiles(e) {
-      this.files = Array.from(e.target.files);
-      this.previews = this.files.map(f => URL.createObjectURL(f));
+      const newFiles = Array.from(e.target.files);
+
+      newFiles.forEach(file => {
+        this.files.push(file); // 👈 thêm file mới
+        this.previews.push(URL.createObjectURL(file)); // 👈 thêm preview
+      });
+
+      e.target.value = ""; // 👈 cho phép upload lại cùng file
     },
 
     removeImage(i) {
+      const url = this.previews[i];
+
+      // 👉 ẢNH CŨ (đã tồn tại trên server)
+      if (url.startsWith("http://localhost:3000/")) {
+        const path = url.replace("http://localhost:3000/", "");
+        this.removedImages.push(path);
+      } 
+      // 👉 ẢNH MỚI (blob)
+      else {
+        this.files.splice(i - this.getOldImagesCount(), 1);
+      }
+
       this.previews.splice(i, 1);
-      this.files.splice(i, 1);
     },
+
+    getOldImagesCount() {
+      return this.item?.images?.length || 0;
+    },
+
+
 
     onPriceInput(e) {
       this.priceInput = e.target.value.replace(/[^0-9.]/g, "");
@@ -239,14 +256,19 @@ export default {
       fd.append("description", this.form.description);
       fd.append("type", this.form.type);
       fd.append("price", Number(this.priceInput));
-      fd.append("quantity", Number(this.form.quantity)); // 👈 QUAN TRỌNG
+      fd.append("quantity", Number(this.form.quantity));
 
       if (this.form.condition) {
         fd.append("condition", this.form.condition);
       }
 
-      this.files.forEach(f => fd.append("images", f));
+      // ✅ 1. GỬI ẢNH BỊ XOÁ TRƯỚC
+      this.removedImages.forEach(img => {
+        fd.append("removedImages[]", img);
+      });
 
+      // ✅ 2. GỬI ẢNH MỚI
+      this.files.forEach(f => fd.append("images", f));
 
       this.loading = true;
 
@@ -254,7 +276,9 @@ export default {
         `http://localhost:3000/marketplace/${this.item._id}`,
         {
           method: "PUT",
-          headers: { Authorization: `Bearer ${token}` },
+          headers: {
+            Authorization: `Bearer ${token}`
+          },
           body: fd
         }
       );
@@ -263,9 +287,12 @@ export default {
 
       if (!res.ok) return alert("Update failed");
 
-      this.$emit("updated");
+      const updatedItem = await res.json();
+
+      this.$emit("updated", updatedItem);
       this.$emit("close");
     }
+
   }
 };
 </script>

@@ -122,10 +122,27 @@ exports.updateItem = async (req, res) => {
       }
     }
 
-    // ✅ HANDLE NEW IMAGES
-    if (req.files && req.files.length > 0) {
-      item.images = req.files.map(file => `uploads/${file.filename}`);
+        // ===== HANDLE REMOVED IMAGES =====
+    let removedImages = req.body.removedImages || [];
+
+    if (typeof removedImages === "string") {
+      removedImages = [removedImages];
     }
+
+    if (removedImages.length > 0) {
+      item.images = item.images.filter(
+        img => !removedImages.includes(img)
+      );
+    }
+
+    // ===== HANDLE NEW IMAGES =====
+    if (req.files && req.files.length > 0) {
+      const newImages = req.files.map(
+        file => `uploads/${file.filename}`
+      );
+      item.images.push(...newImages);
+    }
+
 
     // ✅ TOOL CONDITION LOGIC
     if (item.type !== "tool") {
