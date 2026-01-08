@@ -15,7 +15,7 @@ exports.createItem = async (req, res) => {
       type,
       price,
       quantity: quantity ?? 1,
-      condition: type === "tool" ? condition : null,
+      condition: type === "tool" ? (condition || "new") : null,
       seller: req.user.id, // ✅ FIX
       images,
       status: "active"
@@ -144,10 +144,13 @@ exports.updateItem = async (req, res) => {
     }
 
 
-    // ✅ TOOL CONDITION LOGIC
-    if (item.type !== "tool") {
-      item.condition = null;
+    // ✅ VALIDATE CONDITION
+    if (item.type === "tool") {
+      if (!["new", "used"].includes(item.condition)) {
+        item.condition = "new";
+      }
     }
+
 
     await item.save();
     res.status(200).json(item);

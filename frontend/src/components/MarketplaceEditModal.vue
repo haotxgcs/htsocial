@@ -172,9 +172,12 @@ export default {
   },
 
 watch: {
-  isVisible(val) {
-    if (val && this.item) {
-      this.initForm();
+  item: {
+    immediate: true,
+    handler(val) {
+      if (val) {
+        this.initForm();
+      }
     }
   }
 },

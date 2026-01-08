@@ -83,6 +83,8 @@
 
     <p class="quantity">Quantity: {{ item.quantity }}</p>
 
+    <p class="condition" v-if="item.type === 'tool'">Condition: {{ item.condition }}</p>
+
     <p class="type">{{ typeLabel }}</p>
 
 
@@ -131,9 +133,15 @@
 
   </div>
 
+
+
+  
+</div>
+
     <div class="info info-extra">
   <p class="description">
-    <strong>Description:</strong><br />
+    <strong>Description:</strong><br><br>
+    
     {{ item.description || "No Description." }}
   </p>
 </div>
@@ -145,11 +153,6 @@
   <button>Write a review</button>
 
 </div>
-
-  
-</div>
-
-
 
 
     <!-- FULLSCREEN IMAGE -->
@@ -412,7 +415,7 @@ export default {
   height: 420px;
   overflow: hidden;
   border-radius: 16px;
-  background: #f3f4f6;
+  background: white;
   box-shadow: 0 4px 12px rgba(0,0,0,0.05);
   cursor: zoom-in;
 }
@@ -610,7 +613,7 @@ export default {
 }
 
 
-.quantity{
+.quantity, .condition{
   font-size: 14px;
   font-style: italic;
   font-weight: 600;
@@ -634,6 +637,7 @@ export default {
 .description {
   margin: 16px 0;
   line-height: 1.5;
+  white-space:pre-line;
 
 }
 

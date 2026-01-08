@@ -20,6 +20,12 @@ const MarketplaceItemSchema = new mongoose.Schema(
       required: true
     },
 
+    condition: {
+      type: String,
+      enum: ["new", "used"],
+      default: "new"
+    },
+
     price: {
       type: Number,
       required: true
