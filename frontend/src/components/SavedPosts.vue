@@ -67,9 +67,9 @@
           >
             {{ expandedPosts[post._id] ? 'Show Less' : 'Show More' }}
           </button>
-          <div v-if="post.media" class="post-media-container">
-          <img v-if="post.mediaType === 'image'" :src="`http://localhost:3000/${post.media}`" class="post-media" />
-          <video v-else-if="post.mediaType === 'video'" controls class="post-media">
+          <div v-if="post.media" class="post-media">
+          <img v-if="post.mediaType === 'image'" :src="`http://localhost:3000/${post.media}`" class="post-image" />
+          <video v-else-if="post.mediaType === 'video'" controls class="post-video">
             <source :src="`http://localhost:3000/${post.media}`" type="video/mp4" />
           </video>
         </div>
@@ -531,7 +531,7 @@ export default {
 }
 .recipe-section-header {
   font-weight: 700;
-  margin: 0 0 10px 0;
+  margin: 20px 0 10px 0;
   font-size: 13px;
   color: #333;
 }
@@ -543,13 +543,36 @@ export default {
 }
 .read-more-btn:hover { text-decoration: underline;}
 
-/* --- 5. MEDIA & STATS --- */
-.post-media-container { 
-  width: 100%; aspect-ratio: 1 / 1; 
-  display: flex; align-items: center; justify-content: center; 
-  overflow: hidden; margin-bottom: 12px; 
+.post-media,
+.post-image {
+  width: 100%;
+  border-radius: 10px;
+  margin-top: 10px;
+  
+  
 }
-.post-media { width: 100%; height: 100%; object-fit: cover; border-radius:10px;margin-top:10px;}
+
+
+
+/* CSS MỚI RIÊNG CHO VIDEO ĐỂ TẠO KHUNG VUÔNG GỌN GÀNG */
+.post-video {
+  width: 100%;
+  height:100%;
+  /* aspect-ratio: 1 / 1; giúp tạo khung hình vuông */
+  aspect-ratio: 1 / 1; 
+  
+  /* object-fit: contain; đảm bảo video hiển thị đầy đủ không bị cắt, 
+     nếu tỷ lệ video khác vuông sẽ có viền đen trên dưới hoặc 2 bên */
+  object-fit: cover;
+  
+  background-color: black; /* Nền đen cho phần viền thừa (nếu có) */
+  border-radius: 10px;
+  margin-top: 10px;
+  
+  /* Đảm bảo chiều cao không vượt quá khung vuông */
+  height: auto; 
+  max-height: 500px; /* Giới hạn chiều cao tối đa nếu màn hình quá rộng */
+}
 
 /* Rating */
 .rating-statistics { 

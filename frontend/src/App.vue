@@ -56,4 +56,14 @@ body {
   color: var(--text-main);
   transition: background-color 0.3s, color 0.3s;
 }
+
+/* FIX BACKGROUND MOBILE */
+html,
+body {
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
+  background-color: #fdf4f0;
+}
+
 </style>

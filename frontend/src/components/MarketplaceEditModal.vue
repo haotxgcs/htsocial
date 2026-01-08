@@ -95,7 +95,7 @@
             <span>Upload new images</span>
           </label>
 
-          <p class="sub-text">You can keep old images or upload new ones</p>
+          <p class="sub-text">You can keep old images or upload new ones (Min 1 - Max 5)</p>
         </div>
 
         <!-- PREVIEW -->
@@ -202,16 +202,30 @@ watch: {
   },
 
 
-    handleFiles(e) {
-      const newFiles = Array.from(e.target.files);
+handleFiles(e) {
+  const newFiles = Array.from(e.target.files);
 
-      newFiles.forEach(file => {
-        this.files.push(file); // 👈 thêm file mới
-        this.previews.push(URL.createObjectURL(file)); // 👈 thêm preview
-      });
+  // ❌ Không chọn file
+  if (!newFiles.length) return;
 
-      e.target.value = ""; // 👈 cho phép upload lại cùng file
-    },
+  // ❌ Nếu tổng ảnh vượt quá 5
+  if (this.previews.length + newFiles.length > 5) {
+    alert("You can upload a maximum of 5 images.");
+    e.target.value = "";
+    return;
+  }
+
+  newFiles.forEach(file => {
+    // ❌ Chỉ cho phép ảnh
+    if (!file.type.startsWith("image/")) return;
+
+    this.files.push(file); // thêm file mới
+    this.previews.push(URL.createObjectURL(file)); // thêm preview
+  });
+
+  e.target.value = ""; // cho phép upload lại cùng file
+},
+
 
     removeImage(i) {
       const url = this.previews[i];

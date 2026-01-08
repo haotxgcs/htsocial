@@ -105,13 +105,13 @@
     class="chat-btn"
     @click="onChat"
   >
-    💬 Chat với người bán
+    Chat with Seller
   </button>
 
 <!-- OWNER ACTIONS -->
   <div v-if="isOwner" class="owner-actions">
     <button class="edit-btn" @click="openEditModal">
-      ✏️ Chỉnh sửa item
+      Edit Item
     </button>
 
     <MarketplaceEditModal
@@ -125,7 +125,7 @@
 
 
     <button class="delete-btn" @click="onDelete">
-      🗑 Xóa item
+      Delete Item
     </button>
   </div>
 
@@ -368,8 +368,11 @@ export default {
   --gray-text: #6b7280;
 }
 
+
+
 .marketplace-detail-page {
-  min-height: 100vh;
+  height:auto;
+  min-height:100vh;
   padding-top: 72px;          /* header top */
   background: #fdf4f0;
  

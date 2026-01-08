@@ -1649,7 +1649,8 @@ async loadSearchHistory() {
 
 .recipe-section-header {
   font-weight: 700;
-  margin: 0 0 10px 0;
+  margin: 20px 0 10px 0;
+  
   font-size: 13px;
   color: #333;
 }
@@ -1660,8 +1661,6 @@ async loadSearchHistory() {
   margin: 0 0 5px 0;
   color: #333;
 }
-/* Media */
-.post-media-container { width: 100%; aspect-ratio: 1 / 1; background: white; display: flex; align-items: center; justify-content: center; overflow: hidden; }
 
 
 .post-media,
