@@ -26,7 +26,7 @@ const deleteFileFromDisk = (filePath) => {
 
 exports.createPost = async (req, res) => {
   try {
-    const { title, category, ingredients, instructions, author, audience,hiddenBy } = req.body;
+    const { title, category, ingredients, instructions, author, audience,hiddenBy, linkedItems} = req.body;
     const media = req.file ? `uploads/${req.file.filename}` : null;
     const mediaType = req.file
       ? req.file.mimetype.startsWith("image")
@@ -42,6 +42,19 @@ exports.createPost = async (req, res) => {
       return res.status(400).json({ msg: "Author does not exist" });
     }
 
+    let parsedLinkedItems = [];
+
+    if (linkedItems) {
+      try {
+        parsedLinkedItems = Array.isArray(linkedItems)
+          ? linkedItems
+          : JSON.parse(linkedItems);
+      } catch {
+        parsedLinkedItems = [];
+      }
+    }
+
+
     // Tạo post mới
     const newPost = new Post({
       title,
@@ -53,6 +66,8 @@ exports.createPost = async (req, res) => {
       mediaType,
       audience: audience || "public",
       hiddenBy: hiddenBy || [],
+      linkedItems: parsedLinkedItems,
+
     });
 
     await newPost.save();
@@ -108,7 +123,8 @@ exports.getAllPosts = async (req, res) => {
 exports.getPostById = async (req, res) => {
   try {
     const post = await Post.findById(req.params.id)
-      .populate("author", "firstname lastname username avatar");
+      .populate("author", "firstname lastname username avatar")
+      .populate("linkedItems");
 
     if (!post) return res.status(404).json({ msg: "Post not found" });
 
@@ -234,7 +250,7 @@ exports.getHiddenPosts = async (req, res) => {
 exports.updatePost = async (req, res) => {
     try {
         // Destructure 'deleteMedia' from the request body
-        const {title, category, ingredients, instructions, audience, deleteMedia} = req.body; 
+        const {title, category, ingredients, instructions, audience, deleteMedia, linkedItems} = req.body; 
         const file = req.file;
 
         const post = await Post.findById(req.params.id);
@@ -247,6 +263,17 @@ exports.updatePost = async (req, res) => {
         if (instructions) post.instructions = instructions;
         if (audience) post.audience = audience;
         if (category) post.category = category;
+
+        if (linkedItems !== undefined) {
+          try {
+            post.linkedItems = Array.isArray(linkedItems)
+              ? linkedItems
+              : JSON.parse(linkedItems);
+          } catch {
+            post.linkedItems = [];
+          }
+        }
+
 
         // 2. Handle explicit media deletion request (User clicks 'X' on an existing image)
         if (deleteMedia === 'true' && post.media) {

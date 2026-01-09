@@ -98,6 +98,105 @@
             :disabled="isLoading"
           ></textarea>
         </div>
+
+        <div class="recipe-field">
+          <label class="field-label">
+            🛒 Ingredients & Tools (optional)
+          </label>
+
+          <input
+            v-model="itemSearch"
+            placeholder="Search marketplace items..."
+            class="recipe-input"
+            @input="searchItems"
+            :disabled="isLoading"
+          />
+
+          <!-- SEARCH RESULT -->
+          <div v-if="itemResults.length" class="item-search-results">
+            <div
+              v-for="item in itemResults"
+              :key="item._id"
+              class="item-result"
+              @click="addItem(item)"
+            >
+
+              <!-- THUMB -->
+              <img
+                v-if="item.images?.length"
+                :src="`http://localhost:3000/${item.images[0]}`"
+                class="linked-item-thumb"
+              />
+
+              <span>{{ item.title }}</span>
+              <small class="linked-item-meta">({{ item.type }}) </small>
+
+
+
+              
+            </div>
+          </div>
+
+          <!-- SELECTED ITEMS -->
+          <div v-if="linkedItems.length" class="linked-items">
+            <div
+              v-for="item in linkedItems"
+              :key="item._id"
+              class="linked-item"
+            >
+              <!-- THUMB -->
+              <img
+                v-if="item.images?.length"
+                :src="`http://localhost:3000/${item.images[0]}`"
+                class="linked-item-thumb"
+              />
+                          
+              <!-- INFO -->
+              <div class="linked-item-info">
+                <div class="linked-item-title" :title="item.title">
+                  {{ item.title }}
+                </div>
+
+                <div class="linked-item-meta">
+                  {{ item.type }}
+                  <span v-if="item.type === 'tool' && item.condition">
+                    · {{ item.condition }}
+                  </span>
+
+                  <span
+                    v-if="item.seller?._id === (user._id || user.id)"
+                    class="own-item-badge"
+                  >
+                    YOUR ITEM
+                  </span>
+
+                  <!-- ACTION -->
+                <button
+                  class="view-item-btn"
+                  @click="openItem(item._id)"
+                >
+                  View item
+                </button>
+                </div>
+
+                
+              </div>
+
+              <!-- REMOVE -->
+              <button
+                class="remove-item-btn"
+                @click="removeItem(item._id)"
+              >
+                ✕
+              </button>
+              </div>
+          </div>
+
+        </div>
+
+
+
+
         
         <div class="add-options">
           <div class="emoji-action-wrapper">
@@ -218,7 +317,13 @@ export default {
       createdPostData: null,
 
       confirmVisible: false,
-      confirmMessage: ''
+      confirmMessage: '',
+
+      linkedItems: [],          // các item đã chọn
+      itemSearch: "",           // text search item
+      itemResults: [],          // kết quả tìm từ marketplace
+      isSearchingItems: false
+
     }
   },
   computed: {
@@ -231,6 +336,9 @@ export default {
     }
   },
   methods: {
+    openItem(itemId) {
+      window.open(`/marketplace/${itemId}`, '_blank');
+    },
     // --- NOTIFICATION HELPERS ---
     showNotify(type, title, message) {
       this.notification = { visible: true, type, title, message };
@@ -244,12 +352,6 @@ export default {
         this.$emit('close');
       }
     },
-
-    // closeModal() {
-    //   if (this.isLoading) return;
-    //   this.resetForm();
-    //   this.$emit('close');
-    // },
 
     // --- ⭐ MAIN SUBMIT FUNCTION (ĐÃ SỬA API) ⭐ ---
     async submitNewPost() {
@@ -271,6 +373,11 @@ export default {
         formData.append('category', this.category);
         formData.append('ingredients', this.ingredients);
         formData.append('instructions', this.instructions);
+        formData.append(
+          "linkedItems",
+          JSON.stringify(this.linkedItems.map(i => i._id))
+        );
+
         
         // Các thông tin khác
         formData.append('author', savedUser.username);
@@ -317,6 +424,10 @@ export default {
       this.mediaPreviewUrl = null;
       this.showEmojiPicker = false;
       if (this.mediaPreviewUrl) URL.revokeObjectURL(this.mediaPreviewUrl);
+      this.linkedItems = [];
+      this.itemSearch = "";
+      this.itemResults = [];
+
     },
     
     adjustTextareaHeight(textarea) {
@@ -416,6 +527,65 @@ export default {
     this.resetForm();
     this.$emit('close');
   },
+
+async searchItems() {
+  if (!this.itemSearch.trim()) {
+    this.itemResults = [];
+    return;
+  }
+
+  this.isSearchingItems = true;
+
+  const token = localStorage.getItem("token");
+
+  const res = await fetch(
+    `http://localhost:3000/marketplace?search=${this.itemSearch}`,
+    {
+      headers: token
+        ? { Authorization: `Bearer ${token}` }
+        : {}
+    }
+  );
+
+  const data = await res.json();
+
+  const items = Array.isArray(data) ? data : [];
+
+  this.itemResults = items.filter(
+    i => !this.linkedItems.some(li => li._id === i._id)
+  );
+
+  this.isSearchingItems = false;
+},
+
+
+  addItem(item) {
+    if (this.linkedItems.length >= 6) {
+      alert("You can link up to 6 items only");
+      return;
+    }
+
+    this.linkedItems.push(item);
+    this.itemSearch = "";
+    this.itemResults = [];
+  },
+
+  removeItem(id) {
+    this.linkedItems = this.linkedItems.filter(
+      i => i._id !== id
+    );
+  },
+
+      typeLabel() {
+    const map = {
+      ingredient: "Ingredients",
+      dish: "Dishes",
+      tool: "Tools"
+    };
+    return map[this.item.type] || "Item";
+  },
+
+
   },
 
   watch: {
@@ -523,4 +693,112 @@ export default {
 .create-post-modal-content::-webkit-scrollbar-track { background: #f8f9fa; border-radius: 3px; }
 .create-post-modal-content::-webkit-scrollbar-thumb { background: #bcc0c4; border-radius: 3px; }
 .create-post-modal-content::-webkit-scrollbar-thumb:hover { background: #8a8d91; }
+
+.item-search-results {
+  margin-top: 8px;
+  border: 1px solid #e4e6ea;
+  border-radius: 8px;
+  background: white;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.item-result {
+  display: flex;
+  gap: 10px;
+  padding: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.item-result:hover {
+  background: #fdf4f0;
+}
+
+.linked-items {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.linked-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid #e4e6ea;
+  border-radius: 8px;
+  background: #fafafa;
+}
+
+.linked-item-thumb {
+  width: 36px;
+  height: 36px;
+  object-fit: cover;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.linked-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.linked-item-title {
+  font-weight: 600;
+  font-size: 14px;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+
+.linked-item-meta {
+  font-size: 12px;
+  color: #FF462F;
+}
+
+.own-item-badge {
+  margin-left: 6px;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 6px;
+  background: #e6f9ee;
+  color: #15803d;
+  text-transform: uppercase;
+}
+
+.view-item-btn {
+  margin-top: 6px;
+  margin-left:6px;
+  width: fit-content;
+  padding: 4px 8px;
+  font-size: 12px;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  cursor: pointer;
+}
+
+.view-item-btn:hover {
+  background: #fff7ed;
+  border-color: #fb923c;
+  color: #ea580c;
+}
+
+
+
+
+.remove-item-btn {
+  background: none;
+  border: none;
+  color: #ef4444;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+
 </style>

@@ -21,6 +21,14 @@ const postSchema = new mongoose.Schema(
 
     audience: { type: String, enum: ["public", "friends", "private"], default: "public"},
     hiddenBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    
+    linkedItems: [
+  {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "MarketplaceItem"
+  }
+]
+
 
   },
   {

@@ -290,17 +290,7 @@ export default {
     closeFullscreen() {
       this.showFullscreen = false;
     },
-
-    // onEdit() {
-    //   alert("Edit item (UI only)");
-    // },
-
-    // onDelete() {
-    //   if (confirm("Bạn chắc chắn muốn xóa item này?")) {
-    //     alert("Delete item (UI only)");
-    //   }
-    // },
-
+    
     openEditModal() {
     this.showEditModal = true;
   },
