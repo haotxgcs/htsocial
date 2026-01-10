@@ -112,30 +112,45 @@
             :disabled="isLoading"
           />
 
-          <!-- SEARCH RESULT -->
-          <div v-if="itemResults.length" class="item-search-results">
-            <div
-              v-for="item in itemResults"
-              :key="item._id"
-              class="item-result"
-              @click="addItem(item)"
-            >
+          <!-- SEARCH RESULTS -->
+          <div
+            v-for="item in itemResults"
+            :key="item._id"
+            class="item-result"
+            @click="addItem(item)"
+          >
 
-              <!-- THUMB -->
+            <!-- THUMB -->
               <img
                 v-if="item.images?.length"
                 :src="`http://localhost:3000/${item.images[0]}`"
                 class="linked-item-thumb"
               />
 
-              <span>{{ item.title }}</span>
-              <small class="linked-item-meta">({{ item.type }}) </small>
+            <div class="item-result-info">
+              <div class="item-result-title" :title="item.title">
+                {{ item.title }}
+              </div>
 
+              <div class="item-result-meta">
+                {{ item.type }}
 
+                <span
+                  v-if="item.type === 'tool' && item.condition"
+                >
+                  · {{ item.condition }}
+                </span>
 
-              
+                <span
+                  v-if="item.seller?._id === (user._id || user.id)"
+                  class="own-item-badge"
+                >
+                  YOUR ITEM
+                </span>
+              </div>
             </div>
           </div>
+
 
           <!-- SELECTED ITEMS -->
           <div v-if="linkedItems.length" class="linked-items">
@@ -705,15 +720,40 @@ async searchItems() {
 
 .item-result {
   display: flex;
-  gap: 10px;
-  padding: 8px;
+  padding: 8px 10px;
   cursor: pointer;
   transition: background 0.2s;
+  border: 1px solid #e4e6ea;
+  border-radius:6px;
+  gap: 10px;
 }
 
 .item-result:hover {
   background: #fdf4f0;
 }
+
+.item-result-info {
+  flex: 1;
+  min-width: 0; /* ⭐ quan trọng để không vỡ layout */
+}
+
+.item-result-title {
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.item-result-meta {
+  font-size: 12px;
+  color: #FF426F;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
 
 .linked-items {
   margin-top: 12px;

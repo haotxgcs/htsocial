@@ -56,6 +56,86 @@
           </video>
         </div>
 
+        <!-- INGREDIENTS & TOOLS -->
+        <div
+          v-if="post?.linkedItems?.length"
+          class="linked-items-preview"
+        >
+          <div class="linked-items-header">
+            🛒 Ingredients & Tools ({{ linkedItemTotal }})
+          </div>
+
+          <div class="linked-item-card">
+            <!-- ITEM INFO -->
+            <div class="linked-item-left">
+              <img
+                v-if="currentLinkedItem?.images?.length"
+                :src="`http://localhost:3000/${currentLinkedItem.images[0]}`"
+                class="linked-item-thumb"
+              />
+
+              <div class="linked-item-info">
+                <div class="linked-item-title" :title="currentLinkedItem.title">
+                  {{ currentLinkedItem.title }}
+                </div>
+
+                <div class="linked-item-meta">
+                  {{ currentLinkedItem.type }}
+
+                  <span
+                    v-if="currentLinkedItem.type === 'tool' && currentLinkedItem.condition"
+                  >
+                    · {{ currentLinkedItem.condition }}
+                  </span>
+
+                  <span
+                    v-if="currentLinkedItem.seller?._id === (user._id || user.id)"
+                    class="own-item-badge"
+                  >
+                    YOUR ITEM
+                  </span>
+
+
+                  <button
+                    class="view-item-btn"
+                    @click="openItem(currentLinkedItem._id)"
+                  >
+                    View item
+                  </button>
+                </div>
+
+
+              </div>
+            </div>
+
+            <!-- ARROWS -->
+            <div
+              v-if="linkedItemTotal > 1"
+              class="linked-item-arrows"
+            >
+              <button
+                class="arrow-btn"
+                @click="prevItem"
+                :disabled="currentItemIndex === 0"
+              >
+                ‹
+              </button>
+              <button
+                class="arrow-btn"
+                @click="nextItem"
+                :disabled="currentItemIndex === linkedItemTotal - 1"
+              >
+                ›
+              </button>
+            </div>
+          </div>
+
+          <div class="linked-item-counter">
+            {{ currentItemIndex + 1 }} / {{ linkedItemTotal }}
+          </div>
+        </div>
+
+
         <div v-if="totalRatings > 0" class="rating-statistics">
           <div class="rating-summary">
             <div class="average-rating">
@@ -422,7 +502,10 @@ export default {
         refName: 'mainCommentInput', 
         modelType: 'newComment', // 'newComment', 'replyInputs', 'replyInputsReply'
         key: null // ID của comment/reply (nếu có)
-      }
+      },
+
+      currentItemIndex: 0
+
     }
   },
   computed: {
@@ -480,6 +563,16 @@ export default {
       // Hiện nút nếu dài hơn 5 dòng hoặc 200 ký tự
       return lines.length > 5 || text.length > 200;
     },
+
+    currentLinkedItem() {
+      if (!this.post?.linkedItems?.length) return null;
+      return this.post.linkedItems[this.currentItemIndex];
+    },
+
+    linkedItemTotal() {
+      return this.post?.linkedItems?.length || 0;
+    }
+
 
     
   },
@@ -1249,15 +1342,32 @@ closeEmojiPickerOnClickOutside(event) {
     },
 
     handleOverlayClick() {
-  // Nếu đang mở emoji → chỉ đóng emoji, KHÔNG đóng modal
-  if (this.activeEmojiPicker) {
-    this.activeEmojiPicker = null;
-    return;
-  }
+      // Nếu đang mở emoji → chỉ đóng emoji, KHÔNG đóng modal
+      if (this.activeEmojiPicker) {
+        this.activeEmojiPicker = null;
+        return;
+      }
 
-  // Không mở emoji → đóng modal
-  this.closeModal();
-},
+      // Không mở emoji → đóng modal
+      this.closeModal();
+    },
+
+    nextItem() {
+      if (this.currentItemIndex < this.linkedItemTotal - 1) {
+        this.currentItemIndex++;
+      }
+    },
+
+    prevItem() {
+      if (this.currentItemIndex > 0) {
+        this.currentItemIndex--;
+      }
+    },
+
+    openItem(itemId) {
+      window.open(`/marketplace/${itemId}`, "_blank");
+    }
+
 
   },
 
@@ -1688,6 +1798,120 @@ closeEmojiPickerOnClickOutside(event) {
 .filter-btn { padding: 8px 16px; border: 1px solid #e4e6eb; background: white; border-radius: 20px; font-size: 13px; font-weight: 500; color: #65676b; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
 .filter-btn:hover { background: #FF642F; color:white; border-color: #FF642F; }
 .filter-btn.active { background: #FF642F; color: white; border-color: #FF642F; }
+
+.linked-items-preview {
+  margin-top: 16px;
+}
+
+.linked-items-header {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.linked-item-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid #e4e6ea;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #fafafa;
+}
+
+.linked-item-left {
+  display: flex;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.linked-item-thumb {
+  width: 42px;
+  height: 42px;
+  border-radius: 6px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.linked-item-info {
+  min-width: 0;
+}
+
+.linked-item-title {
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 260px;
+}
+
+.linked-item-meta {
+  font-size: 12px;
+  color: #FF642F;
+  margin-top: 2px;
+}
+
+.own-item-badge {
+  margin-left: 6px;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 999px;
+  background: #e6f9ee;
+  color: #15803d;
+  text-transform: uppercase;
+}
+
+.view-item-btn {
+  margin-left:10px;
+  padding: 4px 10px;
+  font-size: 12px;
+  border-radius: 999px;
+  border: 1px solid #e5e7eb;
+  background: white;
+  cursor: pointer;
+}
+
+.view-item-btn:hover {
+  background: #fff7ed;
+  border-color: #fb923c;
+  color: #ea580c;
+}
+
+.linked-item-arrows {
+  display: flex;
+  gap: 6px;
+}
+
+.arrow-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid #e4e6ea;
+  background: white;
+  cursor: pointer;
+  font-size: 18px;
+}
+
+.arrow-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.linked-item-counter {
+margin-top: 6px;
+  align-self: flex-start;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  background: #f3f4f6;
+  padding: 3px 10px;
+  border-radius: 999px;
+  width: fit-content;
+}
+
 
 /* Responsive */
 @media (max-width: 768px) {

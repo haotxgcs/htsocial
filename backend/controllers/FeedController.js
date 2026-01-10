@@ -16,6 +16,13 @@ exports.getUnifiedFeed = async (req, res) => {
     // 1. GET POSTS
     const posts = await Post.find()
       .populate("author", "firstname lastname username avatar friends")
+      .populate({
+        path: "linkedItems",
+        populate: {
+          path: "seller",
+          select: "firstname lastname username avatar"
+        }
+      })
       .sort({ createdAt: -1 });
 
     const visiblePosts = posts.filter(post => {
@@ -41,10 +48,19 @@ exports.getUnifiedFeed = async (req, res) => {
       .populate("username", "firstname lastname username avatar friends")
       .populate({
         path: "post",
-        populate: {
-          path: "author",
-          select: "firstname lastname username avatar friends"
-        }
+        populate: [
+          {
+            path: "author",
+            select: "firstname lastname username avatar friends"
+          },
+          {
+            path: "linkedItems",
+            populate: {
+              path: "seller",
+              select: "firstname lastname username avatar"
+            }
+          }
+        ]
       })
       .sort({ createdAt: -1 });
 
@@ -137,6 +153,9 @@ exports.getUserFeed = async (req, res) => {
     // =========================
     let posts = await Post.find({ author: userId })
       .populate("author", "firstname lastname username avatar friends")
+      .populate("linkedItems")
+      .populate("linkedItems.seller")
+
       .lean();
 
     // 👉 FILTER HIDDEN POSTS (THEO VIEWER)

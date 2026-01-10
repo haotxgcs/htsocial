@@ -163,26 +163,36 @@ exports.updateItem = async (req, res) => {
 
 
 
-// ===== 5. DELETE ITEM =====
+// ===== 5. DELETE ITEM (SOFT DELETE + UNLINK POSTS) =====
 exports.deleteItem = async (req, res) => {
   try {
     const item = await MarketplaceItem.findById(req.params.id);
-    if (!item) return res.status(404).json({ msg: "Item not found" });
+    if (!item) {
+      return res.status(404).json({ msg: "Item not found" });
+    }
 
+    // CHECK OWNER
     if (item.seller.toString() !== req.user.id) {
       return res.status(403).json({ msg: "Forbidden" });
     }
 
-    // Soft delete (KHUYÊN DÙNG)
+    // 1️⃣ SOFT DELETE ITEM
     item.status = "hidden";
     await item.save();
 
+    // 2️⃣ ⭐ GỠ ITEM KHỎI TẤT CẢ POST
+    await Post.updateMany(
+      { linkedItems: item._id },
+      { $pull: { linkedItems: item._id } }
+    );
 
-
-    res.status(200).json({ msg: "Item deleted" });
+    res.status(200).json({
+      msg: "Item hidden and removed from all posts"
+    });
   } catch (err) {
     console.error("Delete item error:", err);
     res.status(500).json({ msg: "Server error" });
   }
 };
+
 
