@@ -2058,11 +2058,8 @@ prevItem(postId) {
 
 .linked-item-meta {
   font-size: 12px;
-  color: #FF264F;
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  border-radius:6px;
+  color: #FF642F;
+  margin-top: 2px;
 }
 
 .own-item-badge {
@@ -2077,6 +2074,7 @@ prevItem(postId) {
 }
 
 .view-item-btn {
+  margin-left:10px;
   padding: 4px 10px;
   font-size: 12px;
   border-radius: 999px;

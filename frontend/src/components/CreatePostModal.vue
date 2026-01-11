@@ -104,14 +104,42 @@
             🛒 Ingredients & Tools (optional)
           </label>
 
+          <!-- TOGGLE -->
+          <div class="item-filter-toggle">
+            <button
+              :class="{ active: itemFilterMode === 'mine' }"
+              @click="setItemFilter('mine')"
+              type="button"
+            >
+              Your items
+            </button>
+
+            <button
+              :class="{ active: itemFilterMode === 'all' }"
+              @click="setItemFilter('all')"
+              type="button"
+            >
+              All items
+            </button>
+          </div>
+
           <input
             v-model="itemSearch"
             placeholder="Search marketplace items..."
             class="recipe-input"
-            @input="searchItems"
+            @input="onItemSearchInput"
             :disabled="isLoading"
           />
 
+          <small class="item-hint">
+            Showing {{ itemResults.length }} items · scroll to see more
+          </small>
+
+
+          <div
+            v-if="itemResults.length"
+            class="item-results-wrapper"
+          >
           <!-- SEARCH RESULTS -->
           <div
             v-for="item in itemResults"
@@ -149,6 +177,7 @@
                 </span>
               </div>
             </div>
+          </div>
           </div>
 
 
@@ -337,7 +366,11 @@ export default {
       linkedItems: [],          // các item đã chọn
       itemSearch: "",           // text search item
       itemResults: [],          // kết quả tìm từ marketplace
-      isSearchingItems: false
+      isSearchingItems: false,
+
+      itemFilterMode: "mine", // "mine" | "all",
+
+      searchTimeout: null
 
     }
   },
@@ -543,35 +576,36 @@ export default {
     this.$emit('close');
   },
 
-async searchItems() {
-  if (!this.itemSearch.trim()) {
-    this.itemResults = [];
-    return;
-  }
-
-  this.isSearchingItems = true;
-
-  const token = localStorage.getItem("token");
-
-  const res = await fetch(
-    `http://localhost:3000/marketplace?search=${this.itemSearch}`,
-    {
-      headers: token
-        ? { Authorization: `Bearer ${token}` }
-        : {}
+  async searchItems() {
+    if (this.itemSearch.trim().length < 2) {
+      this.itemResults = [];
+      return;
     }
-  );
 
-  const data = await res.json();
 
-  const items = Array.isArray(data) ? data : [];
+    this.isSearchingItems = true;
+    const token = localStorage.getItem("token");
 
-  this.itemResults = items.filter(
-    i => !this.linkedItems.some(li => li._id === i._id)
-  );
+    let url = `http://localhost:3000/marketplace?search=${this.itemSearch}`;
 
-  this.isSearchingItems = false;
-},
+    if (this.itemFilterMode === "mine") {
+      url += "&mine=true";
+    }
+
+    const res = await fetch(url, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    });
+
+    const data = await res.json();
+    const items = Array.isArray(data) ? data : [];
+
+    this.itemResults = items.filter(
+      i => !this.linkedItems.some(li => li._id === i._id)
+    );
+
+    this.isSearchingItems = false;
+  },
+
 
 
   addItem(item) {
@@ -600,11 +634,63 @@ async searchItems() {
     return map[this.item.type] || "Item";
   },
 
+  setItemFilter(mode) {
+    if (this.itemFilterMode === mode) return;
+
+    this.itemFilterMode = mode;
+    this.itemResults = [];
+    this.itemSearch = "";
+
+    // Auto load items khi đổi mode
+    this.fetchItemsByMode();
+  },
+
+  async fetchItemsByMode() {
+    const token = localStorage.getItem("token");
+
+    let url = "http://localhost:3000/marketplace";
+
+    if (this.itemFilterMode === "mine") {
+      url += "?mine=true";
+    } else {
+      url += "?limit=20";
+    }
+
+    try {
+      const res = await fetch(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+
+      const data = await res.json();
+      const items = Array.isArray(data) ? data : [];
+
+      this.itemResults = items.filter(
+        i => !this.linkedItems.some(li => li._id === i._id)
+      );
+    } catch (err) {
+      console.error("Fetch items error:", err);
+      this.itemResults = [];
+    }
+  },
+
+  onItemSearchInput() {
+    clearTimeout(this.searchTimeout);
+
+    this.searchTimeout = setTimeout(() => {
+      this.searchItems();
+    }, 350);
+  }
+
+
+  
+
 
   },
 
   watch: {
     isVisible(newVal) {
+      this.itemFilterMode = "mine";
+      this.fetchItemsByMode();
       if (newVal) {
         this.$nextTick(() => {
           // Focus vào Title khi mở modal
@@ -676,8 +762,37 @@ async searchItems() {
 .post-content-area { padding: 0 24px; position: relative; }
 .recipe-field { margin-bottom: 20px; }
 .field-label { display: block; font-size: 16px; font-weight: 600; color: #1c1e21; margin-bottom: 8px; }
+.item-filter-toggle {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.item-filter-toggle button {
+  padding: 6px 12px;
+  font-size: 13px;
+  border-radius: 20px;
+  border: 1px solid #e4e6ea;
+  background: #f8f9fa;
+  cursor: pointer;
+  font-weight: 500;
+  color: #65676b;
+}
+
+.item-filter-toggle button.active {
+  background: #fff7ed;
+  border-color: #fb923c;
+  color: #ea580c;
+}
+
 .recipe-input, .category-select { width: 100%; padding: 12px; font-size: 15px; font-family: inherit; line-height: 1.2; color: #1c1e21; background: #f8f9fa; border: 1px solid #e4e6ea; border-radius: 8px; box-sizing: border-box; transition: border-color 0.2s, background-color 0.2s; }
 .recipe-input { font-size: 18px; }
+.item-hint {
+  font-size: 12px;
+  color: #FF642F;
+  margin-top: 4px;
+}
+
 .category-select { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 12px center; background-size: 20px; padding-right: 40px; }
 .recipe-input:focus, .category-select:focus { border-color: #FF642F; background: #ffffff; outline: none;  }
 .recipe-textarea { width: 100%; min-height: 100px; padding: 12px; font-size: 15px; font-family: inherit; line-height: 1.4; color: #1c1e21; background: #f8f9fa; border: 1px solid #e4e6ea; border-radius: 8px; box-sizing: border-box; resize: vertical; transition: border-color 0.2s, background-color 0.2s; }
@@ -717,6 +832,36 @@ async searchItems() {
   max-height: 200px;
   overflow-y: auto;
 }
+
+.item-results-wrapper {
+  margin-top: 8px;
+  border: 1px solid #e4e6ea;
+  border-radius: 10px;
+  background: white;
+
+  max-height: 260px;        /* ⭐ QUAN TRỌNG */
+  overflow-y: auto;         /* ⭐ SCROLL RIÊNG */
+
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+}
+
+/* Scrollbar gọn gàng */
+.item-results-wrapper::-webkit-scrollbar {
+  width: 6px;
+}
+
+.item-results-wrapper::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 6px;
+}
+
+.item-results-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
 
 .item-result {
   display: flex;

@@ -98,6 +98,127 @@
             :disabled="isLoading"
           ></textarea>
         </div>
+
+        <div class="recipe-field">
+          <label class="field-label">
+            🛒 Ingredients & Tools (optional)
+          </label>
+
+          <!-- TOGGLE -->
+          <div class="item-toggle">
+            <button
+              type="button"
+              class="toggle-btn"
+              :class="{ active: itemFilter === 'mine' }"
+              @click="itemFilter = 'mine'"
+            >
+              Your items
+            </button>
+            <button
+              type="button"
+              class="toggle-btn"
+              :class="{ active: itemFilter === 'all' }"
+              @click="itemFilter = 'all'"
+            >
+              All items
+            </button>
+          </div>
+
+          <!-- SEARCH -->
+          <input
+            v-model="itemSearch"
+            placeholder="Search marketplace items..."
+            class="recipe-input"
+            @input="onItemSearchInput"
+            :disabled="isLoading"
+          />
+
+          <!-- SEARCH RESULTS -->
+          <div v-if="itemResults.length" class="item-search-results">
+            <div
+              v-for="item in filteredItemResults"
+              :key="item._id"
+              class="item-result"
+              @click="addItem(item)"
+            >
+              <img
+                v-if="item.images?.length"
+                :src="`http://localhost:3000/${item.images[0]}`"
+                class="linked-item-thumb"
+              />
+
+              <div class="item-result-info">
+                <div class="item-result-title" :title="item.title">
+                  {{ item.title }}
+                </div>
+
+                <div class="item-result-meta">
+                  {{ item.type }}
+                  <span v-if="item.type === 'tool' && item.condition">
+                    · {{ item.condition }}
+                  </span>
+
+                  <span
+                    v-if="item.seller?._id === (user._id || user.id)"
+                    class="own-item-badge"
+                  >
+                    YOUR ITEM
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SELECTED ITEMS -->
+          <div v-if="linkedItems.length" class="linked-items">
+            <div
+              v-for="item in linkedItems"
+              :key="item._id"
+              class="linked-item"
+            >
+              <img
+                v-if="item.images?.length"
+                :src="`http://localhost:3000/${item.images[0]}`"
+                class="linked-item-thumb"
+              />
+
+              <div class="linked-item-info">
+                <div class="linked-item-title" :title="item.title">
+                  {{ item.title }}
+                </div>
+
+                <div class="linked-item-meta">
+                  {{ item.type }}
+                  <span v-if="item.type === 'tool' && item.condition">
+                    · {{ item.condition }}
+                  </span>
+
+                  <span
+                    v-if="item.seller?._id === (user._id || user.id)"
+                    class="own-item-badge"
+                  >
+                    YOUR ITEM
+                  </span>
+
+                  <button
+                    class="view-item-btn"
+                    @click.stop="openItem(item._id)"
+                  >
+                    View item
+                  </button>
+                </div>
+              </div>
+
+              <button
+                class="remove-item-btn"
+                @click="removeItem(item._id)"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        </div>
+
         
         <div class="add-options">
           <div class="emoji-action-wrapper">
@@ -210,6 +331,13 @@ export default {
       notification: { visible: false, type: 'success', title: '', message: '' },
       confirmVisible: false,
       confirmMessage: '',
+
+      linkedItems: [],
+      itemSearch: '',
+      itemResults: [],
+      itemFilter: 'mine', // 'mine' | 'all'
+      searchTimeout: null,
+
     }
   },
   computed: {
@@ -219,7 +347,17 @@ export default {
              this.selectedCategory.trim().length > 0 &&
              this.ingredients.trim().length > 0 && 
              this.instructions.trim().length > 0;
+    },
+
+    filteredItemResults() {
+    if (this.itemFilter === 'mine') {
+      return this.itemResults.filter(
+        i => i.seller?._id === (this.user._id || this.user.id)
+      );
     }
+    return this.itemResults;
+  }
+    
   },
   watch: {
     post: {
@@ -235,6 +373,8 @@ export default {
           // Focus vào ô Title khi mở modal
           if (this.$refs.titleInput) this.$refs.titleInput.focus();
         });
+
+        this.searchItems();
         
         const handleClickOutside = (e) => {
           if (!e.target.closest('.emoji-action-wrapper')) this.showEmojiPicker = false;
@@ -247,7 +387,10 @@ export default {
           this._clickOutsideHandler = null;
         }
       }
-    }
+    },
+    itemFilter() {
+      this.searchItems();
+    } 
   },
   methods: {
     // --- KHỞI TẠO DỮ LIỆU TỪ POST CŨ (LOGIC MỚI) ---
@@ -259,6 +402,11 @@ export default {
       this.selectedCategory = this.post.category || '';
       this.ingredients = this.post.ingredients || '';
       this.instructions = this.post.instructions || '';
+
+      this.linkedItems = Array.isArray(this.post.linkedItems)
+      ? this.post.linkedItems
+      : [];
+
       
       this.editPrivacy = this.post.audience || 'public';
       
@@ -287,6 +435,11 @@ export default {
         formData.append('category', this.selectedCategory);
         formData.append('ingredients', this.ingredients);
         formData.append('instructions', this.instructions);
+        formData.append(
+          'linkedItems',
+          JSON.stringify(this.linkedItems.map(i => i._id))
+        );
+
         
         // Các thông tin khác
         formData.append('audience', this.editPrivacy);
@@ -426,7 +579,55 @@ export default {
         URL.revokeObjectURL(this.mediaPreviewUrl);
       }
       this.mediaPreviewUrl = null;
+    },
+
+    openItem(itemId) {
+    window.open(`/marketplace/${itemId}`, '_blank');
+  },
+
+  onItemSearchInput() {
+    clearTimeout(this.searchTimeout);
+    this.searchTimeout = setTimeout(() => {
+      this.searchItems();
+    }, 300);
+  },
+
+async searchItems() {
+  const token = localStorage.getItem("token");
+
+  const query = this.itemSearch
+    ? `?search=${this.itemSearch}`
+    : ''; // ⭐ QUAN TRỌNG
+
+  const res = await fetch(
+    `http://localhost:3000/marketplace${query}`,
+    {
+      headers: token
+        ? { Authorization: `Bearer ${token}` }
+        : {}
     }
+  );
+
+  const data = await res.json();
+
+  const items = Array.isArray(data) ? data : [];
+
+  this.itemResults = items.filter(
+    i => !this.linkedItems.some(li => li._id === i._id)
+  );
+},
+
+
+  addItem(item) {
+    if (this.linkedItems.length >= 6) return;
+    this.linkedItems.push(item);
+    this.itemSearch = '';
+    this.itemResults = [];
+  },
+
+  removeItem(id) {
+    this.linkedItems = this.linkedItems.filter(i => i._id !== id);
+  }
   },
 
   beforeUnmount() {
@@ -487,6 +688,165 @@ export default {
 .post-content-area { padding: 0 24px; position: relative; }
 .recipe-field { margin-bottom: 20px; }
 .field-label { display: block; font-size: 16px; font-weight: 600; color: #1c1e21; margin-bottom: 8px; }
+
+.item-toggle {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.toggle-btn {
+  padding: 6px 12px;
+  border-radius: 20px;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.toggle-btn.active {
+  background: #fff7ed;
+  border-color: #fb923c;
+  color: #ea580c;
+}
+
+.item-search-results {
+  margin-top: 8px;
+  border: 1px solid #e4e6ea;
+  border-radius: 10px;
+  background: white;
+
+  max-height: 260px;        /* ⭐ QUAN TRỌNG */
+  overflow-y: auto;         /* ⭐ SCROLL RIÊNG */
+
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+}
+
+.item-result {
+  display: flex;
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: background 0.2s;
+  border: 1px solid #e4e6ea;
+  border-radius:6px;
+  gap: 10px;
+}
+
+.item-result:hover {
+  background: #fdf4f0;
+}
+
+.item-result-info {
+  flex: 1;
+  min-width: 0; /* ⭐ quan trọng để không vỡ layout */
+}
+
+.item-result-title {
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.item-result-meta {
+  font-size: 12px;
+  color: #FF426F;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.linked-item-thumb {
+  width: 36px;
+  height: 36px;
+  object-fit: cover;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.linked-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.linked-item-title {
+  font-weight: 600;
+  font-size: 14px;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+
+.linked-item-meta {
+  font-size: 12px;
+  color: #FF462F;
+}
+
+.linked-items {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.linked-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid #e4e6ea;
+  border-radius: 8px;
+  background: #fafafa;
+}
+
+.own-item-badge {
+  margin-left: 6px;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 6px;
+  background: #e6f9ee;
+  color: #15803d;
+  text-transform: uppercase;
+}
+
+.view-item-btn {
+  margin-top: 6px;
+  margin-left:6px;
+  width: fit-content;
+  padding: 4px 8px;
+  font-size: 12px;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  cursor: pointer;
+}
+
+.view-item-btn:hover {
+  background: #fff7ed;
+  border-color: #fb923c;
+  color: #ea580c;
+}
+
+
+
+
+.remove-item-btn {
+  background: none;
+  border: none;
+  color: #ef4444;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+
 .recipe-input, .category-select { width: 100%; padding: 12px; font-size: 15px; font-family: inherit; line-height: 1.2; color: #1c1e21; background: #f8f9fa; border: 1px solid #e4e6ea; border-radius: 8px; box-sizing: border-box; transition: border-color 0.2s, background-color 0.2s; }
 .recipe-input { font-size: 18px; }
 .category-select { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 12px center; background-size: 20px; padding-right: 40px; }

@@ -301,7 +301,10 @@ exports.updatePost = async (req, res) => {
         await post.save();
 
         const updatedPost = await Post.findById(post._id)
-            .populate("author", "firstname lastname username");
+            .populate("author", "firstname lastname username")
+            .populate('linkedItems')
+           .populate('linkedItems.seller');
+
 
         res.status(200).json({ msg: "Post updated", post: updatedPost });
     } catch (err) {
