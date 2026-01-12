@@ -322,36 +322,37 @@
 
           
           <div class="shared-content-box">
-                <template v-if="post.post">
+                <template v-if="post.originalPostMeta && !post.originalPostMeta.deleted">
+
                    
                    <template v-if="post.canViewPost === false">
                       <div class="origin-post-author-info">
-                        <img :src="getAvatarUrl(post.post.author)" alt="avatar" @click="$router.push(`/profile/${post.post.author._id}`)"/>
-                        <div class="origin-author-details" @click="$router.push(`/profile/${post.post.author._id}`)">
-                          <strong>{{ post.post.author.firstname }} {{ post.post.author.lastname }}</strong>
+                        <img :src="getAvatarUrl(post.originalPostMeta.author)" alt="avatar" @click="$router.push(`/profile/${post.originalPostMeta.author._id}`)"/>
+                        <div class="origin-author-details" @click="$router.push(`/profile/${post.originalPostMeta.author._id}`)">
+                          <strong>{{ post.originalPostMeta.author?.firstname }} {{ post.originalPostMeta.author?.lastname }}</strong>
                           
                           <p class="origin-post-time">
-                            {{ formatTime(post.post.createdAt) }}
+                            {{ formatTime(post.originalPostMeta.createdAt) }}
                             
-                            <span v-if="post.post.audience === 'friends'">👥</span>
-                            <span v-else-if="post.post.audience === 'private'">🔒</span>
+                            <span v-if="post.originalPostMeta.audience === 'friends'">👥</span>
+                            <span v-else-if="post.originalPostMeta.audience === 'private'">🔒</span>
                           </p>
                           </div>
                       </div>
-                        <p class="notice-message">{{ getPostAccessMessage(post.post) }}</p>
+                        <p class="notice-message">{{ getPostAccessMessage(post.originalPostMeta) }}</p>
                    </template>
 
                    <template v-else>
                       <div class="post-header small origin-post">
                           <div class="post-author-info">
-                            <img :src="getAvatarUrl(post.post.author)" class="avatar-small" @click="$router.push(`/profile/${post.post.author._id}`)"/>
-                            <div class="author-details" @click="$router.push(`/profile/${post.post.author._id}`)">
-                                <strong>{{ post.post.author.firstname }} {{ post.post.author.lastname }}</strong>
+                            <img :src="getAvatarUrl(post.originalPostMeta.author)" class="avatar-small" @click="$router.push(`/profile/${post.originalPostMeta.author._id}`)"/>
+                            <div class="author-details" @click="$router.push(`/profile/${post.originalPostMeta.author._id}`)">
+                                <strong>{{ post.originalPostMeta.author.firstname }} {{ post.originalPostMeta.author.lastname }}</strong>
                                 <p class="time">
-                                  {{ formatTime(post.post.createdAt) }}
-                                  <span v-if="post.post.audience === 'public'" title="Public">🌍</span>
-                                  <span v-else-if="post.post.audience === 'friends'" title="Friends">👥</span>
-                                  <span v-else-if="post.post.audience === 'private'" title="Private">🔒</span>
+                                  {{ formatTime(post.originalPostMeta.createdAt) }}
+                                  <span v-if="post.originalPostMeta.audience === 'public'" title="Public">🌍</span>
+                                  <span v-else-if="post.originalPostMeta.audience === 'friends'" title="Friends">👥</span>
+                                  <span v-else-if="post.originalPostMeta.audience === 'private'" title="Private">🔒</span>
                                 </p>
                             </div>
                           </div>

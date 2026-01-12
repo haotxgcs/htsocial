@@ -130,21 +130,34 @@ exports.getUnifiedFeed = async (req, res) => {
     const formattedShares = visibleShares.map(s => {
       const share = s.toObject();
       const originalPost = share.post;
+      const isDeleted = !originalPost;
 
-      const canViewOriginalPost = canViewPost(originalPost, viewerId);
+      const canViewOriginalPost = isDeleted
+        ? false
+        : canViewPost(originalPost, viewerId);
 
       return {
         ...share,
         type: "share",
 
-        // 🔥 CỐT LÕI
         post: canViewOriginalPost ? originalPost : null,
-        canViewPost: canViewOriginalPost,
 
+        originalPostMeta: isDeleted
+          ? { deleted: true }
+          : {
+              author: originalPost.author,
+              createdAt: originalPost.createdAt,
+              audience: originalPost.audience,
+              deleted: false
+            },
+
+        canViewPost: canViewOriginalPost,
         commentCount: share.commentCount || 0,
         replyCommentCount: share.replyCommentCount || 0
       };
     });
+
+
 
 
     const allFeed = [...formattedPosts, ...formattedShares].sort(
@@ -472,6 +485,14 @@ exports.getSavedItems = async (req, res) => {
       _id: { $in: user.savedPosts }
     })
     .populate("author", "firstname lastname username avatar friends")
+    .populate({
+      path: "linkedItems",
+      select: "title images type condition seller",
+      populate: {
+        path: "seller",
+        select: "firstname lastname username avatar"
+      }
+    })
     .lean();
 
     // Format và filter
