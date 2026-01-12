@@ -3,6 +3,53 @@ const Post = require("../models/PostModel");
 const Share = require("../models/ShareModel");
 const User = require("../models/UserModel");
 
+const isFriendOf = (friends = [], viewerId) => {
+  return friends.some(f =>
+    (f?._id ? f._id.toString() : f.toString()) === viewerId
+  );
+};
+
+const canViewPost = (post, viewerId) => {
+  if (!post || !post.author) return false;
+  if (!viewerId) return post.audience === "public";
+
+  const viewer = viewerId.toString();
+  const authorId = post.author._id.toString();
+  const isAuthor = authorId === viewer;
+  const isFriend = isFriendOf(post.author.friends, viewer);
+
+  switch (post.audience) {
+    case "public":
+      return true;
+    case "friends":
+      return isAuthor || isFriend;
+    case "private":
+      return isAuthor;
+    default:
+      return false;
+  }
+};
+
+const canViewShare = (share, viewerId) => {
+  if (!share || !share.username) return false;
+  if (!viewerId) return share.audience === "public";
+
+  const viewer = viewerId.toString();
+  const sharerId = share.username._id.toString();
+  const isSharer = sharerId === viewer;
+  const isFriend = isFriendOf(share.username.friends, viewer);
+
+  switch (share.audience) {
+    case "public":
+      return true;
+    case "friends":
+      return isSharer || isFriend;
+    case "private":
+      return isSharer;
+    default:
+      return false;
+  }
+};
 
 
 
@@ -64,59 +111,41 @@ exports.getUnifiedFeed = async (req, res) => {
       })
       .sort({ createdAt: -1 });
 
-    const visibleShares = shares.filter(share => {
-      if (!share.username) return false; // Skip if sharer deleted account
+      const visibleShares = shares.filter(share => {
+        if (!share.username) return false;
 
-      const isHidden = user.hiddenShares.some(id => id.toString() === share._id.toString());
-      if (isHidden) return false;
+        const isHidden = user.hiddenShares.some(
+          id => id.toString() === share._id.toString()
+        );
+        if (isHidden) return false;
 
-      const sharerId = share.username._id.toString();
-      const isSharerMe = sharerId === viewerId;
-      const isFriendWithSharer = share.username.friends.some(f => f._id.toString() === viewerId);
+        // ✅ CHỈ check share
+        return canViewShare(share, viewerId);
+      });
 
-      switch (share.audience) {
-        case "public": return true;
-        case "friends": return isFriendWithSharer || isSharerMe;
-        case "private": return isSharerMe;
-        default: return false;
-      }
-    });
+
 
     const formattedPosts = visiblePosts.map(p => ({ ...p.toObject(), type: "post" }));
 
     const formattedShares = visibleShares.map(s => {
       const share = s.toObject();
-      const post = share.post;
+      const originalPost = share.post;
 
-      let canViewPost = false;
+      const canViewOriginalPost = canViewPost(originalPost, viewerId);
 
-      // Nếu post tồn tại, kiểm tra quyền xem bài GỐC
-      if (post && post.author) {
-        const postAuthorId = post.author._id.toString();
-        const isPostAuthor = postAuthorId === viewerId;
-        const isFriendWithPostAuthor = post.author.friends.some(f => f._id.toString() === viewerId);
-
-        switch (post.audience) {
-          case "public": canViewPost = true; break;
-          case "friends": canViewPost = isPostAuthor || isFriendWithPostAuthor; break;
-          case "private": canViewPost = isPostAuthor; break;
-          default: canViewPost = false;
-        }
-      } else {
-        // Nếu post null (đã xóa thật sự trong DB), thì canView = false
-        canViewPost = false;
-      }
-
-      return { 
-        ...share, 
-        // Quan trọng: Luôn trả về post object (dù là null) để frontend xử lý
-        post: post || null, 
-        canViewPost, 
+      return {
+        ...share,
         type: "share",
+
+        // 🔥 CỐT LÕI
+        post: canViewOriginalPost ? originalPost : null,
+        canViewPost: canViewOriginalPost,
+
         commentCount: share.commentCount || 0,
         replyCommentCount: share.replyCommentCount || 0
       };
     });
+
 
     const allFeed = [...formattedPosts, ...formattedShares].sort(
       (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
@@ -153,8 +182,14 @@ exports.getUserFeed = async (req, res) => {
     // =========================
     let posts = await Post.find({ author: userId })
       .populate("author", "firstname lastname username avatar friends")
-      .populate("linkedItems")
-      .populate("linkedItems.seller")
+      .populate({
+        path: "linkedItems",
+        select: "title images type condition seller",
+        populate: {
+          path: "seller",
+          select: "firstname lastname username avatar"
+        }
+      })
 
       .lean();
 
@@ -168,21 +203,8 @@ exports.getUserFeed = async (req, res) => {
     }
 
     // 👉 FILTER AUDIENCE
-    posts = posts.filter(post => {
-      if (!viewerId) return post.audience === "public";
+    posts = posts.filter(post => canViewPost(post, viewerId));
 
-      const isAuthor = post.author._id.toString() === viewerId;
-      const isFriend = post.author.friends?.some(
-        f => f.toString() === viewerId
-      );
-
-      switch (post.audience) {
-        case "public": return true;
-        case "friends": return isAuthor || isFriend;
-        case "private": return isAuthor;
-        default: return false;
-      }
-    });
 
     // =========================
     // 3. LOAD SHARES (OWNER)
@@ -191,10 +213,20 @@ exports.getUserFeed = async (req, res) => {
       .populate("username", "firstname lastname username avatar friends")
       .populate({
         path: "post",
-        populate: {
-          path: "author",
-          select: "firstname lastname username avatar friends"
-        }
+        populate: [
+          {
+            path: "author",
+            select: "firstname lastname username avatar friends"
+          },
+          {
+            path: "linkedItems",
+            select: "title images type condition seller",
+            populate: {
+              path: "seller",
+              select: "firstname lastname username avatar"
+            }
+          }
+        ]
       })
       .lean();
 
@@ -208,21 +240,9 @@ exports.getUserFeed = async (req, res) => {
     }
 
     // 👉 FILTER AUDIENCE SHARE
-    shares = shares.filter(share => {
-      if (!viewerId) return share.audience === "public";
+    shares = shares.filter(share => canViewShare(share, viewerId));
 
-      const isSharer = share.username?._id?.toString() === viewerId;
-      const isFriend = share.username?.friends?.some(
-        f => f.toString() === viewerId
-      );
 
-      switch (share.audience) {
-        case "public": return true;
-        case "friends": return isSharer || isFriend;
-        case "private": return isSharer;
-        default: return false;
-      }
-    });
 
     // =========================
     // 4. FORMAT DATA
@@ -232,12 +252,41 @@ exports.getUserFeed = async (req, res) => {
       type: "original"
     }));
 
-    const formattedShares = shares.map(s => ({
-      ...s,
-      type: "share",
-      commentCount: s.commentCount || 0,
-      replyCommentCount: s.replyCommentCount || 0
-    }));
+    const formattedShares = shares.map(s => {
+      const canViewOriginalPost = canViewPost(s.post, viewerId);
+
+      // ❗ CHỈ COI LÀ DELETED KHI POST THẬT SỰ KHÔNG TỒN TẠI
+      const isDeleted = !s.post;
+
+      const originalPostMeta = isDeleted
+        ? {
+            deleted: true
+          }
+        : {
+            author: s.post.author,
+            createdAt: s.post.createdAt,
+            audience: s.post.audience,
+            deleted: false
+          };
+
+      return {
+        ...s,
+        type: "share",
+
+        // content
+        post: canViewOriginalPost ? s.post : null,
+
+        // meta
+        originalPostMeta,
+
+        canViewPost: canViewOriginalPost,
+        commentCount: s.commentCount || 0,
+        replyCommentCount: s.replyCommentCount || 0
+      };
+    });
+
+
+
 
     // =========================
     // 5. STATS (KHÔNG PHỤ THUỘC PAGINATION)

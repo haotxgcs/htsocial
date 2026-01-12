@@ -175,6 +175,86 @@
                   <video v-else controls class="post-video"><source :src="`http://localhost:3000/${post.media}`" /></video>
                 </div>
 
+                            <!-- 🔗 LINKED ITEMS -->
+            <div
+              v-if="post.linkedItems && post.linkedItems.length"
+              class="linked-items-in-post"
+            >
+              <div class="linked-items-title">
+                🛒 Ingredients & Tools
+                <span>({{ post.linkedItems.length }})</span>
+              </div>
+
+              <div class="linked-item-card carousel">
+                <!-- ITEM -->
+                <template v-if="currentItem(post)">
+                  <img
+                    v-if="currentItem(post).images?.length"
+                    :src="`http://localhost:3000/${currentItem(post).images[0]}`"
+                    class="linked-item-thumb"
+                  />
+
+                  <div class="linked-item-info">
+                    <div class="linked-item-title" :title="currentItem(post).title">
+                      {{ currentItem(post).title }}
+                    </div>
+
+                    <div class="linked-item-meta">
+                      {{ currentItem(post).type }}
+
+                      <span
+                        v-if="currentItem(post).type === 'tool' && currentItem(post).condition"
+                      >
+                        · {{ currentItem(post).condition }}
+                      </span>
+                      
+                      <span
+                        v-if="currentItem(post).seller?._id === (user._id || user.id)"
+                        class="own-item-badge"
+                      >
+                        YOUR ITEM
+                      </span>
+
+                      <button
+                      class="view-item-btn"
+                      @click="openItem(currentItem(post)._id)"
+                    >
+                      View item
+                    </button>
+                    </div>
+
+                    
+                  </div>
+                </template>
+
+                <!-- ARROWS GROUP -->
+                <div
+                  v-if="post.linkedItems.length > 1"
+                  class="carousel-arrows"
+                >
+                  <button
+                    class="carousel-arrow"
+                    :disabled="getItemIndex(post._id) === 0"
+                    @click="prevItem(post._id)"
+                  >
+                    ‹
+                  </button>
+
+                  <button
+                    class="carousel-arrow"
+                    :disabled="getItemIndex(post._id) === post.linkedItems.length - 1"
+                    @click="nextItem(post._id)"
+                  >
+                    ›
+                  </button>
+                </div>
+              </div>
+
+              <div class="carousel-indicator">
+                {{ getItemIndex(post._id) + 1 }} / {{ post.linkedItems.length }}
+              </div>
+            </div>
+
                 <div v-if="post.totalRatings > 0" class="rating-statistics">
                   <div class="rating-summary">
                     <div class="average-rating">
@@ -248,36 +328,37 @@
           </div>
 
           <div class="shared-content-box">
-                <template v-if="post.post">
+                <template v-if="post.originalPostMeta && post.originalPostMeta.author">
+
                    
                    <template v-if="post.canViewPost === false">
                       <div class="origin-post-author-info">
-                        <img :src="getAvatarUrl(post.post.author)" alt="avatar" />
+                        <img :src="getAvatarUrl(post.originalPostMeta.author)" alt="avatar" />
                         <div class="origin-author-details">
-                          <strong>{{ post.post.author.firstname }} {{ post.post.author.lastname }}</strong>
+                          <strong>{{ post.originalPostMeta.author.firstname }} {{ post.originalPostMeta.author.lastname }}</strong>
                           
                           <p class="origin-post-time">
-                            {{ formatTime(post.post.createdAt) }}
+                            {{ formatTime(post.originalPostMeta.createdAt) }}
                             
-                            <span v-if="post.post.audience === 'friends'">👥</span>
-                              <span v-else-if="post.post.audience === 'private'">🔒</span>
+                            <span v-if="post.originalPostMeta.audience === 'friends'">👥</span>
+                              <span v-else-if="post.originalPostMeta.audience === 'private'">🔒</span>
                           </p>
                           </div>
                       </div>
-                        <p class="notice-message">{{ getPostAccessMessage(post.post) }}</p>
+                        <p class="notice-message">{{ getPostAccessMessage(post.originalPostMeta) }}</p>
                    </template>
 
                    <template v-else>
                       <div class="share-post-header small origin-post">
                           <div class="post-author-info">
-                            <img :src="getAvatarUrl(post.post.author)" class="avatar-small" />
+                            <img :src="getAvatarUrl(post.originalPostMeta.author)" class="avatar-small" />
                             <div class="author-details">
-                                <strong>{{ post.post.author.firstname }} {{ post.post.author.lastname }}</strong>
+                                <strong>{{ post.originalPostMeta.author.firstname }} {{ post.originalPostMeta.author.lastname }}</strong>
                                 <p class="time">
-                                  {{ formatTime(post.post.createdAt) }}
-                                  <span v-if="post.post.audience === 'public'" title="Public">🌍</span>
-                                  <span v-else-if="post.post.audience === 'friends'" title="Friends">👥</span>
-                                  <span v-else-if="post.post.audience === 'private'" title="Private">🔒</span>
+                                  {{ formatTime(post.originalPostMeta.createdAt) }}
+                                  <span v-if="post.originalPostMeta.audience === 'public'" title="Public">🌍</span>
+                                  <span v-else-if="post.originalPostMeta.audience === 'friends'" title="Friends">👥</span>
+                                  <span v-else-if="post.originalPostMeta.audience === 'private'" title="Private">🔒</span>
                                 </p>
                             </div>
                           </div>
@@ -641,7 +722,9 @@ export default {
         totalMedia: 0,
         totalPhotos: 0,
         totalVideos: 0
-      }
+      },
+
+      itemIndexMap: {},
 
     };
   },
@@ -1695,7 +1778,34 @@ async confirmFriendAction() {
       console.error("Open media post error:", err);
       alert("Cannot open this post");
     }
-    }
+    },
+
+        openItem(itemId) {
+      window.open(`/marketplace/${itemId}`, '_blank');
+    },
+
+    getItemIndex(postId) {
+  return this.itemIndexMap[postId] ?? 0;
+},
+
+currentItem(post) {
+  const index = this.getItemIndex(post._id);
+  return post.linkedItems[index] || null;
+},
+
+nextItem(postId) {
+  const current = this.getItemIndex(postId);
+  this.$set
+    ? this.$set(this.itemIndexMap, postId, current + 1)
+    : (this.itemIndexMap[postId] = current + 1);
+},
+
+prevItem(postId) {
+  const current = this.getItemIndex(postId);
+  this.$set
+    ? this.$set(this.itemIndexMap, postId, current - 1)
+    : (this.itemIndexMap[postId] = current - 1);
+},
 
 
 
@@ -2551,6 +2661,156 @@ async confirmFriendAction() {
   opacity: 0.4;
   cursor: not-allowed;
 }
+
+/* ==========================================================================
+   7. LINKED ITEMS IN POST STYLES
+   ========================================================================== */
+.linked-items-in-post {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed #e5e7eb;
+}
+
+.linked-items-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+/* ===== CAROUSEL ITEM ===== */
+
+.linked-item-card.carousel {
+  position: relative;
+  display: flex;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid #e4e6ea;
+  border-radius: 12px;
+  background: #fafafa;
+}
+
+/* GROUP ARROWS */
+.carousel-arrows {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  display: flex;
+  gap: 6px;
+}
+
+/* SINGLE ARROW */
+.carousel-arrow {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid #e5e7eb;
+  background: white;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  color: #374151;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.carousel-arrow:hover:not(:disabled) {
+  background: #fff7ed;
+  border-color: #fb923c;
+  color: #ea580c;
+}
+
+.carousel-arrow:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.carousel-indicator {
+  margin-top: 6px;
+  align-self: flex-start;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  background: #f3f4f6;
+  padding: 3px 10px;
+  border-radius: 999px;
+  width: fit-content;
+}
+
+
+
+
+/* CHỪA CHỖ BÊN PHẢI CHO ARROW */
+.linked-item-info {
+  padding-right: 70px;
+}
+
+
+.linked-item-card {
+  display: flex;
+  gap: 10px;
+  padding: 8px;
+  border: 1px solid #e4e6ea;
+  border-radius: 10px;
+  background: #fafafa;
+}
+
+.linked-item-thumb {
+  width: 42px;
+  height: 42px;
+  object-fit: cover;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.linked-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.linked-item-title {
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.linked-item-meta {
+  font-size: 12px;
+  color: #FF642F;
+  margin-top: 2px;
+}
+
+.own-item-badge {
+  margin-left: 6px;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 999px;
+  background: #e6f9ee;
+  color: #15803d;
+  text-transform: uppercase;
+}
+
+.view-item-btn {
+  margin-left:10px;
+  padding: 4px 10px;
+  font-size: 12px;
+  border-radius: 999px;
+  border: 1px solid #e5e7eb;
+  background: white;
+  cursor: pointer;
+}
+
+.view-item-btn:hover {
+  background: #fff7ed;
+  border-color: #fb923c;
+  color: #ea580c;
+}
+
 
 
 
