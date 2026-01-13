@@ -51,6 +51,24 @@ const canViewShare = (share, viewerId) => {
   }
 };
 
+const normalizeLinkedItems = (items = []) => {
+  if (!Array.isArray(items)) return [];
+
+  return items.map(item => {
+    if (!item) return item;
+
+    return {
+      ...item,
+
+      // ✅ BẮT BUỘC tool phải có condition
+      condition:
+        item.type === "tool"
+          ? item.condition || item.tool?.condition || null
+          : null
+    };
+  });
+};
+
 
 
 exports.getUnifiedFeed = async (req, res) => {
@@ -518,6 +536,10 @@ exports.getSavedItems = async (req, res) => {
       .map(post => ({
         ...post,
         type: 'post',
+
+        linkedItems: normalizeLinkedItems(post.linkedItems),
+
+
         likesCount: post.likes ? post.likes.length : 0,
         commentCount: post.commentCount || 0,
         savesCount: post.savesCount || 0 // THÊM savesCount

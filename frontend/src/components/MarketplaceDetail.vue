@@ -6,10 +6,19 @@
         
     <!-- LOADING -->
   <LoadingOverlay v-if="isLoading" />
+  
+  <!-- DELETED ITEM MESSAGE -->
+  <div v-if="isDeleted" class="deleted-item-box">
+    <h2>Item is no longer available</h2>
+    <p>This item has been removed by the seller.</p>
 
+    <button class="back-btn" @click="$router.push('/marketplace')">
+      Back to Marketplace
+    </button>
+  </div>
 
   <!-- CONTENT -->
-  <div v-else>
+  <div v-else-if="item">
     <!-- BREADCRUMB -->
     <div class="detail-header">
         <div class="breadcrumb">
@@ -57,7 +66,7 @@
     <!-- THUMBNAILS OVERLAY -->
 <div
   class="thumbnails-overlay"
-  v-if="item.images && item.images.length > 1"
+  v-if="item?.images?.length > 1"
 >
   <div class="thumbnail-strip">
     <img
@@ -209,26 +218,32 @@ export default {
 
       showEditModal: false,
 
+      isDeleted: false,
+
     };
   },
 
   async created() {
-  this.isLoading = true;
-  try {
-    const res = await axios.get(
-      `http://localhost:3000/marketplace/${this.$route.params.id}`
-    );
-    this.item = res.data;
-  } catch (err) {
-    console.error(
-      "DETAIL ERROR:",
-      err.response?.status,
-      err.response?.data
-    );
-  } finally {
-    this.isLoading = false; // 👈 TẮT LOADING
-  }
-},
+    this.isLoading = true;
+    try {
+      const res = await axios.get(
+        `http://localhost:3000/marketplace/${this.$route.params.id}`
+      );
+      this.item = res.data;
+
+      if (res.data?.isDeleted === true || res.data?.status === "hidden") {
+        this.isDeleted = true;
+      }
+    } catch (err) {
+      console.error(
+        "DETAIL ERROR:",
+        err.response?.status,
+        err.response?.data
+      );
+    } finally {
+      this.isLoading = false; // 👈 TẮT LOADING
+    }
+  },
 
   computed: {
 
@@ -240,13 +255,12 @@ export default {
       if (!this.item?.images?.length) {
         return "/no-image.png";
       }
-      return `http://localhost:3000/${this.item.images[this.currentIndex]}`;
+      return this.item?.images?.[this.currentIndex]
+        ? `http://localhost:3000/${this.item.images[this.currentIndex]}`
+        : "/no-image.png";
+
     },
 
-    // isOwner() {
-    //   const userId = localStorage.getItem("userId");
-    //   return userId && userId === this.item?.seller?._id;
-    // },
     isOwner(){
       const user = JSON.parse(localStorage.getItem("user"));
       if(!user || !this.item?.seller) return false;
@@ -788,6 +802,37 @@ export default {
    background: #ff4d4f;
    color:white;
 }
+
+/* Deleted item style */
+.deleted-item-box {
+  background: white;
+  padding: 40px;
+  border-radius: 16px;
+  text-align: center;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.05);
+}
+
+.deleted-item-box h2 {
+  color: #ff4d4f;
+  margin-bottom: 12px;
+}
+
+.deleted-item-box p {
+  font-style: italic;
+  color: #666;
+  margin-bottom: 24px;
+}
+
+.back-btn {
+  padding: 10px 20px;
+  border-radius: 999px;
+  border: none;
+  background: #ff642f;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 
 @media (max-width: 1024px) {
   .detail-wrapper {

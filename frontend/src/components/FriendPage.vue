@@ -262,7 +262,8 @@ export default {
       type: 'success', // success | error | warning
       title: '',
       message: ''
-    }
+    },
+    
 
     };
   },
@@ -656,7 +657,6 @@ showNotify(type, title, message) {
 }
 
 .friend-page-wrapper {
-  background-color: #fcf8f5; /* Màu nền đồng bộ các trang */
   min-height: 100vh;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   

@@ -40,7 +40,7 @@
     </div>
 
     <div v-else class="posts-container">
-      <div v-for="item in filteredItems" :key="item._id" class="post-item card">
+      <div v-for="item in paginatedItems" :key="item._id" class="post-item card">
         
         <div v-if="item.type === 'post'">
           <div class="post-header">
@@ -191,6 +191,8 @@
                       </div >
                         <p class="notice-message">{{ getPostAccessMessage(item.post) }}</p>
               </div>
+
+
             </div>
           </div>
         </div>
@@ -198,6 +200,37 @@
       </div>
     </div>
   </div>
+
+                  <div v-if="totalPages > 1" class="pagination">
+
+                    <button
+                      class="page-btn"
+                      :disabled="currentPage === 1"
+                      @click="changePage(currentPage - 1)"
+                    >
+                      ‹ Prev
+                    </button>
+
+                    <button
+                      v-for="page in totalPages"
+                      :key="page"
+                      class="page-btn"
+                      :class="{ active: page === currentPage }"
+                      @click="changePage(page)"
+                    >
+                      {{ page }}
+                    </button>
+
+                    <button
+                      class="page-btn"
+                      :disabled="currentPage === totalPages"
+                      @click="changePage(currentPage + 1)"
+                    >
+                      Next ›
+                    </button>
+
+                  </div>
+
   </div>
 </template>
 
@@ -209,13 +242,25 @@ export default {
       userId: null,
       hiddenItems: [],
       filter: 'all',
-      expandedPosts: {}
+      expandedPosts: {},
+
+      currentPage: 1,
+      itemsPerPage: 5,
     };
   },
   computed: {
     filteredItems() {
       if (this.filter === 'all') return this.hiddenItems;
       return this.hiddenItems.filter(i => i.type === this.filter);
+    },
+
+    totalPages() {
+      return Math.ceil(this.filteredItems.length / this.itemsPerPage);
+    },
+
+    paginatedItems() {
+      const start = (this.currentPage - 1) * this.itemsPerPage;
+      return this.filteredItems.slice(start, start + this.itemsPerPage);
     }
   },
   methods: {
@@ -369,6 +414,18 @@ export default {
       else if (post.audience === 'friends') return 'Only friends of this user can see';
       else return 'Content not available';
     },
+
+    changePage(page) {
+      if (page < 1 || page > this.totalPages) return;
+
+      this.currentPage = page;
+
+      // UX: scroll lên đầu
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth"
+      });
+    }
   },
   mounted() {
     this.fetchHiddenItems();
@@ -439,7 +496,6 @@ export default {
 .hidden-items-page {
   width: 100%;             /* Chiếm hết chiều rộng */
   min-height: 100vh;
-  background-color: #fcf8f5; /* ✅ Đặt màu nền ở đây để phủ kín màn hình */
   
   /* Sidebar spacing */
   padding-left: 320px; 
@@ -626,5 +682,36 @@ export default {
   margin: 4px 0 0 0; 
   padding:10px;
   margin-left:15px;
+}
+
+/* pagination style */
+.pagination {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin: 30px 0;
+}
+
+.page-btn {
+  min-width: 36px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid #eee;
+  background: white;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: #555;
+}
+
+.page-btn.active {
+  background: #ff642f;
+  color: white;
+  border-color: #ff642f;
+}
+
+.page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 </style>

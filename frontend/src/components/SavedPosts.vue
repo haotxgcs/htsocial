@@ -7,6 +7,13 @@
       <p class="saved-count">{{ savedPosts.length }} saved {{ savedPosts.length === 1 ? 'post' : 'posts' }}</p>
     </div>
 
+    <div class="search-saved">
+      <input
+        v-model="searchQuery"
+        placeholder="Search saved posts..."
+      />
+    </div>
+
     <div v-if="loading" class="loading">
       <div class="spinner"></div> <p>Loading saved posts...</p>
     </div>
@@ -19,7 +26,7 @@
     </div>
 
     <div v-else class="posts-container">
-      <div class="post-item card" v-for="post in savedPosts" :key="post._id">
+      <div class="post-item card" v-for="post in paginatedSavedPosts" :key="post._id">
         
         <div class="post-header">
           <div class="post-author-info">
@@ -197,6 +204,35 @@
       </div>
     </div>
 
+    <div v-if="totalPages > 1" class="pagination">
+      <button
+        class="page-btn"
+        :disabled="currentPage === 1"
+        @click="changePage(currentPage - 1)"
+      >
+        ‹ Prev
+      </button>
+
+      <button
+        v-for="page in totalPages"
+        :key="page"
+        class="page-btn"
+        :class="{ active: page === currentPage }"
+        @click="changePage(page)"
+      >
+        {{ page }}
+      </button>
+
+      <button
+        class="page-btn"
+        :disabled="currentPage === totalPages"
+        @click="changePage(currentPage + 1)"
+      >
+        Next ›
+      </button>
+    </div>
+
+
     <ShareModal
       v-if="showShareModal && user"
       :post="postToShare"
@@ -240,6 +276,13 @@ export default {
       savedPosts: [],
       loading: true,
       postCommentCounts: {},
+
+        // ✅ SEARCH
+      searchQuery: "",
+
+      // ✅ PAGINATION
+      currentPage: 1,
+      itemsPerPage: 5,
       
       // Comment modal data
       commentModalVisible: false,
@@ -252,6 +295,7 @@ export default {
       expandedPosts: {},
 
       itemIndexMap: {}
+
     }
   },
 
@@ -300,6 +344,8 @@ export default {
     async unsavePost(post) {
       const savedUser = JSON.parse(localStorage.getItem("user"));
       if (!savedUser) return alert("Please login");
+      this.currentPage = 1;
+
 
       if (!confirm("Remove this post from saved?")) return;
 
@@ -510,25 +556,70 @@ export default {
   return this.itemIndexMap[postId] ?? 0;
 },
 
-currentItem(post) {
-  const index = this.getItemIndex(post._id);
-  return post.linkedItems[index] || null;
-},
+  currentItem(post) {
+    const index = this.getItemIndex(post._id);
+    return post.linkedItems[index] || null;
+  },
 
-nextItem(postId) {
-  const current = this.getItemIndex(postId);
-  this.$set
-    ? this.$set(this.itemIndexMap, postId, current + 1)
-    : (this.itemIndexMap[postId] = current + 1);
-},
+  nextItem(postId) {
+    const current = this.getItemIndex(postId);
+    this.$set
+      ? this.$set(this.itemIndexMap, postId, current + 1)
+      : (this.itemIndexMap[postId] = current + 1);
+  },
 
-prevItem(postId) {
-  const current = this.getItemIndex(postId);
-  this.$set
-    ? this.$set(this.itemIndexMap, postId, current - 1)
-    : (this.itemIndexMap[postId] = current - 1);
-},
+  prevItem(postId) {
+    const current = this.getItemIndex(postId);
+    this.$set
+      ? this.$set(this.itemIndexMap, postId, current - 1)
+      : (this.itemIndexMap[postId] = current - 1);
+  },
 
+  changePage(page) {
+    if (page < 1 || page > this.totalPages) return;
+    this.currentPage = page;
+
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  }
+
+},
+  computed: {
+    filteredSavedPosts(){
+      if (!this.searchQuery.trim()) return this.savedPosts;
+
+      const q = this.searchQuery.toLowerCase();
+
+      return this.savedPosts.filter(post =>
+        post.title?.toLowerCase().includes(q) ||
+        post.category?.toLowerCase().includes(q) ||
+        post.ingredients?.toLowerCase().includes(q) ||
+        post.instructions?.toLowerCase().includes(q)
+      );
+    },
+
+    totalPages(){
+      return Math.ceil(this.filteredSavedPosts.length / this.itemsPerPage);
+    },
+
+    paginatedSavedPosts() {
+      const start = (this.currentPage - 1) * this.itemsPerPage;
+      return this.filteredSavedPosts.slice(
+        start,
+        start + this.itemsPerPage
+      );
+    }
+
+
+    
+    },
+
+  watch:{
+    searchQuery() {
+      this.currentPage = 1;
+    }
   },
 
   created() {
@@ -554,7 +645,7 @@ prevItem(postId) {
 .saved-posts-page {
   width: 100%;             /* Chiếm hết chiều rộng */
   min-height: 100vh;
-  background-color: #fcf8f5; /* ✅ Đặt màu nền ở đây để phủ kín màn hình */
+  
   
   /* Sidebar spacing */
   padding-left: 320px; 
@@ -596,6 +687,32 @@ prevItem(postId) {
 }
 .header-section h2 { margin: 0 0 8px 0; font-size: 24px; font-weight: 800; color: #1c1e21; }
 .saved-count { margin: 0; font-size: 14px; color: #FF642F; font-weight: 500; }
+
+/* search saved posts */
+.search-saved {
+  position: relative; /* Làm mốc tọa độ cho dropdown */
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.search-saved input {
+  width: 100%;
+  padding: 10px 36px 10px 16px; /* Chừa chỗ cho nút X */
+  border-radius: 20px; 
+  border: 1px solid #eee;
+  background: #f9f9f9; 
+  outline: none; 
+  transition: 0.2s; 
+  font-size: 14px;
+}
+
+.search-saved input:focus { 
+  background: white; 
+  border-color: #FF642F; 
+  box-shadow: 0 0 0 2px rgba(255, 100, 47, 0.1); 
+}
+
 
 .loading { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 60px 0; color: #65676b; }
 .spinner { width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #FF642F; border-radius: 50%; animation: spin 1s linear infinite; }
@@ -862,4 +979,56 @@ prevItem(postId) {
 }
 .post-actions button:hover { background-color: #f2f3f5; color: #FF642F; }
 .action-icon { width: 20px; height: 20px; opacity: 0.7; }
+
+.search-saved {
+  background: white;
+  padding: 14px;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.search-saved input {
+  width: 100%;
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1px solid #eee;
+}
+
+.search-saved input:focus {
+  outline: none;
+  border-color: #FF642F;
+}
+
+
+/* pagination style */
+.pagination {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin: 30px 0;
+}
+
+.page-btn {
+  min-width: 36px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid #eee;
+  background: white;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: #555;
+}
+
+.page-btn.active {
+  background: #ff642f;
+  color: white;
+  border-color: #ff642f;
+}
+
+.page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 </style>

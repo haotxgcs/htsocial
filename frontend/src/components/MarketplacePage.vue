@@ -89,7 +89,7 @@
       <!-- ITEMS -->
       <div v-if="!loading" class="items-grid">
         <MarketplaceItemCard
-          v-for="item in items"
+          v-for="item in paginatedItems"
           :key="item._id"
           :item="item"
           @open="openItem"
@@ -97,6 +97,36 @@
           @delete="confirmDelete"
         />
       </div>
+    </div>
+
+    <div v-if="totalPages > 1" class="pagination">
+
+      <button
+        class="page-btn"
+        :disabled="currentPage === 1"
+        @click="changePage(currentPage - 1)"
+      >
+        ‹ Prev
+      </button>
+
+      <button
+        v-for="page in totalPages"
+        :key="page"
+        class="page-btn"
+        :class="{ active: page === currentPage }"
+        @click="changePage(page)"
+      >
+        {{ page }}
+      </button>
+
+      <button
+        class="page-btn"
+        :disabled="currentPage === totalPages"
+        @click="changePage(currentPage + 1)"
+      >
+        Next ›
+      </button>
+
     </div>
 
 
@@ -164,7 +194,10 @@ export default {
 
       showEditModal: false,
       editingItem: null,
-
+      
+      // pagination
+      currentPage: 1,
+      itemsPerPage: 12
     };
   },
   methods: {
@@ -199,7 +232,16 @@ async fetchItems({ saveHistory = false } = {}) {
       { headers }
     );
 
-    this.items = await res.json();
+    // 🔐 nếu backend trả lỗi (401, 403, 500...)
+    if (!res.ok) {
+      this.items = [];
+      return;
+    }
+
+    const data = await res.json();
+
+    // ✅ LUÔN đảm bảo items là ARRAY
+    this.items = Array.isArray(data) ? data : [];
 
     // ✅ CHỈ LƯU KHI USER SEARCH
     if (saveHistory && user && token && this.search.trim()) {
@@ -219,10 +261,14 @@ async fetchItems({ saveHistory = false } = {}) {
       );
     }
 
+  } catch (err) {
+    console.error("Fetch marketplace items error:", err);
+    this.items = []; // 🛡️ fallback an toàn
   } finally {
     this.loading = false;
   }
 },
+
 
 closeEdit() {
   this.showEditModal = false;
@@ -233,6 +279,7 @@ closeEdit() {
     changeCategory(cat) {
       this.category = cat;
       this.showMine = false;
+      this.currentPage = 1;
       this.fetchItems();
     },
 
@@ -253,6 +300,7 @@ toggleMyItems() {
     this.category = "all";
   }
 
+  this.currentPage = 1;
   this.fetchItems();
 },
 
@@ -286,6 +334,8 @@ handleSearch() {
   const query = this.search.trim();
   if (!query) return;
 
+  this.currentPage = 1;
+
   // 1️⃣ UPDATE UI NGAY (QUAN TRỌNG)
   const index = this.searchHistory.indexOf(query);
   if (index !== -1) {
@@ -294,6 +344,7 @@ handleSearch() {
   this.searchHistory.unshift(query);
   if (this.searchHistory.length > 10) {
     this.searchHistory.pop();
+    
   }
 
   // 2️⃣ ĐÓNG DROPDOWN
@@ -306,6 +357,7 @@ handleSearch() {
   searchFromHistory(keyword) {
     this.search = keyword;
     this.showHistory = false;
+    this.currentPage = 1;
     this.fetchItems({saveHistory:false}); // 🔥 không lưu lại lịch sử khi search từ lịch sử
   },
 
@@ -400,14 +452,38 @@ openEditModal(item) {
 
   // ✅ XÓA NGAY TRÊN UI (UX tốt hơn)
   this.items = this.items.filter(i => i._id !== item._id);
-}
+},
 
+changePage(page) {
+    if (page < 1 || page > this.totalPages) return;
 
+    this.currentPage = page;
 
-
-
+    // UX: scroll lên đầu
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth"
+    });
+  }
 
   },
+
+  computed: {
+    filteredItems() {
+      return this.items;
+
+    },
+
+    totalPages() {
+      return Math.ceil(this.filteredItems.length / this.itemsPerPage);
+    },
+
+    paginatedItems() {
+      const start = (this.currentPage - 1) * this.itemsPerPage;
+      return this.filteredItems.slice(start, start + this.itemsPerPage);
+    }
+  },
+
    
   mounted() {
   this.fetchItems();
@@ -426,8 +502,9 @@ openEditModal(item) {
   padding-left: 320px;
   padding-top: 20px;
   padding-right: 20px;
-  background: #fcf8f5;
+
   min-height: 100vh;
+  margin-bottom:40px;
 }
 
 .marketplace-container {
@@ -626,6 +703,37 @@ font-size: 14px; color: #ddd; padding: 4px; border-radius: 50%;
   padding: 8px;
 }
 .clear-icon:hover { color: #FF642F; }
+
+/* pagination style */
+.pagination {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin: 30px 0;
+}
+
+.page-btn {
+  min-width: 36px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid #eee;
+  background: white;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: #555;
+}
+
+.page-btn.active {
+  background: #ff642f;
+  color: white;
+  border-color: #ff642f;
+}
+
+.page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
 
 
 

@@ -328,7 +328,7 @@
           </div>
 
           <div class="shared-content-box">
-                <template v-if="post.originalPostMeta && post.originalPostMeta.author">
+                <template v-if="post.originalPostMeta && post.originalPostMeta.author && post.post">
 
                    
                    <template v-if="post.canViewPost === false">
@@ -364,7 +364,7 @@
                           </div>
                       </div>
 
-                      <div class="share-post-content-wrapper">
+                      <div class="share-post-content-wrapper" v-if="post.post">
                           <h3 class="recipe-title small">{{ post.post.title }}</h3>
                           <span class="recipe-category small">{{ post.post.category }}</span>
 
@@ -382,20 +382,20 @@
                           </div>
 
                           <button 
-                            v-if="shouldShowReadMore(post.post)" 
+                            v-if="post.post && shouldShowReadMore(post.post)" 
                             @click="togglePostContent(post._id + '_shared')" 
                             class="read-more-btn"
                           >
                             {{ expandedPosts[post._id + '_shared'] ? 'Show Less' : 'Show More' }}
                           </button>
-                          <div v-if="post.post.media" class="post-media">
+                          <div v-if="post.post && post.post.media" class="post-media">
                           <img v-if="post.post.mediaType === 'image'" :src="`http://localhost:3000/${post.post.media}`" class="post-image" />
                           <video v-else controls class="post-video"><source :src="`http://localhost:3000/${post.post.media}`" /></video>
                       </div>
 
                       </div>
 
-                      
+                    
 
                       <div class="post-actions">
                           <button @click="openCommentModal(post.post)">
@@ -1211,6 +1211,8 @@ friendButtonText() {
 
           if (res.ok) {
             this.userPosts = this.userPosts.filter(p => p._id !== this.postToDeleteId);
+            await this.fetchUserPosts(this.pagination.currentPage);
+
             this.openMenuId = null;
             this.showNotify("success", "Thành công", "Đã xóa bài viết.");
           } else {
@@ -1525,7 +1527,7 @@ friendButtonText() {
       
       const postId = post._id;
       // Nếu đã bấm Show More hoặc nội dung ngắn -> Hiện hết
-      if (this.expandedPosts[postId] || !this.shouldShowReadMore(postId)) {
+      if (this.expandedPosts[postId] || !this.shouldShowReadMore(post)) {
         return post.content;
       }
       

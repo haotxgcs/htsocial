@@ -343,7 +343,7 @@
                    </template>
 
                    <template v-else>
-                      <div class="post-header small origin-post">
+                      <div class="post-header small origin-post" >
                           <div class="post-author-info">
                             <img :src="getAvatarUrl(post.originalPostMeta.author)" class="avatar-small" @click="$router.push(`/profile/${post.originalPostMeta.author._id}`)"/>
                             <div class="author-details" @click="$router.push(`/profile/${post.originalPostMeta.author._id}`)">
@@ -358,8 +358,8 @@
                           </div>
                       </div>
 
-                      <div class="post-content-wrapper">
-                          <h3 class="recipe-title small">{{ post.post.title }}</h3>
+                      <div class="post-content-wrapper" v-if="post.post">
+                          <h3  class="recipe-title small">{{ post.post.title }}</h3>
                           <span class="recipe-category small">{{ post.post.category }}</span>
 
                           <div class="recipe-body">
@@ -376,13 +376,13 @@
                           </div>
 
                           <button 
-                            v-if="shouldShowReadMore(post.post)" 
+                            v-if="post.post && shouldShowReadMore(post.post)" 
                             @click="togglePostContent(post._id + '_shared')" 
                             class="read-more-btn"
                           >
                             {{ expandedPosts[post._id + '_shared'] ? 'Show Less' : 'Show More' }}
                           </button>
-                          <div v-if="post.post.media" class="post-media">
+                          <div v-if="post.post && post.post.media" class="post-media">
                           <img v-if="post.post.mediaType === 'image'" :src="`http://localhost:3000/${post.post.media}`" class="post-image" />
                           <video v-else controls class="post-video"><source :src="`http://localhost:3000/${post.post.media}`" /></video>
                       </div>
@@ -1325,8 +1325,13 @@ async loadSearchHistory() {
                 this.posts.forEach(p => {
                     // Nếu là bài share VÀ đang chứa bài viết vừa bị xóa
                     if (p.type === 'share' && p.post && p.post._id === deletedPostId) {
-                        p.post = null; // Gán null để Template tự động chuyển sang giao diện "This post is deleted"
+                      p.post = null;
+                      p.originalPostMeta = {
+                        ...p.originalPostMeta,
+                        deleted: true
+                      };
                     }
+
                 });
 
                 this.openMenuId = null;
@@ -1446,7 +1451,7 @@ prevItem(postId) {
 
 .homepage {
   min-height: 100vh;
-  background-color: #fcf8f5;
+  
   font-family: 'Segoe UI', system-ui, sans-serif;
   position: relative;
   /* Padding trái để tránh Sidebar (280px) */

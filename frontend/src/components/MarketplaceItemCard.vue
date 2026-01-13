@@ -35,19 +35,19 @@
 
 <script>
   const clickOutside = {
-  mounted(el, binding) {
-    el._handler = (e) => {
-      const path = e.composedPath();
-      if (!path.includes(el)) {
-        binding.value();
-      }
-    };
-    document.addEventListener("click", el._handler);
-  },
-  unmounted(el) {
-    document.removeEventListener("click", el._handler);
-  }
-};
+    mounted(el, binding) {
+      el._handler = (e) => {
+        const path = e.composedPath();
+        if (!path.includes(el)) {
+          binding.value();
+        }
+      };
+      document.addEventListener("click", el._handler);
+    },
+    unmounted(el) {
+      document.removeEventListener("click", el._handler);
+    }
+  };
 
 export default {
   name: "MarketplaceItemCard",
@@ -153,6 +153,7 @@ export default {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  border-radius: 16px 16px 0 0;
 }
 
 .badge {

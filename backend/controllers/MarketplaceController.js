@@ -1,4 +1,5 @@
 const MarketplaceItem = require("../models/MarketplaceItemModel");
+const Post = require("../models/PostModel");
 
 // ===== 1. CREATE ITEM =====
 exports.createItem = async (req, res) => {
