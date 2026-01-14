@@ -9,23 +9,31 @@
 
     <div class="search-saved">
       <input
-        v-model="searchQuery"
+        v-model="searchInput"
         placeholder="Search saved posts..."
+        @input="onInputSearch"
       />
+
+      <span v-if="searchInput" class="clear-icon" @click.stop="clearSearch">
+      ✕
+      </span>
+
+      <button class="search-btn" @click="applySearch">Search</button>
+
+
     </div>
 
-    <div v-if="loading" class="loading">
-      <div class="spinner"></div> <p>Loading saved posts...</p>
-    </div>
+    <div class="content-body">
+      <LoadingOverlay v-if="loading" />
 
-    <div v-else-if="savedPosts.length === 0" class="empty-state">
+    <div v-if="!loading && filteredSavedPosts.length === 0" class="empty-state">
       <img src="../assets/save.png" alt="No saved posts" class="empty-icon" />
       <h2>No Saved Posts</h2>
       <p>Posts you save will appear here</p>
       <button @click="$router.push('/home')" class="browse-btn">Browse Posts</button>
     </div>
 
-    <div v-else class="posts-container">
+    <div v-if="!loading && filteredSavedPosts.length" class="posts-container">
       <div class="post-item card" v-for="post in paginatedSavedPosts" :key="post._id">
         
         <div class="post-header">
@@ -203,6 +211,7 @@
         </div>
       </div>
     </div>
+    </div>
 
     <div v-if="totalPages > 1" class="pagination">
       <button
@@ -263,12 +272,14 @@
 <script>
 import ShareModal from './ShareModal.vue';
 import CommentModal from './CommentModal.vue';
+import LoadingOverlay from './LoadingOverlay.vue';
 
 export default {
   name: "SavedPosts",
   components: {
     ShareModal,
-    CommentModal
+    CommentModal,
+    LoadingOverlay
   },
   data() {
     return {
@@ -278,7 +289,8 @@ export default {
       postCommentCounts: {},
 
         // ✅ SEARCH
-      searchQuery: "",
+      searchInput: '',
+      searchQuery: '',
 
       // ✅ PAGINATION
       currentPage: 1,
@@ -294,7 +306,9 @@ export default {
 
       expandedPosts: {},
 
-      itemIndexMap: {}
+      itemIndexMap: {},
+
+      
 
     }
   },
@@ -583,7 +597,26 @@ export default {
       top: 0,
       behavior: 'smooth'
     });
-  }
+  },
+
+  applySearch() {
+    this.searchQuery = this.searchInput.trim();
+    this.currentPage = 1;
+  },
+
+  clearSearch() {
+    this.searchQuery = '';
+    this.searchInput = '';
+    this.currentPage = 1;
+  },
+
+  onInputSearch() {
+    if (!this.searchInput.trim()) {
+      this.clearSearch();
+    }
+},
+
+
 
 },
   computed: {
@@ -598,7 +631,7 @@ export default {
         post.ingredients?.toLowerCase().includes(q) ||
         post.instructions?.toLowerCase().includes(q)
       );
-    },
+    }, 
 
     totalPages(){
       return Math.ceil(this.filteredSavedPosts.length / this.itemsPerPage);
@@ -610,7 +643,7 @@ export default {
         start,
         start + this.itemsPerPage
       );
-    }
+    },
 
 
     
@@ -656,6 +689,11 @@ export default {
   font-family: 'Segoe UI', system-ui, sans-serif;
 }
 
+.content-body{
+  position: relative; /* Để làm mốc cho LoadingOverlay */
+  min-height: 200px;
+}
+
 /* 2. LỚP NỘI DUNG: Căn giữa, giới hạn chiều rộng */
 .saved-content-wrapper {
   width: 100%;
@@ -698,6 +736,7 @@ export default {
 
 .search-saved input {
   width: 100%;
+  margin-right: 12px;
   padding: 10px 36px 10px 16px; /* Chừa chỗ cho nút X */
   border-radius: 20px; 
   border: 1px solid #eee;
@@ -713,9 +752,25 @@ export default {
   box-shadow: 0 0 0 2px rgba(255, 100, 47, 0.1); 
 }
 
+.clear-icon {
+  position: absolute;
+  right: 130px;
+  color: #999;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+  padding: 4px;
+}
+.clear-icon:hover { color: #FF642F; }
 
-.loading { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 60px 0; color: #65676b; }
-.spinner { width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #FF642F; border-radius: 50%; animation: spin 1s linear infinite; }
+.search-btn {
+  background: #FF642F; color: white; border: none; 
+  border-radius: 20px; padding: 10px 24px; font-weight: 600; cursor: pointer;
+  height: 40px; /* Cố định chiều cao cho bằng input */
+}
+
+
+
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
 .empty-state { text-align: center; padding: 80px 20px; background: white; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
@@ -1030,5 +1085,8 @@ export default {
   opacity: 0.4;
   cursor: not-allowed;
 }
+
+
+
 
 </style>

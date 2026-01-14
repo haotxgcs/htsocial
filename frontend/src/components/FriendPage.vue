@@ -45,7 +45,10 @@
           <span class="counter">{{ allFriends.length }} friends</span>
         </div>
 
-        <div v-if="allFriends.length > 0" class="modern-grid"> <div v-for="friend in allFriends" :key="friend._id" class="modern-card">
+        <div class="content-body">
+        <LoadingOverlay v-if="loadingFriends" />
+
+        <div v-if="!loadingFriends && paginatedFriends.length > 0" class="modern-grid"> <div v-for="friend in paginatedFriends" :key="friend._id" class="modern-card">
             
             <div class="card-image-wrapper">
               <img :src="getImageUrl(friend.avatar)" class="card-img" />
@@ -66,15 +69,30 @@
             </div>
 
           </div>
+
+          
+
         </div>
 
-        <div v-else class="empty-state">
+        <div v-if="!loadingFriends && !paginatedFriends.length" class="empty-state">
           <p>You don't have any friends yet.</p>
           <button class="btn-primary mt-4" @click="currentView = 'suggestions'" style="width: auto; padding: 10px 24px;">Find Friends</button>
         </div>
+        </div>
+
+        
+
+        <Pagination
+          v-if="!loadingFriends && friendsTotalPages > 1"
+          :currentPage="pageFriends"
+          :totalPages="friendsTotalPages"
+          @update:page="changePage('friends', $event)"
+        />
+
       </div>
 
       <div v-if="currentView === 'suggestions'" class="content-section">
+        
         <div class="section-header">
           <h2>People You May Know</h2>
           <div class="search-wrapper">
@@ -90,9 +108,11 @@
             </button>
           </div>
         </div>
-
-        <div v-if="suggestedUsers.length > 0" class="modern-grid">
-          <div v-for="user in suggestedUsers" :key="user._id" class="modern-card">
+        
+        <div class="content-body">
+        <LoadingOverlay v-if="loadingSuggestions" />
+        <div v-if="!loadingSuggestions && paginatedSuggestions.length > 0" class="modern-grid">
+          <div v-for="user in paginatedSuggestions" :key="user._id" class="modern-card">
             <div class="card-image-wrapper" @click="$router.push(`/profile/${user._id}`)">
               <img :src="getImageUrl(user.avatar)" class="card-img" />
             </div>
@@ -145,19 +165,30 @@
           </div>
         </div>
 
-        <div v-else class="empty-state">
+        <div v-if="!loadingSuggestions && !paginatedSuggestions.length" class="empty-state">
           <p>{{ searchQuery ? 'No users found' : 'No suggestions available' }}</p>
         </div>
+        </div>
+
+        <Pagination
+          v-if="!loadingSuggestions && totalSuggestionPages > 1"
+          :currentPage="pageSuggestions"
+          :totalPages="totalSuggestionPages"
+          @update:page="changePage('suggestions', $event)"
+          />
       </div>
       
       <div v-if="currentView === 'requests'" class="content-section">
+        
         <div class="section-header">
           <h2>Friend Requests</h2>
-          <span class="counter">{{ friendRequests.length }} pending</span>
+          <span class="counter">{{ paginatedRequests.length }} pending</span>
         </div>
 
-        <div v-if="friendRequests.length > 0" class="modern-grid">
-          <div v-for="request in friendRequests" :key="request._id" class="modern-card">
+        <div class="content-body">
+        <LoadingOverlay v-if="loadingRequests" />
+        <div v-if="!loadingRequests && paginatedRequests.length > 0" class="modern-grid">
+          <div v-for="request in paginatedRequests" :key="request._id" class="modern-card">
             <div class="card-image-wrapper">
               <img :src="getImageUrl(request.avatar)" class="card-img" />
               <div class="status-badge" v-if="request.active">Online</div>
@@ -173,20 +204,31 @@
           </div>
         </div>
         
-        <div v-else class="empty-state">
+        <div v-if="!loadingRequests && !paginatedRequests.length" class="empty-state">
           <div class="empty-icon"></div>
           <p>No new friend requests</p>
         </div>
+        </div>
+
+        <Pagination
+          v-if="!loadingRequests && totalRequestPages > 1"
+          :currentPage="pageRequests"
+          :totalPages="totalRequestPages"
+          @update:page="changePage('requests', $event)"
+        />
       </div>
 
       <div v-if="currentView === 'sent'" class="content-section">
+        
         <div class="section-header">
           <h2>Sent Requests</h2>
-          <span class="counter">{{ sentRequests.length }} sent</span>
+          <span class="counter">{{ paginatedSent.length }} sent</span>
         </div>
 
-        <div v-if="sentRequests.length > 0" class="modern-grid">
-          <div v-for="request in sentRequests" :key="request._id" class="modern-card">
+        <div class="content-body">
+        <LoadingOverlay v-if="loadingSent" />
+        <div v-if="!loadingSent && paginatedSent.length > 0" class="modern-grid">
+          <div v-for="request in paginatedSent" :key="request._id" class="modern-card">
             <div class="card-image-wrapper">
               <img :src="getImageUrl(request.avatar)" class="card-img" />
             </div>
@@ -200,9 +242,17 @@
           </div>
         </div>
 
-        <div v-else class="empty-state">
+        <div v-if="!loadingSent && !paginatedSent.length" class="empty-state">
           <p>No pending sent requests</p>
         </div>
+        </div>
+
+        <Pagination
+          v-if="!loadingSent && totalSentPages > 1"
+          :currentPage="pageSent"
+          :totalPages="totalSentPages"
+          @update:page="changePage('sent', $event)"
+        />
       </div>
 
       
@@ -231,12 +281,16 @@
 <script>
 import ConfirmDialog from './ConfirmDialog.vue';
 import NotificationModal from './NotificationModal.vue';
-
+import Pagination from './Pagination.vue';
+import LoadingOverlay from './LoadingOverlay.vue';
+ 
 export default {
   name: "FriendPage",
   components: {
   ConfirmDialog,
-  NotificationModal
+  NotificationModal,
+  Pagination,
+  LoadingOverlay
   },
   data() {
     return {
@@ -263,6 +317,22 @@ export default {
       title: '',
       message: ''
     },
+
+    itemsPerPage: 4,
+
+    // pagination
+    pageFriends: 1,
+    pageSuggestions: 1,
+    pageRequests: 1,
+    pageSent: 1,
+
+    
+    // loading
+
+    loadingFriends: false,
+    loadingSuggestions: false,
+    loadingRequests: false,
+    loadingSent: false,
     
 
     };
@@ -292,53 +362,130 @@ export default {
           count: this.sentRequests.length 
         },
       ];
-    }
+    },
+    // pagination of friends tab
+    paginatedFriends() {
+      const start = (this.pageFriends - 1) * this.itemsPerPage;
+      return this.allFriends.slice(start, start + this.itemsPerPage);
+    },
+
+    friendsTotalPages() {
+      return Math.ceil(this.allFriends.length / this.itemsPerPage);
+    },
+
+
+    // pagination of suggestions tab
+    paginatedSuggestions() {
+      const start = (this.pageSuggestions - 1) * this.itemsPerPage;
+      return this.suggestedUsers.slice(start, start + this.itemsPerPage);
+    },
+
+    totalSuggestionPages() {
+      return Math.ceil(this.suggestedUsers.length / this.itemsPerPage);
+    },
+
+
+    // pagination of requests tab
+    paginatedRequests() {
+      const start = (this.pageRequests - 1) * this.itemsPerPage;
+      return this.friendRequests.slice(start, start + this.itemsPerPage);
+    },
+
+    totalRequestPages() {
+      return Math.ceil(this.friendRequests.length / this.itemsPerPage);
+    },
+
+
+    // pagination of sent tab
+    paginatedSent() {
+      const start = (this.pageSent - 1) * this.itemsPerPage;
+      return this.sentRequests.slice(start, start + this.itemsPerPage);
+    },
+
+    totalSentPages() {
+      return Math.ceil(this.sentRequests.length / this.itemsPerPage);
+    },
+
   },
 watch: {
   currentView(newVal) {
-    if (newVal === 'suggestions') {
-      this.searchQuery = '';
-      this.filterSuggestedUsers();
+    this.pageFriends = 1;
+    this.pageSuggestions = 1;
+    this.pageRequests = 1;
+    this.pageSent = 1;
+
+    try {
+      if (newVal === 'suggestions') {
+        this.searchQuery = '';
+        this.loadAllUsers();
+        // this.filterSuggestedUsers();
+      }
+
+      if (newVal === 'friends') {
+        this.loadAllFriends();
+      }
+
+      if (newVal === 'requests') {
+        this.loadFriendRequests();
+      }
+
+      if (newVal === 'sent') {
+        this.loadSentRequests();
+      }
+
+    } catch (err) {
+      console.error(err);
     }
+    
   }
 }, 
-  mounted() {
-    this.loadUserData();
-    window.addEventListener('friend-status-changed', () => {
-  this.loadAllFriends();
-  this.loadFriendRequests();
-  this.loadSentRequests();
-  this.filterSuggestedUsers();
-});
+mounted() {
+  this.loadUserData();
 
-  },
-  beforeUnmount() {
-  window.addEventListener('friend-status-changed', () => {
-  this.loadAllFriends();
-  this.loadFriendRequests();
-  this.loadSentRequests();
-  this.filterSuggestedUsers();
-});
+  this._onFriendStatusChanged = () => {
+    this.loadAllFriends();
+    this.loadFriendRequests();
+    this.loadSentRequests();
+    this.filterSuggestedUsers();
+  };
 
-}, 
+  window.addEventListener(
+    'friend-status-changed',
+    this._onFriendStatusChanged
+  );
+},
+
+beforeUnmount() {
+  window.removeEventListener(
+    'friend-status-changed',
+    this._onFriendStatusChanged
+  );
+},
+ 
   methods: {
     // Load dữ liệu người dùng
-    async loadUserData() {
-      const user = JSON.parse(localStorage.getItem("user"));
-      if (!user) {
-        this.$router.push("/login");
-        return;
-      }
-      this.currentUser = user;
-      
-      // Gọi song song các API để tăng tốc độ load trang
-      await Promise.all([
-        this.loadFriendRequests(),
-        this.loadSentRequests(),
-        this.loadAllFriends(),
-        this.loadAllUsers()
-      ]);
-    },
+async loadUserData() {
+  const user = JSON.parse(localStorage.getItem("user"));
+  if (!user) {
+    this.$router.push("/login");
+    return;
+  }
+
+  this.currentUser = user;
+
+
+  try {
+    await Promise.all([
+      this.loadFriendRequests(),
+      this.loadSentRequests(),
+      this.loadAllFriends(),
+      this.loadAllUsers()
+    ]);
+  } catch (err) {
+    console.error(err);
+  }
+},
+
 
     getImageUrl(avatar) {
       if (!avatar) return `http://localhost:3000/${this.defaultAvatar}`;
@@ -349,6 +496,7 @@ watch: {
     // --- API CALLS ---
 
     async loadFriendRequests() {
+      this.loadingRequests = true;
       try {
         const res = await fetch(`http://localhost:3000/users/${this.currentUser.id}`);
         const userData = await res.json();
@@ -362,10 +510,15 @@ watch: {
         } else {
           this.friendRequests = [];
         }
-      } catch (err) { console.error(err); }
+      } catch (err) { 
+        console.error(err); 
+      } finally {
+        this.loadingRequests = false;
+      }
     },
 
     async loadSentRequests() {
+      this.loadingSent = true;
       try {
         const res = await fetch(`http://localhost:3000/users/${this.currentUser.id}`);
         const userData = await res.json();
@@ -379,21 +532,29 @@ watch: {
         } else {
           this.sentRequests = [];
         }
-      } catch (err) { console.error(err); }
+      } catch (err) { 
+        console.error(err); 
+      } finally {
+        this.loadingSent = false;
+      }
     },
 
     async loadAllFriends() {
-  try {
-    const res = await fetch(
-      `http://localhost:3000/users/${this.currentUser.id}/friends`
-    );
-    this.allFriends = await res.json();
-  } catch (err) {
-    console.error(err);
-  }
-},
+      this.loadingFriends = true;
+      try {
+        const res = await fetch(
+          `http://localhost:3000/users/${this.currentUser.id}/friends`
+        );
+        this.allFriends = await res.json();
+      } catch (err) {
+        console.error(err);
+      } finally {
+        this.loadingFriends = false;
+      }
+    },
 
 async loadAllUsers() {
+  this.loadingSuggestions = true;
   try {
     const res = await fetch(
       `http://localhost:3000/users?viewerId=${this.currentUser.id}`
@@ -402,6 +563,8 @@ async loadAllUsers() {
     this.filterSuggestedUsers();
   } catch (err) {
     console.error(err);
+  } finally {
+    this.loadingSuggestions = false;
   }
 },
 
@@ -426,7 +589,9 @@ async loadAllUsers() {
           );
 
         }
-      } catch (err) { console.error(err); }
+      } catch (err) { 
+        console.error(err); 
+      } 
     },
 
     declineFriendRequest(requesterId) {
@@ -640,7 +805,14 @@ showNotify(type, title, message) {
   };
 },
 
+changePage(tab, page) {
+  if (tab === 'friends') this.pageFriends = page;
+  if (tab === 'suggestions') this.pageSuggestions = page;
+  if (tab === 'requests') this.pageRequests = page;
+  if (tab === 'sent') this.pageSent = page;
 
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
 
 
   }
@@ -655,6 +827,12 @@ showNotify(type, title, message) {
   --text-main: #111827;
   --text-sub: #6b7280;
 }
+
+.content-body {
+  position: relative;
+  min-height: 200px;
+}
+
 
 .friend-page-wrapper {
   min-height: 100vh;
