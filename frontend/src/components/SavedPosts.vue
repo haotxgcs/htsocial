@@ -213,34 +213,6 @@
     </div>
     </div>
 
-    <div v-if="totalPages > 1" class="pagination">
-      <button
-        class="page-btn"
-        :disabled="currentPage === 1"
-        @click="changePage(currentPage - 1)"
-      >
-        ‹ Prev
-      </button>
-
-      <button
-        v-for="page in totalPages"
-        :key="page"
-        class="page-btn"
-        :class="{ active: page === currentPage }"
-        @click="changePage(page)"
-      >
-        {{ page }}
-      </button>
-
-      <button
-        class="page-btn"
-        :disabled="currentPage === totalPages"
-        @click="changePage(currentPage + 1)"
-      >
-        Next ›
-      </button>
-    </div>
-
 
     <ShareModal
       v-if="showShareModal && user"
@@ -265,6 +237,13 @@
       @save-status-changed="handleSaveStatusChanged"
       @rating-updated="handleRatingUpdated"
     />
+
+    <Pagination 
+      v-if="totalPages > 1" 
+      :current-page="currentPage" 
+      :total-pages="totalPages" 
+      @update:page="changePage"
+    />
   </div>
   </div>
 </template>
@@ -273,13 +252,15 @@
 import ShareModal from './ShareModal.vue';
 import CommentModal from './CommentModal.vue';
 import LoadingOverlay from './LoadingOverlay.vue';
+import Pagination from './Pagination.vue';
 
 export default {
   name: "SavedPosts",
   components: {
     ShareModal,
     CommentModal,
-    LoadingOverlay
+    LoadingOverlay,
+    Pagination
   },
   data() {
     return {
@@ -704,7 +685,6 @@ export default {
   flex-direction: column;
   /* Khoảng cách giữa các bài viết */
   gap: 24px; 
-  padding-bottom: 60px;
 }
 
 /* Tablet & Mobile Responsive */
@@ -1055,36 +1035,6 @@ export default {
 }
 
 
-/* pagination style */
-.pagination {
-  display: flex;
-  justify-content: center;
-  gap: 6px;
-  margin: 30px 0;
-}
-
-.page-btn {
-  min-width: 36px;
-  padding: 6px 12px;
-  border-radius: 8px;
-  border: 1px solid #eee;
-  background: white;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-  color: #555;
-}
-
-.page-btn.active {
-  background: #ff642f;
-  color: white;
-  border-color: #ff642f;
-}
-
-.page-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
 
 
 

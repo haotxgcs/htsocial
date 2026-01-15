@@ -57,7 +57,9 @@
         <input type="text" @click="openCreatePostModal" :placeholder="`What's on your mind, ${user?.firstname } ${user?.lastname}?`"/>
       </div>
 
-      <div v-if="finalSearchQuery && searchedUsers.length > 0" class="search-results-section">
+      <div class="content-body">
+        <LoadingOverlay v-if="loading" />
+      <div v-if="!loading && finalSearchQuery && searchedUsers.length > 0" class="search-results-section">
         <h3 class="section-title">People ({{searchedUsers.length }}) </h3>
         <div class="user-results-list">
           <div v-for="u in searchedUsers" :key="u._id" class="user-result-card">
@@ -75,18 +77,18 @@
       
 
       <div class="posts-section">
-        <h3 v-if="finalSearchQuery && filteredPosts.length > 0" class="section-title">Posts ({{ filteredPosts.length }})</h3>
+        <h3 v-if="!loading && finalSearchQuery && filteredPosts.length > 0" class="section-title">Posts ({{ filteredPosts.length }})</h3>
 
-        <div v-if="finalSearchQuery && filteredPosts.length === 0 && searchedUsers.length === 0" class="no-posts-container">
+        <div v-if="!loading && finalSearchQuery && filteredPosts.length === 0 && searchedUsers.length === 0" class="no-posts-container">
           <p>No results found for "<strong>{{ finalSearchQuery }}</strong>"</p>
           <button @click="resetFilter" class="clear-filter-btn">Clear Search</button>
         </div>
 
-        <div v-if="finalSearchQuery && filteredPosts.length === 0 && searchedUsers.length > 0" class="no-posts-container" style="margin-top: 10px;">
+        <div v-if="!loading && finalSearchQuery && filteredPosts.length === 0 && searchedUsers.length > 0" class="no-posts-container" style="margin-top: 10px;">
           <p>No posts found.</p>
         </div>
 
-        <div v-if="!finalSearchQuery && filteredPosts.length === 0" class="no-posts-container">
+        <div v-if="!loading && !finalSearchQuery && filteredPosts.length === 0" class="no-posts-container">
           <p>No posts found matching "<strong>{{ selectedCategory }}</strong>"</p>
           <button @click="resetFilter" class="clear-filter-btn">View All Posts</button>
         </div>
@@ -412,37 +414,9 @@
 
         </div>
       </div>
+      </div>
 
-      <!-- PAGINATION -->
-    <div v-if="totalPages > 1" class="pagination">
 
-      <button 
-        class="page-btn"
-        :disabled="currentPage === 1"
-        @click="changePage(currentPage - 1)"
-      >
-        ‹ Prev
-      </button>
-
-      <button
-        v-for="page in totalPages"
-        :key="page"
-        class="page-btn"
-        :class="{ active: page === currentPage }"
-        @click="changePage(page)"
-      >
-        {{ page }}
-      </button>
-
-      <button 
-        class="page-btn"
-        :disabled="currentPage === totalPages"
-        @click="changePage(currentPage + 1)"
-      >
-        Next ›
-      </button>
-
-    </div>
 
     </main>
 
@@ -452,6 +426,12 @@
     <ShareModal v-if="showShareModal" :post="postToShare" :user="user" @close="showShareModal = false" @shared="fetchPosts" />
     <EditPostModal :is-visible="editModalVisible" :post="editedPost" :user="user" @close="closeEditModal" @updated="handlePostUpdated" />
     <CommentModal :is-visible="commentModalVisible" :post="selectedPost" :user="user" :initial-save-count="getPostSaveCount(selectedPost)" @close="closeCommentModal" @commented="handleCommentAdded" @comment-deleted="handleCommentDeleted" @liked="handlePostLiked" @share="handleSharePost" @comment-count-updated="onCommentCountUpdated" @save-count-updated="handleSaveCountUpdated" @save-status-changed="handleSaveStatusChanged" @rating-updated="handleRatingUpdated"/>
+    <Pagination 
+      v-if="totalPages > 1" 
+      :current-page="currentPage" 
+      :total-pages="totalPages" 
+      @update:page="changePage"
+    />
   </div>
 </template>
 
@@ -462,6 +442,8 @@ import ShareModal from './ShareModal.vue';
 import CommentModal from './CommentModal.vue';
 import EditPostModal from './EditPostModal.vue';
 import CreatePostModal from './CreatePostModal.vue';
+import LoadingOverlay from './LoadingOverlay.vue';
+import Pagination from './Pagination.vue';
 
 // Custom directive để xử lý click ra ngoài menu (dropdown)
 const clickOutside = {
@@ -492,7 +474,9 @@ export default {
     ShareModal,
     CommentModal,
     EditPostModal,
-    CreatePostModal
+    CreatePostModal,
+    LoadingOverlay,
+    Pagination
   },
   data() {
     return {
@@ -553,7 +537,10 @@ export default {
       currentPage: 1,
       postsPerPage: 10,
 
-      itemIndexMap: {}
+      itemIndexMap: {},
+
+      // loading state
+      loading:true
 
     }
   },
@@ -914,7 +901,7 @@ async loadSearchHistory() {
         if (!savedUser) {
           return alert("Please login to view posts");
         }
-
+        this.loading=true;
         const viewerId = savedUser.id;
         const res = await fetch(`http://localhost:3000/feeds/${viewerId}`);
         if (!res.ok) {
@@ -929,6 +916,8 @@ async loadSearchHistory() {
       } catch (err) {
         console.error("Error in fetch posts:", err);
         alert("Unable to fetch posts");
+      } finally{
+        this.loading=false;
       }
     },
 
@@ -1472,7 +1461,6 @@ prevItem(postId) {
   flex-direction: column;
   /* Khoảng cách giữa các bài viết */
   gap: 24px; 
-  padding-bottom: 60px;
 }
 
 /* Thêm lớp bảo vệ này để chắc chắn có khoảng cách */
@@ -1905,46 +1893,7 @@ prevItem(postId) {
   margin-left:15px;
 }
 
-/* ==========================================================================
-   6. PAGINATION STYLES
-   ========================================================================== */
-.pagination {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 6px;
-  margin: 30px 0 10px;
-}
 
-.page-btn {
-  min-width: 36px;
-  padding: 6px 12px;
-  border-radius: 8px;
-  border: 1px solid #eee;
-  background: white;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-  color: #555;
-  transition: 0.2s;
-}
-
-.page-btn:hover:not(:disabled) {
-  background: #FF642F;
-  color: white;
-  border-color: #FF642F;
-}
-
-.page-btn.active {
-  background: #FF642F;
-  color: white;
-  border-color: #FF642F;
-}
-
-.page-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
 
 
 /* ================= LINKED ITEMS IN POST ================= */
@@ -2095,7 +2044,10 @@ prevItem(postId) {
   color: #ea580c;
 }
 
-
+.content-body{
+  position: relative; /* Để làm mốc cho LoadingOverlay */
+  min-height: 200px;
+}
 
 
 /* RESPONSIVE */

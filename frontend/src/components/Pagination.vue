@@ -1,6 +1,7 @@
 <template>
   <div v-if="totalPages > 1" class="pagination">
 
+    <!-- PREV -->
     <button
       class="page-btn"
       :disabled="currentPage === 1"
@@ -9,16 +10,21 @@
       ‹ Prev
     </button>
 
-    <button
-      v-for="page in totalPages"
-      :key="page"
-      class="page-btn"
-      :class="{ active: page === currentPage }"
-      @click="change(page)"
-    >
-      {{ page }}
-    </button>
+    <!-- PAGES -->
+    <template v-for="(page, index) in pagesToShow" :key="index">
+      <span v-if="page === '...'" class="ellipsis">…</span>
 
+      <button
+        v-else
+        class="page-btn"
+        :class="{ active: page === currentPage }"
+        @click="change(page)"
+      >
+        {{ page }}
+      </button>
+    </template>
+
+    <!-- NEXT -->
     <button
       class="page-btn"
       :disabled="currentPage === totalPages"
@@ -41,8 +47,48 @@ export default {
     totalPages: {
       type: Number,
       required: true
+    },
+    pageRange: {
+      type: Number,
+      default: 2 // số trang trước & sau currentPage
     }
   },
+  emits: ["update:page"],
+
+  computed: {
+    pagesToShow() {
+      const pages = [];
+      const { currentPage, totalPages, pageRange } = this;
+
+      if (totalPages <= 7) {
+        // Ít trang thì hiện hết
+        for (let i = 1; i <= totalPages; i++) {
+          pages.push(i);
+        }
+        return pages;
+      }
+
+      // Trang đầu
+      pages.push(1);
+
+      const start = Math.max(2, currentPage - pageRange);
+      const end = Math.min(totalPages - 1, currentPage + pageRange);
+
+      if (start > 2) pages.push("...");
+
+      for (let i = start; i <= end; i++) {
+        pages.push(i);
+      }
+
+      if (end < totalPages - 1) pages.push("...");
+
+      // Trang cuối
+      pages.push(totalPages);
+
+      return pages;
+    }
+  },
+
   methods: {
     change(page) {
       if (page < 1 || page > this.totalPages) return;
@@ -81,5 +127,12 @@ export default {
 .page-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+.ellipsis {
+  padding: 0 8px;
+  font-weight: 600;
+  color: #999;
+  user-select: none;
 }
 </style>

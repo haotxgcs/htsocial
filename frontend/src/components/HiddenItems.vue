@@ -32,7 +32,9 @@
       </div>
     </div>
 
-    <div v-if="filteredItems.length === 0" class="empty-state">
+    <div class="content-body">
+    <LoadingOverlay v-if="loading" />
+    <div v-if="!loading && filteredItems.length === 0" class="empty-state">
       <img src="../assets/hide.png" alt="No hidden items" class="empty-icon" />
       <h2>No Hidden {{ getFilterLabel() }}</h2>
       <p>{{ getEmptyMessage() }}</p>
@@ -200,49 +202,35 @@
       </div>
     </div>
   </div>
-
-                  <div v-if="totalPages > 1" class="pagination">
-
-                    <button
-                      class="page-btn"
-                      :disabled="currentPage === 1"
-                      @click="changePage(currentPage - 1)"
-                    >
-                      ‹ Prev
-                    </button>
-
-                    <button
-                      v-for="page in totalPages"
-                      :key="page"
-                      class="page-btn"
-                      :class="{ active: page === currentPage }"
-                      @click="changePage(page)"
-                    >
-                      {{ page }}
-                    </button>
-
-                    <button
-                      class="page-btn"
-                      :disabled="currentPage === totalPages"
-                      @click="changePage(currentPage + 1)"
-                    >
-                      Next ›
-                    </button>
-
-                  </div>
-
   </div>
+    <Pagination 
+    v-if="totalPages > 1"
+    :current-page="currentPage"
+    :total-pages="totalPages"
+    @update:page="changePage"
+  />
+  </div>
+
+
 </template>
 
 <script>
+import LoadingOverlay from "./LoadingOverlay.vue";
+import Pagination from "./Pagination.vue";
+
 export default {
   name: "HiddenItems",
+  components: {
+    LoadingOverlay,
+    Pagination
+  },
   data() {
     return {
       userId: null,
       hiddenItems: [],
       filter: 'all',
       expandedPosts: {},
+      loading: true,
 
       currentPage: 1,
       itemsPerPage: 5,
@@ -262,7 +250,8 @@ export default {
       const start = (this.currentPage - 1) * this.itemsPerPage;
       return this.filteredItems.slice(start, start + this.itemsPerPage);
     }
-  },
+  }, 
+
   methods: {
     getPostsCount() {
       return this.hiddenItems.filter(i => i.type === 'post').length;
@@ -289,6 +278,7 @@ export default {
         const user = JSON.parse(localStorage.getItem("user"));
         if (!user) return this.$router.push("/login");
         this.userId = user.id || user._id;
+        this.loading = true;
 
         const [postsRes, sharesRes] = await Promise.all([
           fetch(`http://localhost:3000/feeds/hidden-posts/${this.userId}`),
@@ -307,6 +297,8 @@ export default {
       } catch (err) {
         console.error("Error loading hidden content:", err);
         alert("Failed to load hidden content");
+      }finally{
+        this.loading = false;
       }
     },
     async unhidePost(postId) {
@@ -485,6 +477,11 @@ export default {
   
 }
 
+.content-body{
+  position: relative; /* Để làm mốc cho LoadingOverlay */
+  min-height: 200px;
+}
+
 /* Responsive cho mobile */
 @media (max-width: 768px) {
   .nav-pill {
@@ -516,7 +513,6 @@ export default {
   flex-direction: column;
   /* Khoảng cách giữa các bài viết */
   gap: 24px; 
-  padding-bottom: 60px;
 }
 
 /* Responsive Tablet/Mobile */
@@ -684,34 +680,4 @@ export default {
   margin-left:15px;
 }
 
-/* pagination style */
-.pagination {
-  display: flex;
-  justify-content: center;
-  gap: 6px;
-  margin: 30px 0;
-}
-
-.page-btn {
-  min-width: 36px;
-  padding: 6px 12px;
-  border-radius: 8px;
-  border: 1px solid #eee;
-  background: white;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-  color: #555;
-}
-
-.page-btn.active {
-  background: #ff642f;
-  color: white;
-  border-color: #ff642f;
-}
-
-.page-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
 </style>

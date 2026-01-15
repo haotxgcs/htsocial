@@ -123,6 +123,8 @@
             <input type="text" @click="openCreatePostModal" :placeholder="`What's on your mind, ${user?.firstname} ${user?.lastname}?`"/>
           </div>
 
+          <div class="content-body">
+            <LoadingOverlay v-if="loadingPosts" />
           <div v-if="userPosts.length" class="post-list">
             <div v-for="post in userPosts" :key="post._id" class="post-item card">
 
@@ -422,6 +424,7 @@
           <div v-else class="empty-feed">
              <p>No posts available.</p>
           </div>
+        </div>
         </main>
 
         <div
@@ -598,6 +601,7 @@ import CreatePostModal from './CreatePostModal.vue';
 import EditProfileModal from './EditProfileModal.vue';
 import ImagePreviewModal from './ImagePreviewModal.vue';
 import NotificationModal from './NotificationModal.vue';
+import LoadingOverlay from './LoadingOverlay.vue';
 
 // 1. ĐỊNH NGHĨA DIRECTIVE CLICK OUTSIDE (MỚI)
 const clickOutside = {
@@ -629,7 +633,9 @@ export default {
     CreatePostModal,
     EditProfileModal,
     ImagePreviewModal,
-    NotificationModal
+    NotificationModal,
+    LoadingOverlay
+
   },
   data() {
     return {
@@ -725,6 +731,12 @@ export default {
       },
 
       itemIndexMap: {},
+      
+      // loading state 
+      loadingPosts:1,
+      loadingAbout:1,
+      loadingFriends:1,
+      loadingMedia:1
 
     };
   },
@@ -908,33 +920,36 @@ friendButtonText() {
     }, 
 
     async fetchUserPosts(page = 1) {
-  try {
-    const profileUserId = this.getProfileUserId();
-    if (!profileUserId) return;
+      try {
+        const profileUserId = this.getProfileUserId();
+        if (!profileUserId) return;
+        this.loadingPosts = true;
 
-    const viewer = JSON.parse(localStorage.getItem("user"));
-    const viewerId = viewer?._id || viewer?.id;
+        const viewer = JSON.parse(localStorage.getItem("user"));
+        const viewerId = viewer?._id || viewer?.id;
 
-    const res = await fetch(
-      `http://localhost:3000/feeds/users/${profileUserId}` +
-      `?page=${page}&limit=${this.pagination.limit}&viewerId=${viewerId}`
-    );
+        const res = await fetch(
+          `http://localhost:3000/feeds/users/${profileUserId}` +
+          `?page=${page}&limit=${this.pagination.limit}&viewerId=${viewerId}`
+        );
 
-    const data = await res.json();
+        const data = await res.json();
 
-    this.userPosts = data.items || [];
-    this.pagination.currentPage = data.currentPage;
-    this.pagination.totalPages = data.totalPages;
-    this.pagination.totalItems = data.totalItems;
+        this.userPosts = data.items || [];
+        this.pagination.currentPage = data.currentPage;
+        this.pagination.totalPages = data.totalPages;
+        this.pagination.totalItems = data.totalItems;
 
-    if (data.stats) {
-      this.postStats.totalPosts = data.stats.totalPosts;
-      this.postStats.totalPhotos = data.stats.totalPhotos;
-    }
-  } catch (err) {
-    console.error("User feed error:", err);
-    this.userPosts = [];
-  }
+        if (data.stats) {
+          this.postStats.totalPosts = data.stats.totalPosts;
+          this.postStats.totalPhotos = data.stats.totalPhotos;
+        }
+      } catch (err) {
+        console.error("User feed error:", err);
+        this.userPosts = [];
+      } finally {
+        this.loadingPosts = false;
+      }
     }, 
 
 
@@ -2812,6 +2827,12 @@ prevItem(postId) {
   border-color: #fb923c;
   color: #ea580c;
 }
+
+.content-body{
+  position: relative; /* Để làm mốc cho LoadingOverlay */
+  min-height: 200px;
+}
+
 
 
 
