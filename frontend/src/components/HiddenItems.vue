@@ -498,7 +498,7 @@ export default {
   padding-left: 320px; 
   padding-top: 30px; 
   padding-right: 20px;
-  
+  margin-bottom:60px;
   box-sizing: border-box; 
   font-family: 'Segoe UI', system-ui, sans-serif;
 }

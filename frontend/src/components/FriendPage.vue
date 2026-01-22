@@ -539,19 +539,27 @@ async loadUserData() {
       }
     },
 
-    async loadAllFriends() {
-      this.loadingFriends = true;
-      try {
-        const res = await fetch(
-          `http://localhost:3000/users/${this.currentUser.id}/friends`
-        );
-        this.allFriends = await res.json();
-      } catch (err) {
-        console.error(err);
-      } finally {
-        this.loadingFriends = false;
-      }
-    },
+async loadAllFriends() {
+  this.loadingFriends = true;
+  try {
+    const res = await fetch(
+      `http://localhost:3000/users/${this.currentUser.id}/friends`
+    );
+    const data = await res.json();
+
+    // ✅ CHỈ LẤY ARRAY
+    this.allFriends = Array.isArray(data)
+      ? data
+      : data.items || [];
+
+  } catch (err) {
+    console.error(err);
+    this.allFriends = []; // ✅ fallback an toàn
+  } finally {
+    this.loadingFriends = false;
+  }
+},
+
 
 async loadAllUsers() {
   this.loadingSuggestions = true;

@@ -10,34 +10,34 @@
         <div class="cover-overlay"></div>
         
         <div
-  v-if="showCoverMenu"
-  class="image-options-menu cover-menu"
-  v-click-outside="closeMenus"
-  @click.stop
->
-  <!-- VIEW: ai cũng thấy -->
-  <div class="menu-item" @click="openImageViewer(user.coverPhoto || defaultCover)">
-    <img src="../assets/view-image.png" class="menu-icon" /> View Cover
-  </div>
+          v-if="showCoverMenu"
+          class="image-options-menu cover-menu"
+          v-click-outside="closeMenus"
+          @click.stop
+        >
+          <!-- VIEW: ai cũng thấy -->
+          <div class="menu-item" @click="openImageViewer(user.coverPhoto || defaultCover)">
+            <img src="../assets/view-image.png" class="menu-icon" /> View Cover
+          </div>
 
-  <!-- UPDATE: chỉ chủ profile -->
-  <div
-    v-if="isMyProfile"
-    class="menu-item"
-    @click.stop="triggerCoverUpload"
-  >
-    <img src="../assets/update.png" class="menu-icon" /> Update Cover
-  </div>
+          <!-- UPDATE: chỉ chủ profile -->
+          <div
+            v-if="isMyProfile"
+            class="menu-item"
+            @click.stop="triggerCoverUpload"
+          >
+            <img src="../assets/update.png" class="menu-icon" /> Update Cover
+          </div>
 
-  <!-- DELETE: chỉ chủ profile & không phải cover mặc định -->
-  <div
-    v-if="isMyProfile && !isDefaultCover"
-    class="menu-item delete"
-    @click.stop="deleteCoverPhoto"
-  >
-    <img src="../assets/delete.png" class="menu-icon" /> Remove
-  </div>
-</div>
+          <!-- DELETE: chỉ chủ profile & không phải cover mặc định -->
+          <div
+            v-if="isMyProfile && !isDefaultCover"
+            class="menu-item delete"
+            @click.stop="deleteCoverPhoto"
+          >
+            <img src="../assets/delete.png" class="menu-icon" /> Remove
+          </div>
+        </div>
 
       </div>
 
@@ -117,7 +117,7 @@
     <div class="main-layout">
       
       <template v-if="activeTab === 'posts'">
-        <main class="layout-feed">
+        <div class="layout-feed">
           <div v-if="isMyProfile" class="create-post">
             <h3>Create your post</h3>
             <input type="text" @click="openCreatePostModal" :placeholder="`What's on your mind, ${user?.firstname} ${user?.lastname}?`"/>
@@ -421,42 +421,20 @@
             </div>
           </div>
           
-          <div v-else class="empty-feed">
+          <div v-if="!loadingPosts && !userPosts.length" class="empty-feed">
              <p>No posts available.</p>
           </div>
+          
+          <Pagination
+          v-if="!loadingPosts "
+          :currentPage="pagePosts"
+          :totalPages="totalPostsPages"
+          @update:page="onPostPageChange"
+        />
         </div>
-        </main>
+        
+      </div>
 
-        <div
-          v-if="pagination.totalPages > 1"
-          class="pagination"
-        >
-          <button
-            class="page-btn"
-            :disabled="pagination.currentPage === 1"
-            @click="changePage(pagination.currentPage - 1)"
-          >
-            Prev
-          </button>
-
-          <button
-            v-for="page in pagination.totalPages"
-            :key="page"
-            class="page-btn"
-            :class="{ active: page === pagination.currentPage }"
-            @click="changePage(page)"
-          >
-            {{ page }}
-          </button>
-
-          <button
-            class="page-btn"
-            :disabled="pagination.currentPage === pagination.totalPages"
-            @click="changePage(pagination.currentPage + 1)"
-          >
-            Next
-          </button>
-        </div>
 
       </template>
 
@@ -474,8 +452,8 @@
               <div class="detail-box"><span class="label">Location</span><span class="value">{{ user.location }}</span></div>
             </div>
           </div>
-        </div>
-      </template>
+        </div> 
+      </template> 
 
       <template v-else-if="activeTab === 'photos'">
         <div class="photos-container-modern">
@@ -521,6 +499,8 @@
           </div>
         </div>
 
+        <div class="content-body">
+        <LoadingOverlay v-if="loadingMedia"/>
           <!-- GRID -->
           <div v-if="displayedMedia.length" class="photos-grid-large">
             <div
@@ -549,8 +529,18 @@
           <div v-else class="empty-state">
             <p>No media to show.</p>
           </div>
-
+          </div>
+        <Pagination
+          v-if="!loadingMedia"
+          :currentPage="pageMedia" 
+          :totalPages="totalMediaPages"
+          @update:page="onMediaPageChange"
+        />
         </div>
+
+        
+
+
       </template>
 
 
@@ -561,6 +551,8 @@
             <h2>Friends</h2>
             <span class="friend-count">{{ friendsList.length }} Friends</span>
           </div>
+          <div class="content-body">
+            <LoadingOverlay v-if="loadingFriends"/>
           <div v-if="friendsList.length === 0" class="empty-state"><p>No friends yet.</p></div>
           <div v-else class="modern-grid">
             <div v-for="friend in friendsList" :key="friend._id" class="modern-card">
@@ -572,8 +564,20 @@
               </div>
             </div>
           </div>
+          </div>
+          <Pagination
+          v-if="!loadingFriends"
+          :currentPage="pageFriends"
+          :totalPages="totalFriendsPages"
+          @update:page="onFriendPageChange"
+        />
         </div>
-      </template>
+
+        
+
+
+
+      </template> 
     </div>
 
     <CreatePostModal :is-visible="createPostModalVisible" :user="user" @close="closeCreatePostModal" @posted="handlePostCreated" />
@@ -602,6 +606,7 @@ import EditProfileModal from './EditProfileModal.vue';
 import ImagePreviewModal from './ImagePreviewModal.vue';
 import NotificationModal from './NotificationModal.vue';
 import LoadingOverlay from './LoadingOverlay.vue';
+import Pagination from './Pagination.vue'
 
 // 1. ĐỊNH NGHĨA DIRECTIVE CLICK OUTSIDE (MỚI)
 const clickOutside = {
@@ -634,7 +639,8 @@ export default {
     EditProfileModal,
     ImagePreviewModal,
     NotificationModal,
-    LoadingOverlay
+    LoadingOverlay,
+    Pagination
 
   },
   data() {
@@ -704,13 +710,6 @@ export default {
       confirmFriendMessage: '',
       pendingFriendAction: null, // 'cancel' | 'unfriend'
 
-      pagination: {
-        currentPage: 1,
-        totalPages: 1,
-        totalItems: 0,
-        limit: 10
-      },
-
       postStats: {
         totalPosts: 0,
         totalPhotos: 0
@@ -733,10 +732,23 @@ export default {
       itemIndexMap: {},
       
       // loading state 
-      loadingPosts:1,
-      loadingAbout:1,
-      loadingFriends:1,
-      loadingMedia:1
+      loadingPosts:false,
+      loadingFriends:false,
+      loadingMedia:false,
+
+      // ===== PAGINATION STATE =====
+      pagePosts: 1,
+      pageFriends: 1,
+      pageMedia: 1,
+
+      limitPosts: 10,
+      limitFriends: 3,
+      limitMedia: 6,
+
+      totalPostsPages: 1,
+      totalFriendsPages: 1,
+      totalMediaPages: 1,
+
 
     };
   },
@@ -791,29 +803,26 @@ friendButtonText() {
 },
 
     displayedMedia() {
-    switch (this.mediaTab) {
-      case "photos":
-        return this.media.photos;
-      case "videos":
-        return this.media.videos;
-      default:
-        return this.media.all;
-    }
+    return this.media.all;
   },
 
     mediaCount() {
-      if (!this.media) return 0;
+      if (!this.mediaStats) return 0;
 
       switch (this.mediaTab) {
         case 'photos':
-          return this.media.photos?.length || 0;
+          return this.mediaStats.totalPhotos || 0;
         case 'videos':
-          return this.media.videos?.length || 0;
+          return this.mediaStats.totalVideos || 0;
         default:
-          return this.media.all?.length || 0;
+          return this.mediaStats.totalMedia || 0;
       }
     },
-    
+
+
+
+
+  
 
   },
   methods: {
@@ -883,19 +892,33 @@ friendButtonText() {
     },
 
     // ... (Giữ nguyên các hàm fetchFriends, fetchUserProfile, fetchUserPosts, isMyPost) ...
-    async fetchFriends() {
-      try {
-        const userId = this.getProfileUserId();
-        if (!userId) return;
+async fetchFriends(page = 1) {
+  try {
+    const userId = this.getProfileUserId();
+    if (!userId) return;
+    this.loadingFriends = true;
 
-        const res = await fetch(`http://localhost:3000/users/${userId}/friends`);
-        const data = await res.json();
+    const res = await fetch(`http://localhost:3000/users/${userId}/friends?page=${page}&limit=${this.limitFriends}`);
+    const data = await res.json();
 
-        this.friendsList = Array.isArray(data) ? data : [];
-      } catch (err) {
-        console.error("Get friends error:", err);
-      }
-    }, 
+    // THỬ CÁC TRƯỜNG HỢP CẤU TRÚC DỮ LIỆU KHÁC NHAU
+    // Backend của bạn có thể trả về 'items', hoặc 'friends', hoặc chính nó là mảng
+    if (Array.isArray(data)) {
+        this.friendsList = data; // Trường hợp API trả về thẳng 1 mảng
+        this.totalFriendsPages = 1;
+    } else {
+        // Trường hợp API trả về object có phân trang
+        this.friendsList = data.items || data.friends || []; 
+        this.pageFriends = data.currentPage || 1;
+        this.totalFriendsPages = data.totalPages || 1;
+    }
+
+  } catch (err) {
+    console.error("Get friends error:", err);
+  } finally{
+    this.loadingFriends = false;
+  }
+},
 
     async fetchUserProfile() {
       try {
@@ -916,7 +939,7 @@ friendButtonText() {
       } catch (err) {
         console.error("Get user error:", err);
         this.user = null;
-      }
+      } 
     }, 
 
     async fetchUserPosts(page = 1) {
@@ -930,15 +953,13 @@ friendButtonText() {
 
         const res = await fetch(
           `http://localhost:3000/feeds/users/${profileUserId}` +
-          `?page=${page}&limit=${this.pagination.limit}&viewerId=${viewerId}`
+          `?page=${page}&limit=${this.limitPosts}&viewerId=${viewerId}`
         );
 
         const data = await res.json();
 
         this.userPosts = data.items || [];
-        this.pagination.currentPage = data.currentPage;
-        this.pagination.totalPages = data.totalPages;
-        this.pagination.totalItems = data.totalItems;
+        this.totalPostsPages = data.totalPages;
 
         if (data.stats) {
           this.postStats.totalPosts = data.stats.totalPosts;
@@ -1226,7 +1247,7 @@ friendButtonText() {
 
           if (res.ok) {
             this.userPosts = this.userPosts.filter(p => p._id !== this.postToDeleteId);
-            await this.fetchUserPosts(this.pagination.currentPage);
+            await this.fetchUserPosts();
 
             this.openMenuId = null;
             this.showNotify("success", "Thành công", "Đã xóa bài viết.");
@@ -1558,7 +1579,7 @@ friendButtonText() {
       if (navElement) {
         navElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
-    },
+    }, 
 
     openEditProfileModal() {
       this.editProfileModalVisible = true;
@@ -1678,7 +1699,7 @@ async handleFriendAction() {
     }
 
     await this.fetchUserProfile();
-    await this.fetchFriends();
+    await this.fetchFriends(this.pageFriends);
     window.dispatchEvent(new Event('friend-status-changed'));
 
   } catch (err) {
@@ -1719,7 +1740,7 @@ async confirmFriendAction() {
     }
 
     await this.fetchUserProfile();
-    await this.fetchFriends();
+    await this.fetchFriends(this.pageFriends);
     window.dispatchEvent(new Event('friend-status-changed'));
 
   } catch (err) {
@@ -1734,50 +1755,47 @@ async confirmFriendAction() {
  
     async initProfile() {
         await this.fetchUserProfile();
-        await this.fetchUserPosts();
-        await this.fetchFriends();
-        await this.fetchUserMedia();
+        await this.fetchUserPosts(1);
+        await this.fetchFriends(1);
+        await this.fetchUserMedia(1);
 
 
     },
 
-    changePage(page) {
-    if (
-      page < 1 ||
-      page > this.pagination.totalPages ||
-      page === this.pagination.currentPage
-    ) return;
+// Thay thế hàm fetchUserMedia cũ
+async fetchUserMedia(page = 1) {
+  try {
+    const userId = this.getProfileUserId();
+    if (!userId) return;
+    this.loadingMedia = true;
 
-    this.fetchUserPosts(page);
+    // 👇 XÁC ĐỊNH TYPE DỰA TRÊN TAB HIỆN TẠI
+    let typeParam = '';
+    if (this.mediaTab === 'photos') typeParam = '&type=image';
+    else if (this.mediaTab === 'videos') typeParam = '&type=video';
+    // 'all' thì không cần truyền type
 
-    window.scrollTo({ top: 0, behavior: "smooth" });
-    },
+    const res = await fetch(
+      `http://localhost:3000/feeds/users/${userId}/media?page=${page}&limit=${this.limitMedia}${typeParam}`
+    );
+    const data = await res.json();
 
-    async fetchUserMedia() {
-      try {
-        const userId = this.getProfileUserId();
-        if (!userId) return;
+    // Gán dữ liệu vào media.all (Dùng chung 1 biến cho hiển thị)
+    // Vì backend đã lọc sẵn rồi, ta không cần chia ra media.photos/videos nữa
+    this.media.all = data.items || [];
+    
+    // Cập nhật stats
+    this.mediaStats = data.stats || { totalMedia: 0, totalPhotos: 0, totalVideos: 0 };
 
-        const res = await fetch(
-          `http://localhost:3000/feeds/users/${userId}/media`
-        );
-        const data = await res.json();
+    this.pageMedia = data.currentPage || 1;
+    this.totalMediaPages = data.totalPages || 1;
 
-        // ✅ BACKEND ĐÃ PHÂN LOẠI SẴN
-        this.media.all = data.all || [];
-        this.media.photos = data.photos || [];
-        this.media.videos = data.videos || [];
-
-        this.mediaStats = data.stats || {
-          totalMedia: 0,
-          totalPhotos: 0,
-          totalVideos: 0
-        };
-
-      } catch (err) {
-        console.error("Fetch user media error:", err);
-      }
-    },
+  } catch (err) {
+    console.error("Fetch user media error:", err);
+  } finally{
+    this.loadingMedia = false;
+  }
+},
 
     async openMediaPost(mediaItem) {
     try {
@@ -1824,6 +1842,23 @@ prevItem(postId) {
     : (this.itemIndexMap[postId] = current - 1);
 },
 
+onPostPageChange(page) {
+    this.pagePosts = page;
+    this.fetchUserPosts(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  },
+
+  onFriendPageChange(page) {
+  this.pageFriends = page;
+  this.fetchFriends(page);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+},
+
+  onMediaPageChange(page) {
+  this.pageMedia = page;
+  this.fetchUserMedia(page);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+},
 
 
 
@@ -1845,21 +1880,32 @@ prevItem(postId) {
     // 4. [MỚI] Dọn dẹp sự kiện khi rời trang
     window.removeEventListener('scroll', this.handleScroll, true);
   },
-  watch: {
-  '$route.params.id': {
-    async handler() {
-      this.pagination.currentPage = 1;
-      await this.fetchUserProfile();
-      await this.fetchUserPosts(1);
-      await this.fetchFriends();
-      await this.fetchUserMedia(); // ⭐ BẮT BUỘC
-
+watch: {
+  // 1. Giữ nguyên activeTab
+  activeTab(tab) {
+    if (tab === 'posts') {
+      this.pagePosts = 1;
+      this.fetchUserPosts(1);
     }
+    if (tab === 'friends') {
+      this.pageFriends = 1;
+      this.fetchFriends(1);
+    }
+    if (tab === 'photos') { // Nên dùng biến 'tab' thay vì 'this.activeTab' cho chuẩn
+      this.pageMedia = 1;
+      this.fetchUserMedia(1);
+    }
+  },
+
+  // 2. 👇 THÊM ĐOẠN NÀY VÀO (QUAN TRỌNG NHẤT) 👇
+  mediaTab() {
+    // Khi bấm nút 'All' / 'Photos' / 'Videos', gọi lại API để lọc dữ liệu
+    this.pageMedia = 1; // Reset về trang 1
+    this.fetchUserMedia(1);
   }
-
-
-
 }
+
+
 
 
 
@@ -2601,20 +2647,6 @@ prevItem(postId) {
   border: 1px solid rgba(255,255,255,0.6);
 }
 
-/* .nav-pill {
-  padding: 10px 26px;
-  border-radius: 999px;
-  border: none;
-  background: transparent;
-
-  font-weight: 600;
-  font-size: 14px;
-  color: #6b7280;
-
-  cursor: pointer;
-  transition: all 0.25s ease;
-} */
-
 .nav-pill:hover {
   background: #fdf4f0;
   color: #ff642f;
@@ -2637,47 +2669,6 @@ prevItem(postId) {
 }
 
 
-
-/* ==========================================================================
-   6. PAGINATION STYLES
-   ========================================================================== */
-.pagination {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 6px;
-  margin: 30px 0 10px;
-}
-
-.page-btn {
-  min-width: 36px;
-  padding: 6px 12px;
-  border-radius: 8px;
-  border: 1px solid #eee;
-  background: white;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-  color: #555;
-  transition: 0.2s;
-}
-
-.page-btn:hover:not(:disabled) {
-  background: #FF642F;
-  color: white;
-  border-color: #FF642F;
-}
-
-.page-btn.active {
-  background: #FF642F;
-  color: white;
-  border-color: #FF642F;
-}
-
-.page-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
 
 /* ==========================================================================
    7. LINKED ITEMS IN POST STYLES

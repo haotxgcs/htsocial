@@ -103,7 +103,7 @@ export default {
   display: flex;
   justify-content: center;
   gap: 6px;
-  margin: 30px 0;
+  margin: 30px 0; 
 }
 
 .page-btn {

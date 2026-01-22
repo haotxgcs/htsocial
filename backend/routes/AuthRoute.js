@@ -72,4 +72,7 @@ router.delete("/:id/search-history", AuthController.removeSearchHistoryItem);
 // URL: /users/:id/search-history/all
 router.delete("/:id/search-history/all", AuthController.clearSearchHistory);
 
+
+
+
 module.exports = router;

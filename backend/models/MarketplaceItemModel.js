@@ -13,7 +13,6 @@ const MarketplaceItemSchema = new mongoose.Schema(
       trim: true
     },
 
-    // loại hàng bán
     type: {
       type: String,
       enum: ["ingredient", "dish", "tool"],
@@ -28,14 +27,15 @@ const MarketplaceItemSchema = new mongoose.Schema(
 
     price: {
       type: Number,
-      required: true
+      required: true,
+      min: 0
     },
 
     quantity: {
-    type: Number,
-    required: true,
-    default: 1,
-    min: 1
+      type: Number,
+      required: true,
+      default: 0,
+      min: 0   // ✅ QUAN TRỌNG
     },
 
     images: {
@@ -58,9 +58,32 @@ const MarketplaceItemSchema = new mongoose.Schema(
       type: String,
       enum: ["active", "sold", "hidden"],
       default: "active"
-    }
+    },
+
+    soldCount: {
+      type: Number,
+      default: 0
+    },
+
+    rating: {
+      average: { type: Number, default: 0 },
+      count: { type: Number, default: 0 }
+    },
   },
   { timestamps: true }
 );
+
+/**
+ * 🔥 AUTO UPDATE STATUS BASED ON QUANTITY
+ */
+MarketplaceItemSchema.pre("save", function (next) {
+  if (this.quantity <= 0) {
+    this.quantity = 0;
+    this.status = "sold";
+  } else if (this.status === "sold") {
+    this.status = "active";
+  }
+  next();
+});
 
 module.exports = mongoose.model("MarketplaceItem", MarketplaceItemSchema);

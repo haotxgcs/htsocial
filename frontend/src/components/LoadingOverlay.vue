@@ -19,14 +19,13 @@ export default {
   left: 0; 
   width: 100%; 
   height: 100%;
-
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   z-index: 50; /* Đủ cao để che nội dung */
-  border-radius: inherit; /* Bo góc theo cha */
-  backdrop-filter: blur(2px); /* Hiệu ứng làm mờ nhẹ phía sau (tuỳ chọn) */
+  
+
 }
 
 .spinner {

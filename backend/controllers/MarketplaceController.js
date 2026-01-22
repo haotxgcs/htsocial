@@ -1,5 +1,6 @@
 const MarketplaceItem = require("../models/MarketplaceItemModel");
 const Post = require("../models/PostModel");
+const Cart = require("../models/CartModel");
 
 // ===== 1. CREATE ITEM =====
 exports.createItem = async (req, res) => {
@@ -10,26 +11,38 @@ exports.createItem = async (req, res) => {
       ? req.files.map(file => `uploads/${file.filename}`)
       : [];
 
+    // ✅ normalize quantity
+    const normalizedQuantity = Math.max(0, Number(quantity ?? 0));
+
     const item = new MarketplaceItem({
       title,
       description,
       type,
       price,
-      quantity: quantity ?? 1,
+      quantity: normalizedQuantity,
       condition: type === "tool" ? (condition || "new") : null,
-      seller: req.user.id, // ✅ FIX
+      seller: req.user.id,
       images,
-      status: "active"
+      status: normalizedQuantity > 0 ? "active" : "sold"
     });
 
     await item.save();
 
-    res.status(201).json(item);
+    res.status(201).json({
+      success: true,
+      msg: "Item created successfully",
+      item
+    });
+
   } catch (err) {
     console.error("Create marketplace item error:", err);
-    res.status(500).json({ msg: "Server error" });
+    res.status(500).json({
+      success: false,
+      msg: "Server error"
+    });
   }
 };
+
 
 
 // ===== 2. GET ALL ITEMS =====
@@ -92,40 +105,63 @@ exports.getItemById = async (req, res) => {
 exports.updateItem = async (req, res) => {
   try {
     const item = await MarketplaceItem.findById(req.params.id);
-    if (!item) return res.status(404).json({ msg: "Item not found" });
+    if (!item) {
+      return res.status(404).json({
+        success: false,
+        msg: "Item not found"
+      });
+    }
 
-    // CHECK OWNER
+    // ✅ CHECK OWNER
     if (item.seller.toString() !== req.user.id) {
-      return res.status(403).json({ msg: "Forbidden" });
+      return res.status(403).json({
+        success: false,
+        msg: "Forbidden"
+      });
     }
 
-    const allowedFields = [
-      "title",
-      "description",
-      "price",
-      "quantity",
-      "condition",
-      "type",
-      "status"
-    ];
+    const {
+      title,
+      description,
+      price,
+      quantity,
+      condition,
+      status
+    } = req.body;
 
-    // ✅ UPDATE BASIC FIELDS
-    allowedFields.forEach(field => {
-      if (req.body[field] !== undefined) {
-        item[field] = req.body[field];
-      }
-    });
+    // ===== UPDATE BASIC FIELDS =====
+    if (title !== undefined) item.title = title;
+    if (description !== undefined) item.description = description;
+    if (price !== undefined) item.price = price;
 
-    // ✅ VALIDATE STATUS
-    if (req.body.status) {
-      if (!["active", "sold", "hidden"].includes(req.body.status)) {
-        return res.status(400).json({ msg: "Invalid status" });
+    // ===== QUANTITY & STATUS LOGIC =====
+    if (quantity !== undefined) {
+      const normalizedQuantity = Math.max(0, Number(quantity));
+
+      item.quantity = normalizedQuantity;
+
+      // 🔥 AUTO STATUS BASED ON QUANTITY
+      if (normalizedQuantity === 0) {
+        item.status = "sold";
+      } else if (item.status !== "hidden") {
+        item.status = "active";
       }
     }
 
-        // ===== HANDLE REMOVED IMAGES =====
+    // ===== MANUAL HIDE / UNHIDE =====
+    if (status === "hidden") {
+      item.status = "hidden";
+    }
+
+    // ===== CONDITION (TOOL ONLY) =====
+    if (item.type === "tool") {
+      if (condition && ["new", "used"].includes(condition)) {
+        item.condition = condition;
+      }
+    }
+
+    // ===== HANDLE REMOVED IMAGES =====
     let removedImages = req.body.removedImages || [];
-
     if (typeof removedImages === "string") {
       removedImages = [removedImages];
     }
@@ -144,22 +180,23 @@ exports.updateItem = async (req, res) => {
       item.images.push(...newImages);
     }
 
-
-    // ✅ VALIDATE CONDITION
-    if (item.type === "tool") {
-      if (!["new", "used"].includes(item.condition)) {
-        item.condition = "new";
-      }
-    }
-
-
     await item.save();
-    res.status(200).json(item);
+
+    res.status(200).json({
+      success: true,
+      msg: "Item updated successfully",
+      item
+    });
+
   } catch (err) {
     console.error("Update item error:", err);
-    res.status(500).json({ msg: "Server error" });
+    res.status(500).json({
+      success: false,
+      msg: "Server error"
+    });
   }
 };
+
 
 
 
@@ -195,5 +232,8 @@ exports.deleteItem = async (req, res) => {
     res.status(500).json({ msg: "Server error" });
   }
 };
+
+
+
 
 

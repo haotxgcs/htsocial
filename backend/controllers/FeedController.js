@@ -372,52 +372,84 @@ const resolveMediaType = (post) => {
   return null;
 };
 // FeedController.js
+
 exports.getUserMedia = async (req, res) => {
   try {
     const { userId } = req.params;
 
-    const posts = await Post.find({
+    // 1. Params
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 9;
+    const skip = (page - 1) * limit;
+    const type = req.query.type; // 'image' | 'video' | undefined (all)
+
+    // 2. Base query: chỉ lấy post có media của user
+    const baseQuery = {
       author: userId,
       media: { $exists: true, $ne: "" }
-    })
+    };
+
+    // 3. Load TOÀN BỘ post có media (KHÔNG paginate)
+    const allPosts = await Post.find(baseQuery)
       .select("_id media mediaType createdAt")
       .sort({ createdAt: -1 })
       .lean();
 
-    const normalized = posts
+    // 4. Chuẩn hóa + resolve mediaType
+    const resolvedMedia = allPosts
       .map(p => {
-        const resolvedType = (() => {
-          if (p.mediaType === 'image') return 'image';
-          if (p.mediaType === 'video') return 'video';
-          if (/\.(jpg|jpeg|png|gif|webp)$/i.test(p.media)) return 'image';
-          if (/\.(mp4|webm|mov|ogg)$/i.test(p.media)) return 'video';
-          return null;
-        })();
+        let resolvedType = null;
 
-        return resolvedType
-          ? { ...p, mediaType: resolvedType }
-          : null;
+        if (p.mediaType === "image") resolvedType = "image";
+        else if (p.mediaType === "video") resolvedType = "video";
+        else if (/\.(jpg|jpeg|png|gif|webp)$/i.test(p.media)) resolvedType = "image";
+        else if (/\.(mp4|webm|mov|ogg)$/i.test(p.media)) resolvedType = "video";
+
+        if (!resolvedType) return null;
+
+        return {
+          _id: p._id,
+          media: p.media,
+          mediaType: resolvedType,
+          createdAt: p.createdAt
+        };
       })
       .filter(Boolean);
 
-    const photos = normalized.filter(p => p.mediaType === 'image');
-    const videos = normalized.filter(p => p.mediaType === 'video');
+    // 5. Global stats (CHO HEADER PROFILE)
+    const globalStats = {
+      totalMedia: resolvedMedia.length,
+      totalPhotos: resolvedMedia.filter(m => m.mediaType === "image").length,
+      totalVideos: resolvedMedia.filter(m => m.mediaType === "video").length
+    };
 
+    // 6. Filter theo tab (all / photos / videos)
+    let filteredMedia = resolvedMedia;
+    if (type === "image") {
+      filteredMedia = resolvedMedia.filter(m => m.mediaType === "image");
+    } else if (type === "video") {
+      filteredMedia = resolvedMedia.filter(m => m.mediaType === "video");
+    }
+
+    // 7. Pagination (THEO MEDIA ITEM – QUAN TRỌNG NHẤT)
+    const totalItemsForTab = filteredMedia.length;
+    const totalPages = Math.ceil(totalItemsForTab / limit) || 1;
+    const items = filteredMedia.slice(skip, skip + limit);
+
+    // 8. Response
     res.json({
-      all: normalized,
-      photos,
-      videos,
-      stats: {
-        totalMedia: normalized.length,
-        totalPhotos: photos.length,
-        totalVideos: videos.length
-      }
+      items,
+      currentPage: page,
+      totalPages,
+      stats: globalStats
     });
+
   } catch (err) {
     console.error("Get user media error:", err);
     res.status(500).json({ msg: "Server error" });
   }
 };
+
 
 
 

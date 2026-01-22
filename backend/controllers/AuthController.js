@@ -1039,15 +1039,42 @@ exports.setActiveStatus = async (req, res) => {
   }
 };
 
-// 18. Lấy danh sách bạn bè của user
+// 18. Lấy danh sách bạn bè của user (CÓ PHÂN TRANG)
 exports.getFriends = async (req, res) => {
-  const userId = req.params.userId;
-
   try {
-    const user = await User.findById(userId).populate("friends", "firstname lastname username avatar active");
-    if (!user) return res.status(404).json({ msg: "User not found" });
+    const userId = req.params.userId;
+    
+    // 1. Lấy tham số phân trang
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
 
-    res.status(200).json(user.friends);
+    // 2. Tìm user để đếm tổng số bạn bè (cho việc tính totalPages)
+    const userCount = await User.findById(userId);
+    if (!userCount) return res.status(404).json({ msg: "User not found" });
+    
+    const totalItems = userCount.friends.length;
+    const totalPages = Math.ceil(totalItems / limit);
+
+    // 3. Query lấy danh sách bạn bè theo trang (Dùng populate options)
+    const user = await User.findById(userId)
+      .populate({
+        path: "friends",
+        select: "firstname lastname username avatar active",
+        options: {
+          skip: skip,
+          limit: limit
+        }
+      });
+
+    // 4. Trả về cấu trúc chuẩn cho Frontend
+    res.status(200).json({
+      items: user.friends, // Chỉ chứa 6 người (nếu limit=6)
+      currentPage: page,
+      totalPages: totalPages,
+      totalItems: totalItems
+    });
+
   } catch (err) {
     console.error("Get friends error:", err);
     res.status(500).json({ msg: "Server error" });
@@ -1278,3 +1305,5 @@ exports.clearSearchHistory = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+

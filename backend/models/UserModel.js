@@ -71,6 +71,21 @@ const userSchema = new mongoose.Schema(
         }
       }
     ],
+
+    addressBook: [
+      {
+        _id: {
+          type: mongoose.Schema.Types.ObjectId,
+          default: () => new mongoose.Types.ObjectId()
+        },
+        fullName: { type: String, required: true },
+        phone: { type: String, required: true },
+        address: { type: String, required: true },
+        isDefault: { type: Boolean, default: false }
+      }
+    ]
+
+
   },
   {
     timestamps: true,
