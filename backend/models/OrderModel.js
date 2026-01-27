@@ -8,6 +8,12 @@ const OrderSchema = new mongoose.Schema(
       required: true
     },
 
+    seller: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true
+    },
+
     items: [
       {
         item: {
@@ -34,22 +40,11 @@ const OrderSchema = new mongoose.Schema(
         },
         sellerStatus: {
           type: String,
-          enum: ["pending", "confirmed", "shipping", "completed", "cancelled"],
+          enum: ["pending", "confirmed", "shipping", "completed", "cancelled", "refunded"],
           default: "pending"
         },
 
-        review: {
-          rating: {
-            type: Number,
-            min: 1,
-            max: 5
-          },
-          comment: {
-            type: String,
-            default: ""
-          },
-          reviewedAt: Date
-        }
+        reviewed: { type: Boolean, default: false },
       }
     ],
 
@@ -68,32 +63,50 @@ const OrderSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["pending", "confirmed", "shipping", "completed", "cancelled"],
+      enum: ["pending", "confirmed", "shipping", "completed", "cancelled","refunded"],
       default: "pending"
     },
-
-    // ✅ REVIEW CHUẨN
-    // review: {
-    //   rating: {
-    //     type: Number,
-    //     min: 1,
-    //     max: 5
-    //   },
-    //   comment: {
-    //     type: String,
-    //     default: ""
-    //   }
-    // },
-
-    // reviewed: {
-    //   type: Boolean,
-    //   default: false
-    // },
-
+    
     note: {
       type: String,
       default: ""
     },
+
+    refund: {
+      status: {
+        type: String,
+        enum: ["none", "requested", "approved", "rejected", "refunded"],
+        default: "none"
+      },
+
+      reason: {
+        type: String,
+        default: ""
+      },
+
+      evidence: {
+        images: {
+          type: [String],
+          default: []
+        },
+        videos: {
+          type: [String],
+          default: []
+        }
+      },
+
+      requestedAt: {type: Date},
+      resolvedAt: {type: Date},
+
+      resolvedBy: {
+        type: String,
+        enum: ["seller", "admin"],
+        default: null
+      },
+
+      rejectReason: {type: String, default:""}
+    },
+
 
     payment: {
       method: {
@@ -103,8 +116,12 @@ const OrderSchema = new mongoose.Schema(
       },
       status: {
         type: String,
-        enum: ["unpaid", "paid", "refunded"],
+        enum: ["unpaid", "paid", "refund-pending", "refunded"],
         default: "unpaid"
+      },
+
+      stripePaymentIntentId: {
+        type: String
       }
     },
 

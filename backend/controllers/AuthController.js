@@ -32,70 +32,193 @@ const createTransporter = () => {
 
 // ===== 1. Đăng ký (Register) =====
 exports.register = async (req, res) => {
-  // Thêm gender vào danh sách lấy từ req.body
-  const { username, email, password, firstname, lastname, gender, role = "user" } = req.body;
+  const {
+    username,
+    email,
+    password,
+    firstname,
+    lastname,
+    gender,
+    birthday,
+    location,
+    bio,
+    role = "user"
+  } = req.body;
 
   try {
-    const existingUser = await User.findOne({ $or: [{ email }, { username }] });
-    if (existingUser) return res.status(400).json({ msg: "User already exists" });
+    // ✅ 1. Validation cơ bản
+    if (!username || !email || !password) {
+      return res.status(400).json({
+        msg: "Username, email and password are required"
+      });
+    }
 
+    if (!firstname || !lastname) {
+      return res.status(400).json({
+        msg: "Firstname and lastname are required"
+      });
+    }
+
+    // ✅ 2. Check email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ msg: "Invalid email format" });
+    }
+
+    // ✅ 3. Password strength
+    if (password.length < 6) {
+      return res.status(400).json({
+        msg: "Password must be at least 6 characters"
+      });
+    }
+
+    // ✅ 4. Check user tồn tại
+    const existingUser = await User.findOne({
+      $or: [{ email }, { username }]
+    });
+
+    if (existingUser) {
+      return res.status(400).json({
+        msg: "Username or email already exists"
+      });
+    }
+
+    // ✅ 5. Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // === [SỬA ĐOẠN NÀY] LOGIC CHỌN AVATAR MẶC ĐỊNH ===
-    let avatarName = "generic_avatar.png"; // Mặc định chung (cho giới tính khác/ẩn)
+    // ✅ 6. Avatar mặc định theo gender + role (dùng helper)
+    const avatar = getGenderDefaultAvatar(gender, role);
 
-    if (role === "admin") {
-      avatarName = "admin_avatar.png";
-    } else {
-      // Nếu là User thường -> check giới tính
-      // Chuyển về chữ thường để so sánh cho chính xác
-      const g = gender ? gender.toLowerCase() : "";
-      
-      if (g === "male" || g === "nam") {
-        avatarName = "male_avatar.png";
-      } else if (g === "female" || g === "nữ") {
-        avatarName = "female_avatar.png";
-      } else {
-        avatarName = "generic_avatar.png";
-      }
-    }
-    
-    const avatar = `uploads/${avatarName}`;
-    // ==================================================
-
+    // ✅ 7. Tạo user mới đầy đủ thông tin
     const newUser = new User({
       firstname,
       lastname,
       username,
       email,
       password: hashedPassword,
+
+      gender,
+      birthday: birthday || null,
+      location: location || "",
+      bio: bio || "",
+
+      avatar,
+      coverPhoto: "uploads/cover.png",
+
+      role,
       isVerified: false,
-      avatar,     // Lưu đường dẫn vừa tạo
-      gender,     // Nhớ lưu gender vào DB
-      coverPhoto: "uploads/cover.png", // Ảnh bìa thì vẫn giữ chung
-      // ... các trường khác
+      active: false
     });
 
     await newUser.save();
 
-    // Gửi email xác minh
+    // ✅ 8. Gửi email verify
     const verificationLink = `http://localhost:8080/verify/${newUser._id}`;
 
-    const transporter = nodemailer.createTransport();
+    const transporter = createTransporter(); // ✅ đúng helper
 
     await transporter.sendMail({
-      from: '"HT Social" <' + process.env.EMAIL_USER + '>',
+      from: `"HT Social" <${process.env.EMAIL_USER}>`,
       to: email,
-      subject: "Account Verification",
-      html: `<p>Click the link to verify your account:</p><a href="${verificationLink}">${verificationLink}</a>`
+      subject: "Verify your HT Social Account",
+      html: `
+      <div style="
+          font-family: Arial, sans-serif;
+          background:#f6f6f6;
+          padding:40px;
+        ">
+        
+        <!-- Main Card -->
+        <div style="
+            max-width:600px;
+            margin:0 auto;
+            background:white;
+            border-radius:12px;
+            overflow:hidden;
+            box-shadow:0 6px 18px rgba(0,0,0,0.15);
+          ">
+
+          <!-- Header -->
+          <div style="
+              background:#ff5757;
+              padding:25px;
+              text-align:center;
+              color:white;
+              font-size:26px;
+              font-weight:bold;
+            ">
+            HT Social
+          </div>
+
+          <!-- Content -->
+          <div style="padding:35px; text-align:center;">
+            
+            <h2 style="color:#222; margin-bottom:15px;">
+              Verify Your Account 
+            </h2>
+
+            <p style="font-size:15px; color:#555; line-height:1.6;">
+              Hello <b>${firstname} ${lastname}</b>, <br/>
+              Welcome to <b>HT Social</b> — the community for sharing delicious recipes.
+            </p>
+
+            <p style="font-size:15px; color:#555;">
+              Please click the button below to verify your email address:
+            </p>
+
+            <!-- Button -->
+            <a href="${verificationLink}"
+              style="
+                display:inline-block;
+                margin-top:20px;
+                padding:14px 28px;
+                background:#ff5757;
+                color:white;
+                font-size:16px;
+                font-weight:bold;
+                border-radius:10px;
+                text-decoration:none;
+              ">
+              Verify Account
+            </a>
+
+            <p style="margin-top:30px; font-size:13px; color:#777;">
+              If you did not create this account, you can safely ignore this email.
+            </p>
+
+          </div>
+
+          <!-- Footer -->
+          <div style="
+              background:#fafafa;
+              padding:15px;
+              text-align:center;
+              font-size:12px;
+              color:#888;
+            ">
+            © ${new Date().getFullYear()} HT Social — Share Recipes, Cook Together
+          </div>
+        </div>
+      </div>
+      `
     });
 
-    res.status(201).json({ msg: "User registered. Verification email sent.", userId: newUser._id });
+
+    // ✅ 9. Response chuẩn
+    res.status(201).json({
+      msg: "User registered successfully. Verification email sent.",
+      userId: newUser._id
+    });
+
   } catch (err) {
     console.error("Register error:", err);
-    res.status(500).json({ msg: "Server error" });
+    res.status(500).json({
+      msg: "Server error",
+      error: err.message
+    });
   }
 };
+
 
 // ===== Update User Profile: coverPhoto & bio =====
 exports.updateProfile = async (req, res) => {
@@ -138,19 +261,55 @@ exports.verifyByLink = async (req, res) => {
 
 // ===== 3. Đăng nhập =====
 exports.login = async (req, res) => {
-  const { username, password } = req.body;
+  // identifier có thể là username hoặc email
+  const { identifier, password } = req.body;
+
   try {
-    const user = await User.findOne({ username });
-    if (!user) return res.status(400).json({ msg: "Invalid credentials" });
+    // ✅ 1. Validate input
+    if (!identifier || !password) {
+      return res.status(400).json({
+        msg: "Please provide username/email and password"
+      });
+    }
 
+    // ✅ 2. Tìm user theo username OR email
+    const user = await User.findOne({
+      $or: [
+        { username: identifier },
+        { email: identifier }
+      ]
+    });
+
+    if (!user) {
+      return res.status(400).json({ msg: "Invalid credentials" });
+    }
+
+    // ✅ 3. Check password
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ msg: "Invalid credentials" });
 
-    const token = jwt.sign({ id: user._id , v: user.token_version || 0 }, process.env.JWT_SECRET, { expiresIn: "12h" });
+    if (!isMatch) {
+      return res.status(400).json({ msg: "Invalid credentials" });
+    }
 
+    // ✅ 4. Optional: Check verified account
+    if (!user.isVerified) {
+      return res.status(403).json({
+        msg: "Please verify your email before logging in"
+      });
+    }
+
+    // ✅ 5. Generate JWT token
+    const token = jwt.sign(
+      { id: user._id, v: user.token_version || 0 },
+      process.env.JWT_SECRET,
+      { expiresIn: "12h" }
+    );
+
+    // ✅ 6. Set active status
     user.active = true;
     await user.save();
 
+    // ✅ 7. Return full user info (giữ nguyên format của bạn)
     res.json({
       token,
       user: {
@@ -170,11 +329,13 @@ exports.login = async (req, res) => {
         requestReceived: user.requestReceived
       }
     });
+
   } catch (err) {
     console.error("Login error:", err);
     res.status(500).json({ msg: "Server error" });
   }
 };
+
 
 // ===== 4. Đăng xuất =====
 exports.logout = async (req, res) => {

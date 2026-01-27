@@ -9,7 +9,7 @@ const {
     updateOrderStatusBySeller,
     cancelOrderBySeller,
     cancelOrder,
-    reviewOrderItem
+    reviewItem
 
 } = require("../controllers/OrderController");
 
@@ -20,6 +20,6 @@ router.get("/seller", auth, getOrdersForSeller);
 router.patch("/:id/seller-status", auth, updateOrderStatusBySeller);
 router.patch("/:id/seller-cancel", auth, cancelOrderBySeller);
 router.put("/:id/cancel", auth, cancelOrder);
-router.put("/:orderId/items/:itemId/review", auth, reviewOrderItem);
+router.post("/review", auth, reviewItem);
 
 module.exports = router;
