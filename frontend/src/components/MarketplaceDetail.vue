@@ -90,34 +90,63 @@
 
     <p class="price">{{ formatPrice(item.price) }}</p>
 
-    <p class="quantity">Quantity: {{ item.quantity }}</p>
+    <p class="quantity" v-if="item.quantity > 0">Quantity: {{ item.quantity }}</p>
+
+    <p class="sold-out" v-if="item.quantity === 0">Sold Out</p>
 
     <p class="condition" v-if="item.type === 'tool'">Condition: {{ item.condition }}</p>
+
+    <!-- ACTION BUTTONS -->
+    <div v-if="!isOwner" class="buyer-actions">
+
+      <button class="cart-btn" @click="openModal('cart')" :disabled="item.quantity === 0">
+        <ShoppingCart class="icon" />
+        Add to Cart
+      </button>
+
+      <button class="buy-btn" @click="openModal('buy')" :disabled="item.quantity === 0">
+        <Zap class="icon" />
+        Buy Now
+      </button>
+
+
+
+    </div>
+
+
+    
 
     <p class="type">{{ typeLabel }}</p>
 
 
 
       <!-- SELLER INFO (CHỈ HIỆN KHI KHÔNG PHẢI OWNER) -->
-  <div class="seller" v-if="!isOwner">
-    <img
-      v-if="item.seller?.avatar"
-      :src="imageFromPath(item.seller.avatar)"
-      class="avatar"
-    />
-    <span>
+  <div class="seller-row" v-if="!isOwner">
+    <div class="seller-info">
+      <img
+        v-if="item.seller?.avatar"
+        :src="imageFromPath(item.seller.avatar)"
+        class="avatar"
+      />
+      <span class="seller-name">
       {{ item.seller?.firstname }} {{ item.seller?.lastname }}
     </span>
-  </div>
+    </div>
+    
 
-  <!-- ACTION BUTTON -->
+    <!-- ACTION BUTTON -->
   <button
     v-if="!isOwner"
     class="chat-btn"
     @click="onChat"
   >
+    <MessageCircle class="icon" />
     Chat with Seller
   </button>
+
+  </div>
+
+  
 
 <!-- OWNER ACTIONS -->
   <div v-if="isOwner" class="owner-actions">
@@ -192,6 +221,15 @@
   </div>
       </div>
     </div>
+
+    <MarketplaceBuyModal
+      v-if="showBuyModal"
+      :item="item"
+      :mode="modalMode"
+      @close="showBuyModal = false"
+      @confirm="handleBuyAction"
+    />
+
   </div>
 </template>
 
@@ -200,6 +238,13 @@
 import axios from "axios";
 import LoadingOverlay from "../components/LoadingOverlay.vue";
 import MarketplaceEditModal from "../components/MarketplaceEditModal.vue";
+import MarketplaceBuyModal from "../components/MarketplaceBuyModal.vue";
+import {
+  ShoppingCart,
+  Zap,
+  MessageCircle
+} from "lucide-vue-next";
+
 
 
 export default {
@@ -207,6 +252,11 @@ export default {
   components: {
     LoadingOverlay,
     MarketplaceEditModal,
+    MarketplaceBuyModal,
+
+    ShoppingCart,
+    Zap,
+    MessageCircle
   },
 
   data() {
@@ -219,6 +269,11 @@ export default {
       showEditModal: false,
 
       isDeleted: false,
+
+      showBuyModal: false,
+
+      modalMode: "cart"
+
 
     };
   },
@@ -255,11 +310,18 @@ export default {
       if (!this.item?.images?.length) {
         return "/no-image.png";
       }
-      return this.item?.images?.[this.currentIndex]
-        ? `http://localhost:3000/${this.item.images[this.currentIndex]}`
-        : "/no-image.png";
 
+      const img = this.item.images[this.currentIndex];
+
+      // ✅ Cloudinary URL
+      if (img.startsWith("http")) {
+        return img;
+      }
+
+      // ✅ Local image
+      return `http://localhost:3000/${img}`;
     },
+
 
     isOwner(){
       const user = JSON.parse(localStorage.getItem("user"));
@@ -287,8 +349,17 @@ export default {
 
   methods: {
     imageFromPath(path) {
+      if (!path) return "/no-image.png";
+
+      // ✅ Nếu cloudinary URL
+      if (path.startsWith("http")) {
+        return path;
+      }
+
+      // ✅ Nếu local
       return `http://localhost:3000/${path}`;
     },
+
 
     formatPrice(price) {
       return new Intl.NumberFormat("en-US", {
@@ -361,6 +432,47 @@ export default {
         (this.currentIndex - 1 + this.item.images.length) %
         this.item.images.length;
     },
+
+    async handleBuyAction({ type, quantity }) {
+      this.showBuyModal = false;
+
+      const token = localStorage.getItem("token");
+      if (!token) return alert("Login first");
+
+      if (type === "cart") {
+        await axios.post(
+          "http://localhost:3000/cart/add",
+          {
+            itemId: this.item._id,
+            quantity
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        );
+
+        alert("✅ Added to cart!");
+      }
+
+      if (type === "buy") {
+        // this.$router.push(`/checkout?item=${this.item._id}&qty=${quantity}`);
+        this.$router.push({
+          path: "/checkout",
+          query: {
+            item: this.item._id,
+            qty: quantity
+          }
+        });
+      }
+    },
+
+    openModal(mode) {
+    this.modalMode = mode;
+    this.showBuyModal = true;
+  }
+
 
   },
 };
@@ -617,12 +729,58 @@ export default {
 }
 
 
-.quantity, .condition{
+.quantity, .condition {
   font-size: 14px;
   font-style: italic;
   font-weight: 600;
   margin-bottom: 8px;
+}
 
+.sold-out{
+  font-size: 14px;
+  font-style: italic;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color:#ff4d4f;
+}
+
+.buyer-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.cart-btn {
+  flex: 1;
+  background: #fff;
+  border: 2px solid #ff642f;
+  color: #ff642f;
+  padding: 12px;
+  border-radius: 10px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.cart-btn:disabled {
+  background: #ffe5d9;
+  border-color: #ffb3a2;
+  color: #ffb3a2;
+  cursor: not-allowed;
+}
+
+.buy-btn {
+  flex: 1;
+  background: #ff642f;
+  color: white;
+  padding: 12px;
+  border-radius: 10px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.buy-btn:disabled {
+  background: #ffb3a2;
+  cursor: not-allowed;
 }
 
 .type{
@@ -659,12 +817,12 @@ export default {
 }
 
 
-.avatar {
+/* .avatar {
   width: 36px;
   height: 36px;
   border-radius: 50%;
   object-fit: cover;
-}
+} */
 
 .loading {
   text-align: center;
@@ -739,10 +897,10 @@ export default {
 }
 
 
-.chat-btn {
+/* .chat-btn {
   margin-top: auto;
   padding: 12px;
-  width: 100%;
+  width: 50%;
   background: #fdf4f0;
   color: black;
   border-radius: 12px;
@@ -755,7 +913,7 @@ export default {
 .chat-btn:hover {
    background: #ff642f;
    color:white;
-}
+} */
 
 .owner-actions {
   margin-top: 24px;
@@ -832,6 +990,76 @@ export default {
   font-weight: 600;
   cursor: pointer;
 }
+
+/* ✅ Seller Row */
+.seller-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 22px;
+  padding-top: 15px;
+  border-top: 1px solid #eee;
+}
+
+/* ✅ Seller Info */
+.seller-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.seller-name {
+  font-weight: 600;
+  font-size: 15px;
+}
+
+/* ✅ Avatar */
+.avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+/* ✅ Chat Button */
+.chat-btn {
+  padding: 9px 15px;
+  border-radius: 10px;
+  border: 1px solid #ff642f;
+  background: white;
+  color: #ff642f;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.chat-btn:hover {
+  background: #ff642f;
+  color: white;
+}
+
+/* ✅ Action Buttons Row */
+.action-row {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.action-row button {
+  flex: 1;
+  padding: 14px;
+  border-radius: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.icon{
+  width:18px;
+  height:18px;
+  margin-right:8px;
+  vertical-align:middle;
+}
+
 
 
 @media (max-width: 1024px) {

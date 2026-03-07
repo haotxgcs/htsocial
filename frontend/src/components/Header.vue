@@ -9,7 +9,7 @@
 
       <div class="sidebar-header">
         <router-link to="/home" class="logo-link">
-          <img src="../assets/htsocial.png" alt="CookHub" class="logo" />
+          <img src="../assets/htsocial.png" alt="HTSocial" class="logo" />
         </router-link>
       </div>
 
@@ -17,41 +17,59 @@
 
       <nav class="sidebar-nav">
         <router-link to="/home" class="nav-item" active-class="active">
-          <div class="icon-box"><img src="../assets/home.png" /></div>
+          <div class="icon-box"><House/></div>
           <span>Home</span>
         </router-link>
 
         <router-link to="/friend" class="nav-item" active-class="active">
-          <div class="icon-box"><img src="../assets/friend.png" /></div>
+          <div class="icon-box"><Users/></div>
           <span>Friends</span>
         </router-link>
 
         <router-link to="/marketplace" class="nav-item" active-class="active">
-          <div class="icon-box"><img src="../assets/marketplace.png" /></div>
+          <div class="icon-box"><Store/></div>
           <span>Marketplace</span>
         </router-link>
 
         <router-link to="/saved" class="nav-item" active-class="active">
-          <div class="icon-box"><img src="../assets/save.png" /></div>
+          <div class="icon-box"><Bookmark/></div>
           <span>Saved</span>
         </router-link>
 
         <router-link to="/hidden" class="nav-item" active-class="active">
-          <div class="icon-box"><img src="../assets/hide.png" /></div>
+          <div class="icon-box"><EyeOff/></div>
           <span>Hidden</span>
         </router-link>
+
+        <router-link to="/orders" class="nav-item" active-class="active">
+          <div class="icon-box"><ShoppingBag/></div>
+          <span>Orders</span>
+        </router-link>
+
+        <router-link to="/cart" class="nav-item" active-class="active">
+          <div class="icon-box"><ShoppingCart/></div>
+          <span>Cart</span>
+        </router-link>
+
+        <router-link to="/seller-orders" class="nav-item" active-class="active">
+          <div class="icon-box"><Store/></div>
+          <span>Seller Orders</span>
+        </router-link>
+        
       </nav>
 
       <div class="spacer"></div>
 
       <div class="sidebar-actions">
-        <div class="action-btn" @click="toggleDark()" title="Giao diện">
-          <img v-if="isDark" src="../assets/light.png" />
-          <img v-else src="../assets/dark.png" />
+        <div class="action-btn" @click="toggleDark()" title="Theme">
+          <!-- <img v-if="isDark" src="../assets/light.png" />
+          <img v-else src="../assets/dark.png" /> -->
+          <div v-if="isDark"><Sun/></div>
+          <div v-else><Moon/></div>
         </div>
 
-        <div class="action-btn" @click.stop="toggleMessage" title="Tin nhắn">
-          <img src="../assets/message.png" />
+        <div class="action-btn" @click.stop="toggleMessage" title="Message">
+          <MessageCircle/>
           <span v-if="unreadMessages > 0" class="badge">{{ unreadMessages }}</span>
           
           <div v-if="showMessageDropdown" class="popover-panel">
@@ -65,8 +83,8 @@
           </div>
         </div>
 
-        <div class="action-btn" @click.stop="toggleNotification" title="Thông báo">
-          <img src="../assets/notification.png" />
+        <div class="action-btn" @click.stop="toggleNotification" title="Notifications">
+          <Bell/>
           <span v-if="unreadNotifications > 0" class="badge">{{ unreadNotifications }}</span>
 
           <div v-if="showNotificationDropdown" class="popover-panel">
@@ -87,13 +105,13 @@
 
         <div v-if="showUserDropdown" class="user-menu-popover">
           <div class="menu-item" @click="goToProfile">
-            <img src="../assets/user.png" /> Trang cá nhân
+            <CircleUserRound/> View Profile
           </div>
           <div class="menu-item" @click="goToSettings">
-            <img src="../assets/setting.png" /> Cài đặt
+            <Settings/> Settings
           </div>
           <div class="menu-item logout" @click="logout">
-            <img src="../assets/logout.png" /> Đăng xuất
+            <LogOut/> Logout
           </div>
         </div>
       </div>
@@ -107,9 +125,26 @@
 
 <script>
 import { useDark, useToggle } from '@vueuse/core';
+import { House, Users, Store, Bookmark, EyeOff, ShoppingBag, Moon, Sun, MessageCircle, Bell, CircleUserRound, Settings, LogOut, ShoppingCart  } from 'lucide-vue-next';
 
 export default {
   name: 'VerticalHeader',
+  components: { 
+    House,
+    Users,
+    Store,
+    Bookmark,
+    EyeOff,
+    ShoppingBag,
+    Moon,
+    Sun,
+    MessageCircle,
+    Bell,
+    CircleUserRound,
+    Settings,
+    LogOut,
+    ShoppingCart 
+  },
   setup() {
     const isDark = useDark();
     const toggleDark = useToggle(isDark);

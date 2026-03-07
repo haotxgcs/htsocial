@@ -3,20 +3,10 @@ const Cart = require("../models/CartModel");
 const MarketplaceItem = require("../models/MarketplaceItemModel");
 const User = require("../models/UserModel");
 const Review = require("../models/ReviewModel");
-const nodemailer = require("nodemailer");
+// const nodemailer = require("nodemailer");
 
-/**
- * =========================
- * MAIL CONFIG (SIMPLE)
- * =========================
- */
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  }
-});
+const { sendEmail } = require("../services/emailService");
+const { orderEmailTemplate } = require("../services/emailTemplates");
 
 /**
  * =========================
@@ -238,6 +228,12 @@ exports.checkout = async (req, res) => {
           { new: true }
         );
 
+        // ✅ SAFETY CHECK
+        if (!updatedItem) {
+          console.log("⚠️ Item missing during stock update:", ci.item._id);
+          continue;
+        }
+
         if (updatedItem.quantity === 0 && updatedItem.status !== "hidden") {
           updatedItem.status = "sold";
           await updatedItem.save();
@@ -246,88 +242,45 @@ exports.checkout = async (req, res) => {
 
       // =========================================================
       // ✅ 8. SEND EMAIL CONFIRMATION (FULL TEMPLATE)
+      // ✅ FIX: Seller Name + Item Image + Use Template Correctly
       // =========================================================
-      const brandColor = "#ff5757";
 
-      const itemsHtml = order.items
-        .map(
-          i => `
-            <tr>
-              <td style="padding:8px 0;">${i.itemSnapshot.title}</td>
-              <td align="center">${i.quantity}</td>
-              <td align="right">$${i.price}</td>
-            </tr>
-          `
-        )
-        .join("");
+      // ✅ Populate seller để lấy tên
+      const populatedOrder = await Order.findById(order._id)
+        .populate("seller", "firstname lastname");
+
+      // ✅ Lấy seller name
+      const sellerName = populatedOrder.seller
+        ? populatedOrder.seller.firstname + " " + populatedOrder.seller.lastname
+        : "Unknown Seller";
+
+      // ✅ Email subject
+      const mailSubject =
+        paymentMethod === "online"
+          ? "⏳ Order Created - Awaiting Payment"
+          : "✅ Order Confirmation - HT Social";
 
       try {
-        await transporter.sendMail({
-          from: `"HT Social Marketplace" <${process.env.EMAIL_USER}>`,
+        await sendEmail({
           to: user.email,
-          subject: "Order Confirmation - HT Social",
-          html: `
-<!DOCTYPE html>
-<html>
-<body style="margin:0;padding:0;background:#f9f9f9;font-family:Arial,sans-serif;">
-  <div style="max-width:600px;margin:40px auto;background:#fff;border-radius:8px;overflow:hidden;">
+          subject: mailSubject,
 
-    <div style="background:${brandColor};padding:24px;text-align:center;">
-      <h1 style="color:#fff;margin:0;">HT Social Marketplace</h1>
-    </div>
-
-    <div style="padding:30px;color:#333;">
-
-      <h2>Thank you for your order 🎉</h2>
-      <p>Hello <b>${user.firstname} ${user.lastname}</b>,</p>
-
-      <p><b>Order ID:</b> ${order._id}</p>
-      <p><b>Status:</b> ${order.status.toUpperCase()}</p>
-
-      <p><b>Payment Method:</b> ${order.payment.method.toUpperCase()}</p>
-      <p><b>Payment Status:</b> ${order.payment.status.toUpperCase()}</p>
-
-      ${
-        order.note
-          ? `
-        <h3>Order Note</h3>
-        <p>${order.note}</p>
-      `
-          : ""
-      }
-
-      <h3>Shipping Address</h3>
-      <p>
-        ${order.shippingAddress.fullName}<br/>
-        ${order.shippingAddress.phone}<br/>
-        ${order.shippingAddress.address}
-      </p>
-
-      <h3>Items</h3>
-      <table width="100%">${itemsHtml}</table>
-
-      <hr/>
-
-      <p style="font-size:18px;">
-        <b>Total:</b>
-        <span style="color:${brandColor};font-weight:bold;">
-          $${totalPrice}
-        </span>
-      </p>
-
-    </div>
-
-    <div style="background:#f4f4f4;padding:16px;text-align:center;font-size:12px;color:#888;">
-      © ${new Date().getFullYear()} HT Social. All rights reserved.
-    </div>
-
-  </div>
-</body>
-</html>`
+          // ✅ Template mới dùng items array
+          html: orderEmailTemplate({
+            user,
+            order,
+            sellerName,          // ✅ NEW
+            items: order.items,  // ✅ NEW
+            totalPrice,
+            paymentMethod
+          })
         });
-      } catch (mailErr) {
-        console.error("Order mail failed:", mailErr.message);
+
+      } catch (err) {
+        console.error("Order mail failed:", err.message);
       }
+
+
     }
 
     // =========================================================
@@ -344,10 +297,14 @@ exports.checkout = async (req, res) => {
 
     // =========================================================
     // ✅ 10. RESPONSE
+    // ✅ FIX: If online -> tell frontend proceed payment
     // =========================================================
     res.status(201).json({
       success: true,
-      msg: "Checkout successful (Orders created per seller)",
+      msg:
+        paymentMethod === "online"
+          ? "Orders created. Please proceed to payment."
+          : "Checkout successful",
       orders: createdOrders
     });
 
@@ -359,8 +316,6 @@ exports.checkout = async (req, res) => {
     });
   }
 };
-
-
 
 
 
@@ -377,9 +332,7 @@ exports.buyNow = async (req, res) => {
 
     const quantity = Math.max(1, Number(rawQty) || 1);
 
-    // =========================================================
     // ✅ 0. VALIDATE PAYMENT
-    // =========================================================
     if (!paymentMethod || !["cod", "online"].includes(paymentMethod)) {
       return res.status(400).json({
         success: false,
@@ -387,9 +340,7 @@ exports.buyNow = async (req, res) => {
       });
     }
 
-    // =========================================================
     // ✅ 1. LOAD USER
-    // =========================================================
     const user = await User.findById(userId);
 
     if (!user) {
@@ -399,9 +350,7 @@ exports.buyNow = async (req, res) => {
       });
     }
 
-    // =========================================================
     // ✅ 2. GET DEFAULT ADDRESS
-    // =========================================================
     const address = getDefaultAddress(user);
 
     if (!address || !address.fullName || !address.phone || !address.address) {
@@ -411,9 +360,7 @@ exports.buyNow = async (req, res) => {
       });
     }
 
-    // =========================================================
     // ✅ 3. LOAD ITEM
-    // =========================================================
     const item = await MarketplaceItem.findById(itemId);
 
     if (!item || item.status !== "active") {
@@ -439,15 +386,11 @@ exports.buyNow = async (req, res) => {
       });
     }
 
-    // =========================================================
     // ✅ 4. CREATE ORDER
-    // =========================================================
     const totalPrice = item.price * quantity;
 
     const order = await Order.create({
       user: userId,
-
-      // ✅ IMPORTANT: Save seller for marketplace logic
       seller: item.seller,
 
       items: [
@@ -464,13 +407,10 @@ exports.buyNow = async (req, res) => {
       ],
 
       totalPrice,
-
-      // ✅ Order always starts pending
       status: "pending",
 
       note: note?.trim() || "",
 
-      // ✅ Stripe flow: online still unpaid until webhook confirm
       payment: {
         method: paymentMethod,
         status: "unpaid"
@@ -485,89 +425,62 @@ exports.buyNow = async (req, res) => {
       }
     });
 
-    // =========================================================
-    // ✅ 5. REDUCE STOCK + SOLD COUNT
-    // =========================================================
-    item.quantity -= quantity;
-    item.soldCount += quantity;
-
-    if (item.quantity === 0 && item.status !== "hidden") {
-      item.status = "sold";
-    }
-
-    await item.save();
+    // ✅ 5. REDUCE STOCK + SOLD COUNT (Safer update)
+    await MarketplaceItem.findByIdAndUpdate(itemId, {
+      $inc: {
+        quantity: -quantity,
+        soldCount: quantity
+      }
+    });
 
     // =========================================================
-    // ✅ 6. SEND EMAIL (KEEP YOUR TEMPLATE)
+    // ✅ 6. SEND EMAIL CONFIRMATION (Same Template as Checkout)
+    // ✅ FIX: Seller Name + Item Image + Use items array
     // =========================================================
-    const brandColor = "#ff5757";
+
+    // ✅ Populate seller để lấy tên
+    const populatedOrder = await Order.findById(order._id)
+      .populate("seller", "firstname lastname");
+
+    const sellerName = populatedOrder.seller
+      ? populatedOrder.seller.firstname + " " + populatedOrder.seller.lastname
+      : "Unknown Seller";
+
+    // ✅ Subject based on payment method
+    const mailSubject =
+      paymentMethod === "online"
+        ? "⏳ Order Created - Awaiting Payment"
+        : "✅ Order Confirmation - HT Social";
 
     try {
-      await transporter.sendMail({
-        from: `"HT Social Marketplace" <${process.env.EMAIL_USER}>`,
+      await sendEmail({
         to: user.email,
-        subject: "Order Confirmation - HT Social",
-        html: `
-<!DOCTYPE html>
-<html>
-<body style="background:#f9f9f9;font-family:Arial;">
-  <div style="max-width:600px;margin:40px auto;background:#fff;border-radius:8px;">
-    <div style="background:${brandColor};padding:24px;text-align:center;color:#fff;">
-      <h1>HT Social Marketplace</h1>
-    </div>
-    <div style="padding:30px;">
-      <h2>Order Confirmed 🎉</h2>
-      <p>Hello <b>${user.firstname} ${user.lastname}</b>,</p>
+        subject: mailSubject,
 
-      <p><b>Order ID:</b> ${order._id}</p>
-      <p><b>Status:</b> ${order.status.toUpperCase()}</p>
-
-      <p><b>Payment Method:</b> ${order.payment.method.toUpperCase()}</p>
-      <p><b>Payment Status:</b> ${order.payment.status.toUpperCase()}</p>
-
-      ${
-        order.note
-          ? `<h3>Order Note</h3><p>${order.note}</p>`
-          : ""
-      }
-
-      <h3>Item</h3>
-      <p>
-        <b>${item.title}</b><br/>
-        Quantity: ${quantity}<br/>
-        Price: $${item.price}
-      </p>
-
-      <h3>Shipping Address</h3>
-      <p>
-        ${order.shippingAddress.fullName}<br/>
-        ${order.shippingAddress.phone}<br/>
-        ${order.shippingAddress.address}
-      </p>
-
-      <hr/>
-
-      <p style="font-size:18px;">
-        <b>Total:</b>
-        <span style="color:${brandColor};font-weight:bold;">
-          $${totalPrice}
-        </span>
-      </p>
-    </div>
-  </div>
-</body>
-</html>`
+        // ✅ Dùng template mới giống checkout
+        html: orderEmailTemplate({
+          user,
+          order,
+          sellerName,        // ✅ NEW
+          items: order.items, // ✅ NEW
+          totalPrice,
+          paymentMethod
+        })
       });
+
     } catch (err) {
       console.error("BuyNow mail failed:", err.message);
     }
 
-    // =========================================================
-    // ✅ 7. RESPONSE
-    // =========================================================
+
+
+    // ✅ 7. RESPONSE (Fix msg for online)
     res.status(201).json({
       success: true,
-      msg: "Order placed successfully",
+      msg:
+        paymentMethod === "online"
+          ? "Order created. Please proceed to payment."
+          : "Order placed successfully",
       order
     });
 
@@ -581,28 +494,149 @@ exports.buyNow = async (req, res) => {
 };
 
 
-
-
 /**
  * =========================
  * GET MY ORDERS
  * =========================
  */
+
 exports.getMyOrders = async (req, res) => {
   try {
-    const orders = await Order.find({ user: req.user.id })
-      .sort({ createdAt: -1 });
+    const {
+      page = 1,
+      limit = 5,
+      keyword,
+      status
+    } = req.query;
+
+    const filter = {
+      user: req.user.id
+    };
+
+    // =========================
+    // FILTER BY STATUS
+    // =========================
+    if (status && status !== "all") {
+      filter.status = status;
+    }
+
+    // =========================
+    // SEARCH LOGIC
+    // =========================
+    if (keyword) {
+      const regex = new RegExp(keyword, "i");
+
+      const matchingItems = await MarketplaceItem.find({
+        title: { $regex: regex }
+      }).distinct("_id");
+
+      const matchingSellers = await User.find({
+        $or: [
+          { firstname: { $regex: regex } },
+          { lastname: { $regex: regex } }
+        ]
+      }).distinct("_id");
+
+      const statusList = [
+        "pending",
+        "confirmed",
+        "shipping",
+        "completed",
+        "cancelled",
+        "refunded"
+      ];
+
+      const searchConditions = [
+        { seller: { $in: matchingSellers } },
+        { "items.item": { $in: matchingItems } }
+      ];
+
+      if (statusList.includes(keyword.toLowerCase())) {
+        searchConditions.push({
+          status: keyword.toLowerCase()
+        });
+      }
+
+      filter.$or = searchConditions;
+    }
+
+    // =========================
+
+    const total = await Order.countDocuments(filter);
+
+    // Tổng tất cả order (không filter)
+    const totalAll = await Order.countDocuments({
+      user: req.user._id
+    });
+
+    const orders = await Order.find(filter)
+      .populate("seller", "firstname lastname")
+      .populate("items.item")
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(Number(limit));
+
+    // =========================
+    // COUNT BY STATUS
+    // =========================
+
+    const statusCountsRaw = await Order.aggregate([
+      {
+        $match: { user: req.user._id }
+      },
+      {
+        $group: {
+          _id: "$status",
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // Convert thành object
+    const statusCounts = {};
+    statusCountsRaw.forEach(s => {
+      statusCounts[s._id] = s.count;
+    });
 
     res.json({
-      success: true,
-      orders
+      orders,
+      total,
+      totalAll,
+      totalPages: Math.ceil(total / limit),
+      statusCounts
     });
+
   } catch (err) {
-    console.error("Get my orders error:", err);
-    res.status(500).json({
-      success: false,
-      msg: "Failed to load orders"
-    });
+    console.error(err);
+    res.status(500).json({ msg: "Failed to load orders" });
+  }
+};
+
+exports.getOrderById = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id)
+      .populate("seller", "firstname lastname")
+      .populate("user", "firstname lastname email avatar")
+      .populate("items.item", "title images price");
+
+    if (!order) return res.status(404).json({ msg: "Order not found" });
+
+    // ✅ Cho phép cả buyer lẫn seller xem
+    const isBuyer  = order.user._id.toString() === req.user.id;
+    const isSeller = order.seller._id.toString() === req.user.id;
+
+    if (!isBuyer && !isSeller) {
+      return res.status(403).json({ msg: "Not authorized" });
+    }
+
+    // Normalize: gán buyer = user để frontend dùng chung
+    const result = order.toObject();
+    result.buyer = result.user;
+
+    res.json({ order: result });
+
+  } catch (err) {
+    res.status(500).json({ msg: "Server error" });
   }
 };
 
@@ -678,7 +712,11 @@ exports.updateOrderStatusBySeller = async (req, res) => {
     const sellerId = req.user.id;
     const { status } = req.body;
 
+    // =========================================================
+    // ✅ 0. VALIDATE STATUS INPUT
+    // =========================================================
     const allowedStatuses = ["confirmed", "shipping", "completed"];
+
     if (!allowedStatuses.includes(status)) {
       return res.status(400).json({
         success: false,
@@ -686,7 +724,11 @@ exports.updateOrderStatusBySeller = async (req, res) => {
       });
     }
 
+    // =========================================================
+    // ✅ 1. LOAD ORDER
+    // =========================================================
     const order = await Order.findById(req.params.id);
+
     if (!order) {
       return res.status(404).json({
         success: false,
@@ -694,11 +736,38 @@ exports.updateOrderStatusBySeller = async (req, res) => {
       });
     }
 
-    // ✅ Update status for seller items only
+    // =========================================================
+    // ✅ 2. BLOCK UPDATE IF ORDER CANCELLED / REFUNDED
+    // =========================================================
+    if (["cancelled", "refunded"].includes(order.status)) {
+      return res.status(400).json({
+        success: false,
+        msg: "Cannot update status of cancelled/refunded order"
+      });
+    }
+
+    // =========================================================
+    // ✅ 3. STRIPE RULE: ONLINE MUST BE PAID BEFORE SHIPPING
+    // =========================================================
+    if (
+      status === "shipping" &&
+      order.payment.method === "online" &&
+      order.payment.status !== "paid"
+    ) {
+      return res.status(400).json({
+        success: false,
+        msg: "Cannot ship this order before payment is completed"
+      });
+    }
+
+    // =========================================================
+    // ✅ 4. UPDATE SELLER ITEMS ONLY
+    // =========================================================
     let updated = false;
 
     order.items.forEach(item => {
       if (item.itemSnapshot.seller.toString() === sellerId) {
+        // ❌ Seller cannot update cancelled item
         if (item.sellerStatus === "cancelled") return;
 
         item.sellerStatus = status;
@@ -713,18 +782,24 @@ exports.updateOrderStatusBySeller = async (req, res) => {
       });
     }
 
-    // ✅ AUTO UPDATE MAIN ORDER STATUS
-    const statuses = order.items.map(i => i.sellerStatus);
+    // =========================================================
+    // ✅ 5. AUTO UPDATE MAIN ORDER STATUS
+    // =========================================================
+    const sellerStatuses = order.items.map(i => i.sellerStatus);
 
-    if (statuses.every(s => s === "completed")) {
+    if (sellerStatuses.every(s => s === "completed")) {
       order.status = "completed";
-    } else if (statuses.some(s => s === "shipping")) {
+    } 
+    else if (sellerStatuses.some(s => s === "shipping")) {
       order.status = "shipping";
-    } else if (statuses.every(s => s === "confirmed")) {
+    } 
+    else if (sellerStatuses.every(s => s === "confirmed")) {
       order.status = "confirmed";
     }
 
-    // ✅ FIX PAYMENT WHEN COMPLETED
+    // =========================================================
+    // ✅ 6. COD AUTO MARK PAID WHEN COMPLETED
+    // =========================================================
     if (
       order.status === "completed" &&
       order.payment.method === "cod" &&
@@ -734,22 +809,32 @@ exports.updateOrderStatusBySeller = async (req, res) => {
       order.paidAt = new Date();
     }
 
+    // =========================================================
+    // ✅ 7. SAVE ORDER
+    // =========================================================
     await order.save();
 
+    // =========================================================
+    // ✅ 8. RESPONSE
+    // =========================================================
     res.json({
       success: true,
       msg: "Order status updated successfully",
+      orderStatus: order.status,
+      paymentStatus: order.payment.status,
       order
     });
 
   } catch (err) {
     console.error("Update order status error:", err);
+
     res.status(500).json({
       success: false,
       msg: "Server error"
     });
   }
 };
+
 
 
 
@@ -800,7 +885,7 @@ exports.cancelOrderBySeller = async (req, res) => {
       order.payment.method === "online" &&
       order.payment.status === "paid"
     ) {
-      order.payment.status = "refund_pending";
+      order.payment.status = "refund-pending";
       // refund logic handled via Refund API instead
     }
 
@@ -875,7 +960,7 @@ exports.cancelOrder = async (req, res) => {
 
     // ✅ Refund logic for online payments
     if (order.payment.method === "online" && order.payment.status === "paid") {
-      order.payment.status = "refund_pending";
+      order.payment.status = "refund-pending";
       // Refund should be handled in Refund API (Stripe)
     }
 

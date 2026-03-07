@@ -84,6 +84,11 @@ const OrderSchema = new mongoose.Schema(
         default: ""
       },
 
+      stripeRefundId: {
+        type: String,
+        default: null
+      },
+
       evidence: {
         images: {
           type: [String],

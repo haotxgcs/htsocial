@@ -213,3 +213,53 @@ exports.deleteAddress = async (req, res) => {
     });
   }
 };
+
+// Set Default Address
+exports.setDefaultAddress = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const addressId = req.params.id;
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        msg: "User not found"
+      });
+    }
+
+    // ✅ Find address
+    const addr = user.addressBook.id(addressId);
+
+    if (!addr) {
+      return res.status(404).json({
+        success: false,
+        msg: "Address not found"
+      });
+    }
+
+    // ✅ Clear old default
+    user.addressBook.forEach(a => (a.isDefault = false));
+
+    // ✅ Set new default
+    addr.isDefault = true;
+
+    await user.save();
+
+    return res.json({
+      success: true,
+      msg: "Default address updated ✅",
+      addresses: user.addressBook
+    });
+
+  } catch (err) {
+    console.error("Set default error:", err);
+    res.status(500).json({
+      success: false,
+      msg: "Server error"
+    });
+  }
+};
+
+

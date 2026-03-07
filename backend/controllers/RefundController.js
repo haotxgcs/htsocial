@@ -1,11 +1,12 @@
 const Order = require("../models/OrderModel");
+const MarketplaceItem = require("../models/MarketplaceItemModel");
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
 /**
- * =====================================
+ * ======================================================
  * BUYER REQUEST REFUND
- * =====================================
- * POST /refund/:orderId/request
+ * POST /refund/request/:orderId
+ * ======================================================
  */
 exports.requestRefund = async (req, res) => {
   try {
@@ -13,7 +14,7 @@ exports.requestRefund = async (req, res) => {
     const { reason } = req.body;
     const orderId = req.params.orderId;
 
-    // ===== 1. LOAD ORDER =====
+    // ✅ 1. Find order
     const order = await Order.findById(orderId);
 
     if (!order) {
@@ -23,160 +24,244 @@ exports.requestRefund = async (req, res) => {
       });
     }
 
-    // ===== 2. ONLY BUYER CAN REQUEST =====
+    // ✅ 2. Only buyer
     if (order.user.toString() !== userId) {
       return res.status(403).json({
         success: false,
-        msg: "You are not allowed to request refund for this order"
+        msg: "Not allowed"
       });
     }
 
-    // ===== 3. ONLY SHIPPING / COMPLETED =====
-    if (!["shipping", "completed"].includes(order.status)) {
+    // ✅ 3. Online orders must be paid
+    if (order.payment.method === "online" && order.payment.status !== "paid") {
       return res.status(400).json({
         success: false,
-        msg: "Refund is only available after order is shipping/completed"
+        msg: "Only paid online orders can request refund"
       });
     }
 
-    // ===== 4. PREVENT DUPLICATE REFUND =====
-    if (order.refund && order.refund.status === "requested") {
+    // ✅ 4. Prevent duplicate refund
+    if (
+      order.refund.status !== "none" &&
+      order.refund.status !== "rejected"
+    ) {
       return res.status(400).json({
         success: false,
         msg: "Refund request already exists"
       });
     }
 
-    // ===== 5. EVIDENCE REQUIRED =====
-    if (!req.files || req.files.length === 0) {
+    // ✅ 5. Refund allowed only confirmed/shipping/completed
+    if (!["confirmed", "shipping", "completed"].includes(order.status)) {
       return res.status(400).json({
         success: false,
-        msg: "Refund evidence (images/videos) is required"
+        msg: "Refund not allowed for this order status"
       });
     }
 
-    // ===== 6. FILES PROCESSING =====
-    const images = req.files
-      .filter(f => f.mimetype.startsWith("image"))
-      .map(f => `uploads/${f.filename}`);
+    /**
+     * ✅ 6. Refund window: Only within 7 days after completed
+     */
+    if (order.status === "completed") {
+      const completedDate = order.updatedAt; // hoặc completedAt nếu có
 
-    const videos = req.files
-      .filter(f => f.mimetype.startsWith("video"))
-      .map(f => `uploads/${f.filename}`);
+      const daysPassed =
+        (Date.now() - completedDate.getTime()) / (1000 * 60 * 60 * 24);
 
-    if (images.length === 0 && videos.length === 0) {
-      return res.status(400).json({
-        success: false,
-        msg: "Evidence must include at least 1 image/video"
-      });
+      if (daysPassed > 7) {
+        return res.status(400).json({
+          success: false,
+          msg: "Refund period expired (7 days limit)"
+        });
+      }
     }
 
-    // ===== 7. SAVE REFUND REQUEST =====
+    /**
+     * ✅ 7. Evidence required ONLY if completed
+     */
+    if (order.status === "completed") {
+      if (!req.files || req.files.length === 0) {
+        return res.status(400).json({
+          success: false,
+          msg: "Evidence is required for completed orders"
+        });
+      }
+    }
+
+    /**
+     * ✅ 8. Evidence upload to Cloudinary
+     * file.path = Cloudinary URL
+     */
+    let images = [];
+    let videos = [];
+
+    if (req.files && req.files.length > 0) {
+      images = req.files
+        .filter(f => f.mimetype.startsWith("image"))
+        .map(f => f.path); // ✅ Cloudinary URL
+
+      videos = req.files
+        .filter(f => f.mimetype.startsWith("video"))
+        .map(f => f.path); // ✅ Cloudinary URL
+    }
+
+    /**
+     * ✅ 9. Save refund request
+     */
     order.refund = {
       status: "requested",
       reason: reason?.trim() || "No reason provided",
+      stripeRefundId: null,
       evidence: { images, videos },
       requestedAt: new Date()
     };
 
     await order.save();
 
-    res.json({
+    return res.status(200).json({
       success: true,
-      msg: "Refund request submitted successfully",
+      msg:
+        order.status === "completed"
+          ? "Refund request submitted ✅ Evidence uploaded"
+          : "Refund request submitted ✅",
       refund: order.refund
     });
 
   } catch (err) {
     console.error("Refund request error:", err);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       msg: "Server error"
     });
   }
 };
 
+
+
+
 /**
- * =====================================
+ * ======================================================
  * SELLER APPROVE REFUND
- * =====================================
- * POST /refund/:orderId/approve
+ * PATCH /refund/approve/:orderId
+ * ======================================================
  */
 exports.approveRefund = async (req, res) => {
   try {
     const sellerId = req.user.id;
     const order = await Order.findById(req.params.orderId);
 
-    if (!order) return res.status(404).json({ msg: "Order not found" });
-
-    if (!order.refund || order.refund.status !== "requested") {
-      return res.status(400).json({ msg: "No refund request found" });
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        msg: "Order not found"
+      });
     }
 
-    if (order.refund.status === "approved") {
-      return res.status(400).json({ msg: "Refund already approved" });
+    // ✅ Must be requested
+    if (order.refund.status !== "requested") {
+      return res.status(400).json({
+        success: false,
+        msg: "No refund request found"
+      });
     }
 
-    // ✅ Seller items only
-    const sellerItems = order.items.filter(
-      i => i.itemSnapshot.seller.toString() === sellerId
-    );
-
-    if (sellerItems.length === 0) {
-      return res.status(403).json({ msg: "Not allowed" });
+    // ✅ Only seller of this order
+    if (order.seller.toString() !== sellerId) {
+      return res.status(403).json({
+        success: false,
+        msg: "Not allowed"
+      });
     }
 
-    // ✅ Refund only seller subtotal
-    const sellerSubtotal = sellerItems.reduce(
+    // ✅ Calculate total refund
+    const subtotal = order.items.reduce(
       (sum, i) => sum + i.price * i.quantity,
       0
     );
 
-    // ✅ Stripe refund
+    // ✅ Restock only if order is still shipping
+    const allowRestock = order.status === "shipping";
+
+    /**
+     * ✅ Online refund → Stripe
+     */
     if (order.payment.method === "online") {
-      await stripe.refunds.create({
+      if (order.payment.status !== "paid") {
+        return res.status(400).json({
+          success: false,
+          msg: "Cannot refund unpaid order"
+        });
+      }
+
+      const stripeRefund = await stripe.refunds.create({
         payment_intent: order.payment.stripePaymentIntentId,
-        amount: sellerSubtotal * 100
+        amount: Math.round(subtotal * 100)
       });
 
+      order.payment.status = "refund-pending";
+      order.refund.stripeRefundId = stripeRefund.id;
+    }
+
+    /**
+     * ✅ COD refund → manual
+     */
+    if (order.payment.method === "cod") {
       order.payment.status = "refunded";
     }
 
-    // ✅ Restore stock
-    for (const i of sellerItems) {
-      await MarketplaceItem.findByIdAndUpdate(i.item, {
-        $inc: { quantity: i.quantity }
-      });
+    /**
+     * ✅ Restock quantity ONLY if shipping
+     */
+    if (allowRestock) {
+      for (const i of order.items) {
+        await MarketplaceItem.findByIdAndUpdate(i.item, {
+          $inc: { quantity: i.quantity }
+        });
+      }
     }
 
-    // ✅ Refund update
+    // ✅ Update refund info
     order.refund.status = "approved";
     order.refund.resolvedBy = "seller";
     order.refund.resolvedAt = new Date();
 
-    // ✅ Order status update
-    order.status = "refunded";
+    // ✅ COD refund done immediately
+    if (order.payment.method === "cod") {
+      order.refund.status = "refunded";
+      order.status = "refunded";
+    }
+
+    if (order.payment.method === "online") {
+      order.status = "refunded";
+    }
 
     await order.save();
 
-    res.json({
+    return res.json({
       success: true,
-      msg: "Refund approved successfully",
+      msg:
+        order.payment.method === "online"
+          ? "Refund approved ✅ Stripe processing..."
+          : "Refund approved ✅ COD refunded",
       refund: order.refund
     });
 
   } catch (err) {
     console.error("Approve refund error:", err);
-    res.status(500).json({ msg: "Server error" });
+    return res.status(500).json({
+      success: false,
+      msg: "Server error"
+    });
   }
 };
 
 
+
 /**
- * =====================================
+ * ======================================================
  * SELLER REJECT REFUND
- * =====================================
- * POST /refund/:orderId/reject
+ * PATCH /refund/reject/:orderId
+ * ======================================================
  */
 exports.rejectRefund = async (req, res) => {
   try {
@@ -185,22 +270,27 @@ exports.rejectRefund = async (req, res) => {
 
     const order = await Order.findById(req.params.orderId);
 
-    if (!order) {
-      return res.status(404).json({ msg: "Order not found" });
-    }
+    if (!order)
+      return res.status(404).json({ success: false, msg: "Order not found" });
 
+    // ✅ Seller items only
     const sellerItems = order.items.filter(
       i => i.itemSnapshot.seller.toString() === sellerId
     );
 
-    if (sellerItems.length === 0) {
-      return res.status(403).json({ msg: "Not allowed" });
-    }
+    if (sellerItems.length === 0)
+      return res.status(403).json({
+        success: false,
+        msg: "Not allowed"
+      });
 
-    if (!order.refund || order.refund.status !== "requested") {
-      return res.status(400).json({ msg: "No refund request found" });
-    }
+    if (!order.refund || order.refund.status !== "requested")
+      return res.status(400).json({
+        success: false,
+        msg: "No refund request found"
+      });
 
+    // ✅ Reject refund
     order.refund.status = "rejected";
     order.refund.resolvedBy = "seller";
     order.refund.resolvedAt = new Date();
@@ -210,12 +300,86 @@ exports.rejectRefund = async (req, res) => {
 
     res.json({
       success: true,
-      msg: "Refund rejected successfully",
+      msg: "Refund rejected successfully ✅",
       refund: order.refund
     });
 
   } catch (err) {
     console.error("Reject refund error:", err);
-    res.status(500).json({ msg: "Server error" });
+    res.status(500).json({ success: false, msg: "Server error" });
+  }
+};
+
+exports.getRefundsForBuyer = async (req, res) => {
+  try {
+
+    const userId = req.user.id;
+
+    const orders = await Order.find({
+      user: userId,
+      "refund.status": { $in: ["requested", "approved", "rejected"] }
+    })
+    .populate("items.item","title images price")
+    .select("refund items createdAt");
+
+    const refunds = orders.map(order => ({
+      orderId: order._id,
+      items: order.items,
+      refund: order.refund,
+      createdAt: order.createdAt
+    }));
+
+    res.json({
+      success:true,
+      refunds
+    });
+
+  } catch (err) {
+
+    console.error("Get refunds for buyer error:", err);
+
+    res.status(500).json({
+      success:false,
+      msg:"Server error"
+    });
+
+  }
+};
+
+exports.getRefundsForSeller = async (req, res) => {
+  try {
+
+    const sellerId = req.user.id;
+
+    const orders = await Order.find({
+      "items.itemSnapshot.seller": sellerId,
+      "refund.status": { $in: ["requested", "approved", "rejected"] }
+    })
+    .populate("user","firstname lastname email avatar")
+    .populate("items.item","title images price")
+    .select("refund items user createdAt");
+
+    const refunds = orders.map(order => ({
+      orderId: order._id,
+      buyer: order.user,
+      items: order.items,
+      refund: order.refund,
+      createdAt: order.createdAt
+    }));
+
+    res.json({
+      success:true,
+      refunds
+    });
+
+  } catch (err) {
+
+    console.error("Get refunds for seller error:", err);
+
+    res.status(500).json({
+      success:false,
+      msg:"Server error"
+    });
+
   }
 };

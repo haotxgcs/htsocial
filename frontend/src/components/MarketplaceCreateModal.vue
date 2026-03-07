@@ -17,9 +17,13 @@
       <!-- USER INFO -->
       <div class="post-creator-info">
         <img
-          :src="`http://localhost:3000/${user?.avatar || 'user.png'}`"
+          :src="user?.avatar?.startsWith('http')
+            ? user.avatar
+            : `http://localhost:3000/${user?.avatar || 'user.png'}`
+          "
           class="creator-avatar"
         />
+
         <div class="creator-details">
           <strong>{{ user?.firstname }} {{ user?.lastname }}</strong>
           <span class="sub-text">Marketplace</span>
@@ -79,6 +83,7 @@
             v-model="form.quantity"
             @input="onQuantityInput"
             @blur="onQuantityBlur"
+            :disabled="loading"
           />
         </div>
 
@@ -97,6 +102,7 @@
 
           <label class="image-upload-btn">
             <input
+              ref="fileInput"
               type="file"
               multiple
               accept="image/*"
@@ -209,25 +215,28 @@ export default {
 },
   methods: {
     handleFiles(e) {
-  const files = Array.from(e.target.files);
+      const files = Array.from(e.target.files);
 
-  if (files.length < 1 || files.length > 5) {
-    alert("Please upload 1–5 images");
-    return;
-  }
+      if (files.length < 1 || files.length > 5) {
+        alert("Please upload 1–5 images");
+        return;
+      }
 
-  const valid = files.every(
-    f => f.type.startsWith("image/") && f.size <= 5 * 1024 * 1024
-  );
+      const valid = files.every(
+        f => f.type.startsWith("image/") && f.size <= 5 * 1024 * 1024
+      );
 
-  if (!valid) {
-    alert("Images must be JPG/PNG and ≤ 5MB");
-    return;
-  }
+      if (!valid) {
+        alert("Images must be JPG/PNG and ≤ 5MB");
+        return;
+      }
 
-  this.files = files;
-  this.previews = files.map(f => URL.createObjectURL(f));
-},
+      this.files = files;
+      this.previews = files.map(f => URL.createObjectURL(f));
+
+      // ❌ Không reset ở đây nữa
+    },
+
 
 
     hasChanges() {
@@ -266,56 +275,58 @@ export default {
       this.files = [];
       this.previews.forEach(URL.revokeObjectURL);
       this.previews = [];
+
+      if (this.$refs.fileInput) {
+        this.$refs.fileInput.value = "";
+      }
     },
 
-    async submit() {
-      if (!localStorage.getItem("token")) {
-        alert("Please login first");
-        return;
-      }
+async submit() {
+  const token = localStorage.getItem("token");
+  if (!token) return alert("Please login first");
 
-     
+  const formData = new FormData();
 
-      const formData = new FormData();
+  // Append fields (except price)
+  Object.entries(this.form).forEach(([k, v]) => {
+    if (k !== "price" && v !== null && v !== "") {
+      formData.append(k, v);
+    }
+  });
 
-      Object.entries(this.form).forEach(([k, v]) => {
-        if (k !== "price") formData.append(k, v);
-      });
+  // Price + quantity as number
+  formData.append("price", Number(this.priceInput));
+  formData.append("quantity", Number(this.form.quantity));
 
-      formData.append("price", Number(this.priceInput));
-      
-      this.files.forEach(f => formData.append("images", f));
+  // Images
+  this.files.forEach(f => formData.append("images", f));
 
-      this.loading = true;
+  this.loading = true;
 
-      const token = localStorage.getItem("token");
-
-      const res = await fetch("http://localhost:3000/marketplace/create", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`
-        },
-        body: formData
-      });
-
-
-      this.loading = false;
-
-      
-
-
-      if (!res.ok) {
-        const err = await res.json();
-        console.error("Create item error:", err);
-        alert(err.msg || "Create item failed");
-        return;
-      }
-
-
-      this.$emit("created");
-      this.resetForm();
-      this.$emit("close");
+  const res = await fetch("http://localhost:3000/marketplace/create", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`
     },
+    body: formData
+  });
+
+  this.loading = false;
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    console.error("Create item error:", data);
+    alert(data.msg || "Create item failed");
+    return;
+  }
+
+  alert("✅ Item created successfully!");
+  this.resetForm();
+  this.$emit("created");
+  this.$emit("close");
+},
+
 
     onPriceInput(e) {
     let value = e.target.value.replace(/[^0-9.]/g, "");

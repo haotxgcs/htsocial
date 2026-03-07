@@ -1,11 +1,19 @@
 const express = require("express");
 const router = express.Router();
 const auth = require("../middleware/authMiddleware");
-const UserAddressController = require("../controllers/UserAddressController");
+const {
+    getAddresses,
+    addAddress,
+    updateAddress,
+    deleteAddress,
+    setDefaultAddress
+} = require("../controllers/UserAddressController");
 
-router.get("/", auth, UserAddressController.getAddresses);
-router.post("/", auth, UserAddressController.addAddress);
-router.put("/:addressId", auth, UserAddressController.updateAddress);
-router.delete("/:addressId", auth, UserAddressController.deleteAddress);
+router.get("/", auth, getAddresses);
+router.post("/", auth, addAddress);
+router.put("/:addressId", auth, updateAddress);
+router.delete("/:addressId", auth, deleteAddress);
+router.patch("/:id/default", auth, setDefaultAddress);
+
 
 module.exports = router;

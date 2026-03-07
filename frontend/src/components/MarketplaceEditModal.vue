@@ -196,9 +196,13 @@ watch: {
     this.form.condition = this.item.condition ?? null;
 
     this.priceInput = Number(this.item.price).toFixed(2);
-    this.previews = this.item.images?.map(
-      img => `http://localhost:3000/${img}`
-    ) || [];
+    this.previews =
+      this.item.images?.map(img =>
+        img.startsWith("http")
+          ? img
+          : `http://localhost:3000/${img}`
+      ) || [];
+
 
     this.files = [];
     this.removedImages = [];
@@ -233,18 +237,20 @@ handleFiles(e) {
     removeImage(i) {
       const url = this.previews[i];
 
-      // 👉 ẢNH CŨ (đã tồn tại trên server)
-      if (url.startsWith("http://localhost:3000/")) {
-        const path = url.replace("http://localhost:3000/", "");
-        this.removedImages.push(path);
-      } 
-      // 👉 ẢNH MỚI (blob)
+      // ✅ ẢNH CŨ (Cloudinary hoặc local)
+      if (url.startsWith("http")) {
+        const original = this.item.images[i];
+        this.removedImages.push(original);
+      }
+
+      // ✅ ẢNH MỚI (blob preview)
       else {
         this.files.splice(i - this.getOldImagesCount(), 1);
       }
 
       this.previews.splice(i, 1);
     },
+
 
     getOldImagesCount() {
       return this.item?.images?.length || 0;
@@ -281,7 +287,7 @@ handleFiles(e) {
 
       // ✅ 1. GỬI ẢNH BỊ XOÁ TRƯỚC
       this.removedImages.forEach(img => {
-        fd.append("removedImages[]", img);
+        fd.append("removedImages", img);
       });
 
       // ✅ 2. GỬI ẢNH MỚI

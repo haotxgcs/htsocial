@@ -3,16 +3,19 @@ const Post = require("../models/PostModel");
 const Cart = require("../models/CartModel");
 
 // ===== 1. CREATE ITEM =====
+
+
 exports.createItem = async (req, res) => {
   try {
     const { title, description, type, price, quantity, condition } = req.body;
 
-    const images = req.files
-      ? req.files.map(file => `uploads/${file.filename}`)
-      : [];
+    // ✅ images Cloudinary
+    const images = req.files ? req.files.map(f => f.path) : [];
 
-    // ✅ normalize quantity
-    const normalizedQuantity = Math.max(0, Number(quantity ?? 0));
+    // ✅ FIX quantity NaN
+    const normalizedQuantity = Number.isFinite(Number(quantity))
+      ? Number(quantity)
+      : 1;
 
     const item = new MarketplaceItem({
       title,
@@ -20,7 +23,7 @@ exports.createItem = async (req, res) => {
       type,
       price,
       quantity: normalizedQuantity,
-      condition: type === "tool" ? (condition || "new") : null,
+      condition: type === "tool" ? condition || "new" : null,
       seller: req.user.id,
       images,
       status: normalizedQuantity > 0 ? "active" : "sold"
@@ -28,20 +31,19 @@ exports.createItem = async (req, res) => {
 
     await item.save();
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       msg: "Item created successfully",
       item
     });
 
   } catch (err) {
-    console.error("Create marketplace item error:", err);
-    res.status(500).json({
-      success: false,
-      msg: "Server error"
-    });
+    console.error("Create item error:", err);
+    return res.status(500).json({ msg: err.message });
   }
 };
+
+
 
 
 
@@ -174,11 +176,13 @@ exports.updateItem = async (req, res) => {
 
     // ===== HANDLE NEW IMAGES =====
     if (req.files && req.files.length > 0) {
-      const newImages = req.files.map(
-        file => `uploads/${file.filename}`
-      );
+
+      // ✅ new uploaded images = Cloudinary URL
+      const newImages = req.files.map(file => file.path);
+        
       item.images.push(...newImages);
     }
+
 
     await item.save();
 

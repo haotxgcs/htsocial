@@ -8,8 +8,14 @@ exports.getCart = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    const cart = await Cart.findOne({ user: userId })
-      .populate("items.item");
+    const cart = await Cart.findOne({ user: req.user.id })
+    .populate({
+      path: "items.item",
+      populate: {
+        path: "seller",
+        select: "firstname lastname"
+      }
+    });
 
     res.json({
       success: true,

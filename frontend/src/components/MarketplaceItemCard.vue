@@ -73,11 +73,21 @@ export default {
       );
     },
     imageUrl() {
-      if (this.item.images?.length) {
-        return `http://localhost:3000/${this.item.images[0]}`;
-      }
-      return "https://via.placeholder.com/300";
-    },
+  if (!this.item.images?.length) {
+    return "https://via.placeholder.com/300";
+  }
+
+  const img = this.item.images[0];
+
+  // ✅ Nếu là ảnh Cloudinary (URL đầy đủ) thì dùng luôn
+  if (img.startsWith("http")) {
+    return img;
+  }
+
+  // ✅ Nếu là ảnh local (cũ) thì mới thêm localhost
+  return `http://localhost:3000/${img}`;
+},
+
     avatarUrl() {
       if (this.item.seller?.avatar) {
         return `http://localhost:3000/${this.item.seller.avatar}`;

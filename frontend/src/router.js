@@ -13,6 +13,13 @@ import NotificationPage from './components/NotificationPage.vue';
 import ProfilePage from './components/ProfilePage.vue';
 import HiddenItems from './components/HiddenItems.vue';
 import SavedPosts from './components/SavedPosts.vue';
+import CheckoutPage from './components/Checkout.vue';
+import OrderPage from './components/OrderPage.vue';
+import OrderDetailPage from './components/OrderDetailPage.vue';
+import PaymentPage from './components/PaymentPage.vue';
+import CartPage from './components/CartPage.vue';
+import SellerOrders from './components/SellerOrders.vue';
+
 
 
 const routes = [
@@ -30,7 +37,15 @@ const routes = [
   { path: '/profile', component: ProfilePage },
   { path: '/profile/:id', component: ProfilePage },
   { path: '/hidden', component: HiddenItems},
-  {path: '/saved', component: SavedPosts}
+  { path: '/saved', component: SavedPosts},
+  { path: '/checkout', component: CheckoutPage },
+  { path:'/orders', component: OrderPage },
+  { path: '/orders/:id', component: OrderDetailPage },
+  { path: "/seller-orders/:id", component: OrderDetailPage },
+  { path: '/seller-orders', component: SellerOrders },
+  { path: '/payment/:id', component: PaymentPage },
+  { path: '/cart', component: CartPage }
+
 ];
  
 const router = createRouter({

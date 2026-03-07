@@ -1,53 +1,47 @@
 const express = require("express");
 const router = express.Router();
 const MarketplaceController = require("../controllers/MarketplaceController");
-const multer = require("multer");
 const auth = require("../middleware/authMiddleware");
 
-// ===== Upload Config =====
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/");
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + "-" + file.originalname);
-  }
-});
+// ✅ Cloudinary Upload Middleware
+const uploadCloud = require("../middleware/uploadCloudinary");
 
-const upload = multer({ storage });
+/**
+ * ============================
+ * MARKETPLACE ROUTES
+ * ============================
+ */
 
-// ===== Routes =====
-
-// CREATE ITEM (login required)
+// ✅ CREATE ITEM (Seller Upload Images)
 router.post(
   "/create",
   auth,
-  upload.array("images", 5),
+  uploadCloud.array("images", 5),
   MarketplaceController.createItem
 );
 
-// GET ALL ITEMS (login required – để dùng My Items)
+// ✅ GET ALL ITEMS
 router.get(
   "/",
   auth,
   MarketplaceController.getAllItems
 );
 
-// GET ITEM DETAIL
+// ✅ GET ITEM DETAIL
 router.get(
   "/:id",
   MarketplaceController.getItemById
 );
 
-// UPDATE ITEM (chỉ seller)
+// ✅ UPDATE ITEM (Seller Only)
 router.put(
   "/:id",
   auth,
-  upload.array("images", 5),
+  uploadCloud.array("images", 5),
   MarketplaceController.updateItem
 );
 
-// DELETE ITEM (chỉ seller)
+// ✅ DELETE ITEM (Soft Delete)
 router.delete(
   "/:id",
   auth,
