@@ -1,129 +1,243 @@
 <template>
   <div class="seller-orders">
 
-    <h2>Seller Orders</h2>
+    <h2 class="page-title">Seller Dashboard</h2>
 
-    <!-- TABS -->
+    <!-- ========================= -->
+    <!-- TABS                      -->
+    <!-- ========================= -->
     <div class="tabs">
       <button :class="{ active: tab === 'orders' }" @click="tab = 'orders'">
-        <strong>Orders
-        <span v-if="orders.length > 0" class="count">({{ orders.length }})</span></strong>
+        Orders
+        <span class="tab-badge" v-if="orders.length">{{ orders.length }}</span>
       </button>
       <button :class="{ active: tab === 'refunds' }" @click="tab = 'refunds'">
-        <strong>
-          Refund Requests
-          <span v-if="refunds.length > 0" class="count">({{ refunds.length }})</span>
-        </strong>
+        Refund Requests
+        <span class="tab-badge tab-badge--red" v-if="pendingRefunds.length">{{ pendingRefunds.length }}</span>
+      </button>
+      <button :class="{ active: tab === 'reviews' }" @click="switchToReviews">
+        Reviews
+        <span class="tab-badge tab-badge--yellow" v-if="unrepliedCount > 0">{{ unrepliedCount }}</span>
       </button>
     </div>
 
     <!-- ERROR -->
-    <div v-if="error" class="error-msg">
-      ⚠️ {{ error }}
-    </div>
+    <div v-if="error" class="error-msg">⚠️ {{ error }}</div>
 
     <!-- LOADING -->
     <LoadingOverlay v-if="loading" />
 
-    <!-- ========================= -->
-    <!-- ORDERS TABLE              -->
-    <!-- ========================= -->
-    <div class="table-wrapper">
-      <table v-if="!loading && tab === 'orders'" class="table">
-        <thead>
-          <tr>
-            <th>Order</th>
-            <th>Buyer</th>
-            <th>Items</th>
-            <th>Total</th>
-            <th>Status</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="order in orders" :key="order._id">
+    <!-- ======================================= -->
+    <!-- ORDERS TAB                              -->
+    <!-- ======================================= -->
+    <div v-if="!loading && tab === 'orders'">
 
-            <td>#{{ order._id.slice(-6) }}</td>
+      <!-- Status filter pills -->
+      <div class="filter-bar">
+        <button
+          v-for="f in statusFilters" :key="f.value"
+          class="filter-pill"
+          :class="{ active: statusFilter === f.value }"
+          @click="statusFilter = f.value"
+        >
+          <span v-if="f.value !== 'all'" class="pill-dot" :class="f.value"></span>
+          {{ f.label }}
+          <span class="pill-count">{{ f.value === 'all' ? orders.length : orders.filter(o => o.status === f.value).length }}</span>
+        </button>
+      </div>
 
-            <td>{{ order.buyer?.firstname }} {{ order.buyer?.lastname }}</td>
+      <!-- Orders table -->
+      <div class="table-wrapper" v-if="filteredOrders.length > 0">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Order</th>
+              <th>Buyer</th>
+              <th>Items</th>
+              <th>Total</th>
+              <th>Status</th>
+              <th>Date</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="order in filteredOrders" :key="order._id">
+              <td class="order-id">#{{ order._id.slice(-6) }}</td>
+              <td>{{ order.buyer?.firstname }} {{ order.buyer?.lastname }}</td>
+              <td>
+                <div class="item-scroll">
+                  <div v-for="item in order.items" :key="item._id" class="item-row">
+                    {{ item.itemSnapshot?.title }} <span class="item-qty">×{{ item.quantity }}</span>
+                  </div>
+                </div>
+              </td>
+              <td><strong class="total-price">${{ order.subtotal }}</strong></td>
+              <td><span class="status-badge" :class="order.status">{{ order.status }}</span></td>
+              <td class="date-cell">{{ formatDate(order.createdAt) }}</td>
+              <td class="action-cell">
+                <button class="btn-view" @click="$router.push(`/seller-orders/${order._id}`)">View</button>
+                <button
+                  v-if="['pending','confirmed','shipping'].includes(order.status)"
+                  class="btn-update"
+                  @click="openStatusModal(order)"
+                >Update</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
-            <td>
-              <div class="item-scroll">
-              <div v-for="item in order.items" :key="item._id" class="item-row">
-                {{ item.itemSnapshot?.title }} x{{ item.quantity }}
-              </div>
-              </div>
-            </td>
-
-            <td>
-              <strong class="total-price">${{ order.subtotal }}</strong>
-            </td>
-
-            <td>
-              <span class="status" :class="order.status">{{ order.status }}</span>
-            </td>
-
-            <td class="action-cell">
-              <button
-                class="btn-view"
-                @click="$router.push(`/seller-orders/${order._id}`)"
-              >View</button>
-
-              <button
-                v-if="['pending','confirmed','shipping'].includes(order.status)"
-                @click="openStatusModal(order)"
-              >Update</button>
-            </td>
-
-          </tr>
-        </tbody>
-      </table>
+      <div v-else class="empty-state">
+        <div class="empty-icon">📦</div>
+        <p>No orders found{{ statusFilter !== 'all' ? ` with status "${statusFilter}"` : '' }}.</p>
+      </div>
     </div>
 
-    <div v-if="!loading && tab === 'orders' && orders.length === 0" class="empty">
-      No orders yet
+    <!-- ======================================= -->
+    <!-- REFUNDS TAB                             -->
+    <!-- ======================================= -->
+    <div v-if="!loading && tab === 'refunds'">
+      <div class="table-wrapper" v-if="refunds.length > 0">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Order</th>
+              <th>Buyer</th>
+              <th>Reason</th>
+              <th>Evidence</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="refund in refunds" :key="refund.orderId">
+              <td class="order-id">#{{ refund.orderId.slice(-6) }}</td>
+              <td>{{ refund.buyer?.firstname }} {{ refund.buyer?.lastname }}</td>
+              <td class="reason-cell">{{ refund.refund?.reason }}</td>
+              <td>
+                <div class="evidence-thumbs" v-if="refund.refund?.evidence?.images?.length || refund.refund?.evidence?.videos?.length">
+                  <img
+                    v-for="(img, i) in (refund.refund.evidence.images || []).slice(0, 3)"
+                    :key="i" :src="img" class="evidence-mini"
+                  />
+                  <span v-if="refund.refund?.evidence?.videos?.length" class="evidence-video-tag">
+                    🎥 {{ refund.refund.evidence.videos.length }}
+                  </span>
+                </div>
+                <span v-else class="no-evidence-text">—</span>
+              </td>
+              <td><span class="refund-status-badge" :class="refund.refund?.status">{{ refund.refund?.status }}</span></td>
+              <td><button class="btn-view" @click="openRefundModal(refund)">View</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div v-else class="empty-state">
+        <div class="empty-icon">🎉</div>
+        <p>No refund requests. Great job!</p>
+      </div>
     </div>
 
-    <!-- ========================= -->
-    <!-- REFUNDS TABLE             -->
-    <!-- ========================= -->
-    <table v-if="!loading && tab === 'refunds'" class="table">
-      <thead>
-        <tr>
-          <th>Order</th>
-          <th>Buyer</th>
-          <th>Reason</th>
-          <th>Status</th>
-          <th>Action</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="refund in refunds" :key="refund.orderId">
-          <td>#{{ refund.orderId.slice(-6) }}</td>
-          <td>{{ refund.buyer?.firstname }} {{ refund.buyer?.lastname }}</td>
-          <td>{{ refund.refund?.reason }}</td>
-          <td>{{ refund.refund?.status }}</td>
-          <td>
-            <button @click="openRefundModal(refund)">View</button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <!-- ======================================= -->
+    <!-- REVIEWS TAB                             -->
+    <!-- ======================================= -->
+    <div v-if="!loading && tab === 'reviews'">
 
-    <div v-if="!loading && tab === 'refunds' && refunds.length === 0" class="empty">
-      No refund requests
+      <div class="filter-bar">
+        <!-- Reply state filter -->
+        <button
+          v-for="f in reviewFilters" :key="f.value"
+          class="filter-pill"
+          :class="{ active: reviewFilter === f.value }"
+          @click="reviewFilter = f.value"
+        >
+          {{ f.label }}
+          <span class="pill-count">
+            {{ f.value === 'all' ? reviews.length : f.value === 'unreplied' ? unrepliedCount : (reviews.length - unrepliedCount) }}
+          </span>
+        </button>
+
+        <!-- Star filter -->
+        <div class="star-filter">
+          <button
+            v-for="s in [0, 5, 4, 3, 2, 1]" :key="s"
+            class="star-pill"
+            :class="{ active: starFilter === s }"
+            @click="starFilter = s"
+          >
+            <template v-if="s === 0">All ★</template>
+            <template v-else>{{ s }}★</template>
+          </button>
+        </div>
+      </div>
+
+      <div v-if="reviewsLoading" class="empty-state">
+        <div class="empty-icon">⏳</div><p>Loading reviews...</p>
+      </div>
+
+      <div v-else-if="filteredReviews.length === 0" class="empty-state">
+        <div class="empty-icon">⭐</div><p>No reviews found.</p>
+      </div>
+
+      <div v-else class="reviews-grid">
+        <div v-for="review in filteredReviews" :key="review._id" class="review-card">
+
+          <!-- Item bar -->
+          <div class="review-item-bar">
+            <img :src="review.item?.images?.[0]" class="review-item-img" />
+            <div class="review-item-info">
+              <div class="review-item-title">{{ review.item?.title || 'Unknown Item' }}</div>
+              <div class="review-item-price">${{ review.item?.price }}</div>
+            </div>
+            <div class="rating-badge" :class="ratingClass(review.rating)">{{ review.rating }}★</div>
+          </div>
+
+          <!-- Stars -->
+          <div class="stars-display">
+            <span v-for="s in 5" :key="s" class="rstar" :class="{ filled: s <= review.rating }">★</span>
+            <span class="rating-label">{{ ratingLabel(review.rating) }}</span>
+          </div>
+
+          <!-- Reviewer -->
+          <div class="reviewer-row">
+            <img :src="review.user?.avatar || '/default-avatar.png'" class="reviewer-avatar" />
+            <div>
+              <div class="reviewer-name">{{ review.user?.firstname }} {{ review.user?.lastname }}</div>
+              <div class="review-date">{{ formatDate(review.createdAt) }}</div>
+            </div>
+          </div>
+
+          <!-- Comment -->
+          <p class="review-comment" v-if="review.comment">{{ review.comment }}</p>
+          <p class="review-comment no-comment" v-else>No written review.</p>
+
+          <!-- Already replied -->
+          <div v-if="review.sellerReply?.repliedAt" class="seller-reply-box">
+            <div class="seller-reply-label">
+              ↩ Your response
+              <span class="reply-date">· {{ formatDate(review.sellerReply.repliedAt) }}</span>
+            </div>
+            <p class="seller-reply-text">{{ review.sellerReply.content }}</p>
+            <button class="btn-edit-reply" @click="openReplyModal(review)">Edit Reply</button>
+          </div>
+
+          <!-- Not replied -->
+          <button v-else class="btn-reply" @click="openReplyModal(review)">↩ Reply to Review</button>
+
+        </div>
+      </div>
     </div>
 
     <!-- ========================= -->
     <!-- ACTION MODAL              -->
-    <!-- Thay toàn bộ inline modal -->
-    <!-- bằng component ActionModal-->
     <!-- ========================= -->
     <ActionModal
       v-if="modal.visible"
+      ref="actionModalRef"
       :type="modal.type"
       :order="modal.order"
       :refund="modal.refund"
+      :review="modal.review"
       @cancel="modal.visible = false"
       @confirm="handleModalConfirm"
     />
@@ -137,26 +251,67 @@ import LoadingOverlay from "./LoadingOverlay.vue";
 import ActionModal from "./ActionModal.vue";
 
 export default {
-  components: {
-    LoadingOverlay,
-    ActionModal
-  },
+  components: { LoadingOverlay, ActionModal },
 
   data() {
     return {
       tab: "orders",
+      // Orders
       orders: [],
-      refunds: [],
+      statusFilter: "all",
       loading: false,
       error: null,
-
-      modal: {
-        visible: false,
-        type: "",       // "status" | "refund"
-        order: null,
-        refund: null
-      }
+      // Refunds
+      refunds: [],
+      // Reviews
+      reviews: [],
+      reviewsLoading: false,
+      reviewFilter: "all",
+      starFilter: 0,
+      // Modal
+      modal: { visible: false, type: "", order: null, refund: null, review: null }
     };
+  },
+
+  computed: {
+    /* Orders */
+    statusFilters() {
+      return [
+        { label: "All",       value: "all"       },
+        { label: "Pending",   value: "pending"   },
+        { label: "Confirmed", value: "confirmed" },
+        { label: "Shipping",  value: "shipping"  },
+        { label: "Completed", value: "completed" },
+        { label: "Cancelled", value: "cancelled" },
+        { label: "Refunded",  value: "refunded"  }
+      ];
+    },
+    filteredOrders() {
+      if (this.statusFilter === "all") return this.orders;
+      return this.orders.filter(o => o.status === this.statusFilter);
+    },
+    /* Refunds */
+    pendingRefunds() {
+      return this.refunds.filter(r => r.refund?.status === "requested");
+    },
+    /* Reviews */
+    reviewFilters() {
+      return [
+        { label: "All",       value: "all"       },
+        { label: "Unreplied", value: "unreplied" },
+        { label: "Replied",   value: "replied"   }
+      ];
+    },
+    unrepliedCount() {
+      return this.reviews.filter(r => !r.sellerReply?.repliedAt).length;
+    },
+    filteredReviews() {
+      let list = this.reviews;
+      if (this.reviewFilter === "unreplied") list = list.filter(r => !r.sellerReply?.repliedAt);
+      if (this.reviewFilter === "replied")   list = list.filter(r =>  r.sellerReply?.repliedAt);
+      if (this.starFilter > 0) list = list.filter(r => r.rating === this.starFilter);
+      return list;
+    }
   },
 
   mounted() {
@@ -166,307 +321,422 @@ export default {
 
   methods: {
 
-    /* ========================= */
-    /* FETCH ORDERS              */
-    /* ========================= */
     async fetchOrders() {
-      this.loading = true;
-      this.error = null;
+      this.loading = true; this.error = null;
       try {
         const token = localStorage.getItem("token");
-        const res = await fetch(
-          `${process.env.VUE_APP_API_URL}/orders/seller`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        const res = await fetch(`${process.env.VUE_APP_API_URL}/orders/seller`, { headers: { Authorization: `Bearer ${token}` } });
         const data = await res.json();
-        if (!res.ok) {
-          this.error = data.msg || "Failed to load orders";
-          return;
-        }
+        if (!res.ok) { this.error = data.msg || "Failed to load orders"; return; }
         this.orders = data.orders || [];
-      } catch (err) {
-        console.error("Fetch orders error:", err);
-        this.error = "Network error. Could not load orders.";
-      } finally {
-        this.loading = false;
-      }
+      } catch { this.error = "Network error. Could not load orders."; }
+      finally { this.loading = false; }
     },
 
-    /* ========================= */
-    /* FETCH REFUNDS             */
-    /* ========================= */
     async fetchRefunds() {
       try {
         const token = localStorage.getItem("token");
-        const res = await fetch(
-          `${process.env.VUE_APP_API_URL}/refund/seller-refunds`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        const res = await fetch(`${process.env.VUE_APP_API_URL}/refund/seller-refunds`, { headers: { Authorization: `Bearer ${token}` } });
         const data = await res.json();
-        if (!res.ok) {
-          console.error("Fetch refunds failed:", data.msg);
-          return;
-        }
-        this.refunds = data.refunds || [];
-      } catch (err) {
-        console.error("Fetch refunds error:", err);
-      }
+        if (res.ok) this.refunds = data.refunds || [];
+      } catch (err) { console.error("Fetch refunds error:", err); }
     },
 
-    /* ========================= */
-    /* MỞ MODAL STATUS           */
-    /* ========================= */
-    openStatusModal(order) {
-      this.modal = { visible: true, type: "status", order, refund: null };
+    async fetchReviews() {
+      this.reviewsLoading = true;
+      try {
+        const token = localStorage.getItem("token");
+        const res = await fetch(`${process.env.VUE_APP_API_URL}/reviews/seller`, { headers: { Authorization: `Bearer ${token}` } });
+        const data = await res.json();
+        this.reviews = data.reviews || [];
+      } catch (err) { console.error("Fetch reviews error:", err); }
+      finally { this.reviewsLoading = false; }
     },
 
-    /* ========================= */
-    /* MỞ MODAL REFUND           */
-    /* ========================= */
-    openRefundModal(refund) {
-      this.modal = { visible: true, type: "refund", order: null, refund };
+    switchToReviews() {
+      this.tab = "reviews";
+      if (this.reviews.length === 0) this.fetchReviews();
     },
 
-    /* ========================= */
-    /* NHẬN EMIT "confirm"       */
-    /* từ ActionModal:           */
-    /*  type=status → payload = status string  */
-    /*  type=refund → payload = "approve"|"reject" */
-    /* ========================= */
+    openStatusModal(order) { this.modal = { visible: true, type: "status", order, refund: null, review: null }; },
+    openRefundModal(refund) { this.modal = { visible: true, type: "refund", order: null, refund, review: null }; },
+    openReplyModal(review) { this.modal = { visible: true, type: "seller-review", order: null, refund: null, review }; },
+
     async handleModalConfirm(payload) {
-      if (this.modal.type === "status") {
-        await this.updateStatus(payload);
-      } else if (this.modal.type === "refund") {
+      if (this.modal.type === "status") await this.updateStatus(payload);
+      else if (this.modal.type === "refund") {
         if (payload === "approve") await this.approveRefund();
         else if (payload === "reject") await this.rejectRefund();
+      } else if (this.modal.type === "seller-review") {
+        await this.submitReply(this.modal.review._id, payload);
       }
     },
 
-    /* ========================= */
-    /* UPDATE STATUS             */
-    /* ========================= */
     async updateStatus(status) {
       try {
         const token = localStorage.getItem("token");
-        const res = await fetch(
-          `${process.env.VUE_APP_API_URL}/orders/${this.modal.order._id}/seller-status`,
-          {
-            method: "PATCH",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`
-            },
-            body: JSON.stringify({ status })
-          }
-        );
+        const res = await fetch(`${process.env.VUE_APP_API_URL}/orders/${this.modal.order._id}/seller-status`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ status })
+        });
         const data = await res.json();
         if (!res.ok) { alert(data.msg || "Failed to update status"); return; }
         this.modal.visible = false;
         await this.fetchOrders();
-      } catch (err) {
-        console.error("Update status error:", err);
-        alert("Network error. Please try again.");
-      }
+      } catch { alert("Network error. Please try again."); }
     },
 
-    /* ========================= */
-    /* APPROVE REFUND            */
-    /* ========================= */
     async approveRefund() {
       try {
         const token = localStorage.getItem("token");
-        const res = await fetch(
-          `${process.env.VUE_APP_API_URL}/refund/approve/${this.modal.refund.orderId}`,
-          { method: "PATCH", headers: { Authorization: `Bearer ${token}` } }
-        );
+        const res = await fetch(`${process.env.VUE_APP_API_URL}/refund/approve/${this.modal.refund.orderId}`, {
+          method: "PATCH", headers: { Authorization: `Bearer ${token}` }
+        });
         const data = await res.json();
         if (!res.ok) { alert(data.msg || "Failed to approve refund"); return; }
         this.modal.visible = false;
         await this.fetchRefunds();
-      } catch (err) {
-        console.error("Approve refund error:", err);
-        alert("Network error. Please try again.");
-      }
+      } catch { alert("Network error. Please try again."); }
     },
 
-    /* ========================= */
-    /* REJECT REFUND             */
-    /* ========================= */
     async rejectRefund() {
       try {
         const token = localStorage.getItem("token");
-        const res = await fetch(
-          `${process.env.VUE_APP_API_URL}/refund/reject/${this.modal.refund.orderId}`,
-          {
-            method: "PATCH",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`
-            },
-            body: JSON.stringify({ rejectReason: "" })
-          }
-        );
+        const res = await fetch(`${process.env.VUE_APP_API_URL}/refund/reject/${this.modal.refund.orderId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ rejectReason: "" })
+        });
         const data = await res.json();
         if (!res.ok) { alert(data.msg || "Failed to reject refund"); return; }
         this.modal.visible = false;
         await this.fetchRefunds();
-      } catch (err) {
-        console.error("Reject refund error:", err);
-        alert("Network error. Please try again.");
-      }
-    }
+      } catch { alert("Network error. Please try again."); }
+    },
 
+    async submitReply(reviewId, content) {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await fetch(`${process.env.VUE_APP_API_URL}/reviews/${reviewId}/reply`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ content })
+        });
+        const data = await res.json();
+        if (!res.ok) { alert(data.msg || "Failed to post reply"); return; }
+        const r = this.reviews.find(rv => rv._id === reviewId);
+        if (r) r.sellerReply = data.sellerReply;
+        this.modal.visible = false;
+      } catch { alert("Network error."); }
+    },
+
+    formatDate(d) {
+      if (!d) return "";
+      return new Date(d).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+    },
+    ratingLabel(r) { return { 1: "Poor", 2: "Fair", 3: "Good", 4: "Very Good", 5: "Excellent" }[r] || ""; },
+    ratingClass(r) { return r >= 4 ? "rating--green" : r === 3 ? "rating--yellow" : "rating--red"; }
   }
 };
 </script>
-
 
 
 <style scoped>
 
 .seller-orders {
   margin-left: 320px;
-  padding: 100px 40px;
-  max-width: 1100px;
+  padding: 80px 40px 60px;
+  max-width: 1200px;
 }
 
+.page-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 24px;
+}
+
+/* ========================= */
+/* TABS                      */
+/* ========================= */
 .tabs {
   display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
+  gap: 0;
+  margin-bottom: 24px;
+  border-bottom: 2px solid #f0f0f0;
 }
 
 .tabs button {
-  padding: 8px 16px;
+  padding: 10px 20px;
   border: none;
-  background: #eee;
-  color: #65676b;
+  background: none;
+  color: #999;
   cursor: pointer;
-  border-radius: 6px;
-}
-
-.tabs .active {
-  background: #FF642F;
-  color: white;
-}
-
-.error-msg {
-  background: #fdecea;
-  color: #c0392b;
-  padding: 12px 16px;
-  border-radius: 6px;
-  margin-bottom: 16px;
   font-size: 14px;
-}
-
-.table-wrapper {
-  max-height: 500px;
-  overflow-y: auto;
-  background: white;
-  border-radius: 10px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
-}
-
-.table-wrapper::-webkit-scrollbar { width: 6px; }
-.table-wrapper::-webkit-scrollbar-thumb { background: #ddd; border-radius: 10px; }
-.table-wrapper::-webkit-scrollbar-thumb:hover { background: #bbb; }
-
-.table thead {
-  position: sticky;
-  top: 0;
-  background: white;
-  z-index: 10;
-}
-
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  background: white;
-}
-
-.table th,
-.table td {
-  padding: 14px;
-  border-bottom: 1px solid #eee;
-  text-align: left;
-}
-
-.total-price{
-  font-size: 16px;
-  font-weight: 600;
-  color: #ee4d2d;
-  margin-left: 8px;
-}
-
-.status {
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 13px;
-  text-transform: capitalize;
-}
-
-.status.pending   { background: #e2e3e5; }
-.status.confirmed { background: #fff3cd; }
-.status.shipping  { background: #cce5ff; }
-.status.completed { background: #d4edda; }
-.status.cancelled { background: #f8d7da; }
-.status.refunded  { background: #f0d9f5; }
-
-.item-scroll{
-max-height: 35px;
-overflow-y: auto;
-}
-
-.item-scroll::-webkit-scrollbar { width: 4px; }
-.item-scroll::-webkit-scrollbar-thumb { background: #ddd; border-radius: 10px}
-.item-scroll::-webkit-scrollbar-thumb:hover { background: #bbb; }
-
-.item-row {
-  font-size: 13px;
-  margin-bottom: 4px;
-}
-
-.action-cell {
+  font-weight: 500;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
   display: flex;
-  gap: 6px;
   align-items: center;
+  gap: 7px;
+  transition: color 0.15s;
 }
+.tabs button:hover { color: #FF642F; }
+.tabs button.active { color: #FF642F; border-bottom-color: #FF642F; font-weight: 700; }
+
+.tab-badge {
+  background: #f0f0f0;
+  color: #666;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 20px;
+}
+.tab-badge--red    { background: #fde8e8; color: #ef4444; }
+.tab-badge--yellow { background: #fffae8; color: #d97706; }
+
+/* ========================= */
+/* ERROR                     */
+/* ========================= */
+.error-msg {
+  background: #fdecea; color: #c0392b;
+  padding: 12px 16px; border-radius: 8px;
+  margin-bottom: 16px; font-size: 14px;
+}
+
+/* ========================= */
+/* FILTER BAR                */
+/* ========================= */
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.filter-pill {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1.5px solid #e8e8e8;
+  background: white; color: #666;
+  font-size: 13px; font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.filter-pill:hover { border-color: #FF642F; color: #FF642F; }
+.filter-pill.active { background: #FF642F; color: white; border-color: #FF642F; }
+
+.pill-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+}
+.pill-dot.pending   { background: #f59e0b; }
+.pill-dot.confirmed { background: #3b82f6; }
+.pill-dot.shipping  { background: #8b5cf6; }
+.pill-dot.completed { background: #10b981; }
+.pill-dot.cancelled { background: #ef4444; }
+.pill-dot.refunded  { background: #ec4899; }
+.filter-pill.active .pill-dot { background: rgba(255,255,255,0.8); }
+
+.pill-count {
+  background: rgba(0,0,0,0.07);
+  border-radius: 10px; padding: 1px 7px;
+  font-size: 11px; font-weight: 700;
+}
+.filter-pill.active .pill-count { background: rgba(255,255,255,0.25); }
+
+/* Star filter */
+.star-filter { display: flex; gap: 6px; margin-left: auto; }
+.star-pill {
+  padding: 5px 12px; border-radius: 20px;
+  border: 1.5px solid #e8e8e8;
+  background: white; color: #888;
+  font-size: 13px; font-weight: 500; cursor: pointer;
+  transition: all 0.15s;
+}
+.star-pill:hover { border-color: #f5a623; color: #f5a623; }
+.star-pill.active { background: #f5a623; color: white; border-color: #f5a623; }
+
+/* ========================= */
+/* TABLE                     */
+/* ========================= */
+.table-wrapper {
+  max-height: 520px; overflow-y: auto;
+  background: white; border-radius: 14px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  border: 1px solid #f0f0f0;
+}
+.table-wrapper::-webkit-scrollbar { width: 5px; }
+.table-wrapper::-webkit-scrollbar-thumb { background: #e0e0e0; border-radius: 10px; }
+
+.table { width: 100%; border-collapse: collapse; background: white; }
+
+.table thead { position: sticky; top: 0; background: #fafafa; z-index: 10; }
+
+.table th {
+  padding: 12px 14px;
+  border-bottom: 1.5px solid #f0f0f0;
+  text-align: left;
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.5px; color: #bbb;
+}
+
+.table td {
+  padding: 13px 14px; border-bottom: 1px solid #f8f8f8;
+  font-size: 14px; color: #333; vertical-align: middle;
+}
+.table tr:last-child td { border-bottom: none; }
+.table tr:hover td { background: #fdfaf9; }
+
+.order-id { font-family: monospace; font-weight: 600; color: #666; }
+.total-price { font-size: 15px; font-weight: 700; color: #FF642F; }
+.date-cell { font-size: 12px; color: #bbb; white-space: nowrap; }
+.reason-cell { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #666; font-size: 13px; }
+
+.item-scroll { max-height: 38px; overflow-y: auto; }
+.item-scroll::-webkit-scrollbar { width: 3px; }
+.item-scroll::-webkit-scrollbar-thumb { background: #ddd; border-radius: 4px; }
+.item-row { font-size: 12px; color: #555; margin-bottom: 2px; }
+.item-qty { color: #aaa; }
+
+/* Status badges */
+.status-badge {
+  display: inline-block; padding: 3px 10px;
+  border-radius: 20px; font-size: 12px; font-weight: 600; text-transform: capitalize;
+}
+.status-badge.pending   { background: #f3f4f6; color: #6b7280; }
+.status-badge.confirmed { background: #dbeafe; color: #1d4ed8; }
+.status-badge.shipping  { background: #ede9fe; color: #6d28d9; }
+.status-badge.completed { background: #dcfce7; color: #15803d; }
+.status-badge.cancelled { background: #fee2e2; color: #b91c1c; }
+.status-badge.refunded  { background: #fce7f3; color: #9d174d; }
+
+/* Refund status */
+.refund-status-badge {
+  display: inline-block; padding: 3px 10px;
+  border-radius: 20px; font-size: 12px; font-weight: 600; text-transform: capitalize;
+}
+.refund-status-badge.requested { background: #fff3cd; color: #92400e; }
+.refund-status-badge.approved  { background: #dcfce7; color: #15803d; }
+.refund-status-badge.rejected  { background: #fee2e2; color: #b91c1c; }
+.refund-status-badge.refunded  { background: #fce7f3; color: #9d174d; }
+
+/* Evidence in refund table */
+.evidence-thumbs { display: flex; align-items: center; gap: 4px; }
+.evidence-mini { width: 32px; height: 32px; object-fit: cover; border-radius: 5px; border: 1px solid #eee; }
+.evidence-video-tag { font-size: 11px; color: #888; }
+.no-evidence-text { color: #ddd; }
+
+/* Action buttons */
+.action-cell { display: flex; gap: 6px; align-items: center; }
 
 .btn-view {
-  background: white;
-  color: #FF642F;
-  border: 1px solid #FF642F;
+  padding: 5px 12px; background: white; color: #FF642F;
+  border: 1.5px solid #FF642F; border-radius: 7px;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-view:hover { background: #fff4f1; }
+
+.btn-update {
+  padding: 5px 12px; background: #FF642F; color: white;
+  border: none; border-radius: 7px;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-update:hover { background: #e05522; }
+
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ========================= */
+/* EMPTY STATE               */
+/* ========================= */
+.empty-state { text-align: center; padding: 60px 20px; color: #ccc; }
+.empty-icon { font-size: 44px; margin-bottom: 10px; }
+.empty-state p { font-size: 15px; }
+
+/* ========================= */
+/* REVIEWS GRID              */
+/* ========================= */
+.reviews-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 16px;
 }
 
-.btn-view:hover {
-  background: #fff4f1;
+.review-card {
+  background: white; border: 1px solid #f0f0f0;
+  border-radius: 16px; padding: 18px;
+  display: flex; flex-direction: column; gap: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  transition: box-shadow 0.2s, transform 0.2s;
 }
+.review-card:hover { box-shadow: 0 8px 24px rgba(0,0,0,0.09); transform: translateY(-2px); }
 
-button {
-  padding: 6px 12px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  background: #FF642F;
-  color: white;
+.review-item-bar {
+  display: flex; align-items: center; gap: 10px;
+  padding-bottom: 12px; border-bottom: 1px solid #f5f5f5;
 }
+.review-item-img { width: 44px; height: 44px; object-fit: cover; border-radius: 8px; flex-shrink: 0; background: #eee; }
+.review-item-info { flex: 1; min-width: 0; }
+.review-item-title { font-size: 13px; font-weight: 600; color: #333; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.review-item-price { font-size: 12px; color: #FF642F; margin-top: 2px; }
 
-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+.rating-badge { flex-shrink: 0; padding: 4px 10px; border-radius: 20px; font-size: 13px; font-weight: 700; }
+.rating--green  { background: #dcfce7; color: #15803d; }
+.rating--yellow { background: #fef9c3; color: #92400e; }
+.rating--red    { background: #fee2e2; color: #b91c1c; }
+
+.stars-display { display: flex; align-items: center; gap: 3px; }
+.rstar { font-size: 16px; color: #e0e0e0; }
+.rstar.filled { color: #f5a623; }
+.rating-label { font-size: 12px; color: #bbb; margin-left: 6px; }
+
+.reviewer-row { display: flex; align-items: center; gap: 10px; }
+.reviewer-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex-shrink: 0; background: #eee; }
+.reviewer-name { font-size: 13px; font-weight: 600; color: #333; }
+.review-date { font-size: 11px; color: #bbb; margin-top: 1px; }
+
+.review-comment { font-size: 13px; color: #444; line-height: 1.6; margin: 0; white-space: pre-line; }
+.review-comment.no-comment { color: #ccc; font-style: italic; }
+
+.seller-reply-box {
+  background: linear-gradient(135deg, #fff8f5, #fff4f0);
+  border-left: 3px solid #FF642F;
+  border-radius: 0 10px 10px 0;
+  padding: 10px 14px;
 }
-
-.empty {
-  text-align: center;
-  padding: 40px;
-  color: #888;
+.seller-reply-label {
+  font-size: 11px; font-weight: 700; color: #FF642F;
+  margin-bottom: 5px; display: flex; align-items: center; gap: 6px;
 }
+.reply-date { font-weight: 400; color: #bbb; }
+.seller-reply-text { font-size: 13px; color: #444; margin: 0 0 8px; line-height: 1.5; white-space: pre-line; }
+.btn-edit-reply {
+  background: none; border: 1px solid #FF642F; color: #FF642F;
+  padding: 3px 10px; border-radius: 6px; font-size: 12px; cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.btn-edit-reply:hover { background: #FF642F; color: white; }
 
+.btn-reply {
+  background: none; border: 1.5px solid #FF642F; color: #FF642F;
+  padding: 8px 16px; border-radius: 9px;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  align-self: flex-start;
+  transition: background 0.15s, color 0.15s;
+}
+.btn-reply:hover { background: #FF642F; color: white; }
+
+/* ========================= */
+/* RESPONSIVE                */
+/* ========================= */
 @media (max-width: 992px) {
-  .seller-orders {
-    margin-left: 0;
-    padding: 100px 20px;
-  }
+  .seller-orders { margin-left: 0; padding: 80px 16px 60px; }
+  .reviews-grid { grid-template-columns: 1fr; }
+  .star-filter { margin-left: 0; flex-wrap: wrap; }
 }
 
 </style>

@@ -184,11 +184,116 @@
   </p>
 </div>
 
-<div class="info info-extra">
-  <strong>Rating</strong>
-  <span style="font-style:italic">⭐⭐⭐⭐⭐ 5/5 (999 ratings)</span>
+<!-- ========================= -->
+<!-- REVIEWS SECTION          -->
+<!-- ========================= -->
+<div class="info info-extra reviews-section">
 
-  <button>Write a review</button>
+  <!-- HEADER -->
+  <div class="reviews-header">
+    <div class="reviews-title-block">
+      <strong class="reviews-title">Customer Reviews</strong>
+      <div class="rating-summary" v-if="reviews.length > 0">
+        <span class="avg-stars">
+          <span v-for="s in 5" :key="s" class="avg-star" :class="{ full: s <= Math.round(avgRating) }">&#9733;</span>
+        </span>
+        <span class="avg-score">{{ avgRating.toFixed(1) }}</span>
+        <span class="avg-count">({{ reviews.length }} {{ reviews.length === 1 ? 'review' : 'reviews' }})</span>
+      </div>
+      <span v-else class="no-reviews-yet">No reviews yet</span>
+    </div>
+    <button v-if="!isOwner && canReview && !showReviewForm" class="write-review-btn" @click="showReviewForm = true">
+      ✏️ Write a Review
+    </button>
+  </div>
+
+  <!-- REVIEW FORM -->
+  <div v-if="showReviewForm" class="review-form-box">
+    <div class="form-title">Your Review</div>
+    <div class="star-input-row">
+      <span
+        v-for="s in 5" :key="s"
+        class="star-input"
+        :class="{ active: s <= (reviewForm.hover || reviewForm.rating) }"
+        @click="reviewForm.rating = s"
+        @mouseover="reviewForm.hover = s"
+        @mouseleave="reviewForm.hover = 0"
+      >{{ s <= (reviewForm.hover || reviewForm.rating) ? '\u2605' : '\u2606' }}</span>
+      <span class="star-label-text">{{ starInputLabel }}</span>
+    </div>
+    <textarea v-model="reviewForm.comment" placeholder="Share your experience with this item... (optional)" class="review-textarea" rows="3"></textarea>
+    <div class="form-actions">
+      <button class="cancel-review-btn" @click="cancelReviewForm">Cancel</button>
+      <button class="submit-review-btn" :disabled="!reviewForm.rating || reviewForm.submitting" @click="submitReview">
+        {{ reviewForm.submitting ? 'Submitting...' : 'Submit Review' }}
+      </button>
+    </div>
+    <p v-if="reviewForm.error" class="review-error">{{ reviewForm.error }}</p>
+    <p v-if="reviewForm.success" class="review-success">✅ Review submitted!</p>
+  </div>
+
+  <!-- REVIEW LIST -->
+  <div v-if="reviewsLoading" class="reviews-loading">Loading reviews...</div>
+
+  <div v-else-if="reviews.length === 0 && !showReviewForm" class="empty-reviews">
+    <p>🌟 Be the first to review this item!</p>
+  </div>
+
+  <div v-else class="review-list">
+    <div v-for="review in visibleReviews" :key="review._id" class="review-card">
+      <div class="review-top">
+        <div class="reviewer-info">
+          <img :src="review.user?.avatar ? imageFromPath(review.user.avatar) : '/default-avatar.png'" class="reviewer-avatar" />
+          <div>
+            <div class="reviewer-name">{{ review.user?.firstname }} {{ review.user?.lastname }}</div>
+            <div class="review-date">{{ formatDate(review.createdAt) }}</div>
+          </div>
+        </div>
+        <div class="review-stars">
+          <span v-for="s in 5" :key="s" class="rs" :class="{ filled: s <= review.rating }">&#9733;</span>
+        </div>
+      </div>
+      <p class="review-comment" v-if="review.comment">{{ review.comment }}</p>
+
+      <!-- SELLER REPLY (đã có) -->
+      <div v-if="review.sellerReply && review.sellerReply.repliedAt" class="seller-reply-box">
+        <div class="seller-reply-label">
+          <span class="reply-icon">↩</span> Seller's response
+          <span class="reply-date">· {{ formatDate(review.sellerReply.repliedAt) }}</span>
+        </div>
+        <p class="seller-reply-content">{{ review.sellerReply.content }}</p>
+      </div>
+
+      <!-- SELLER REPLY FORM (chưa reply + đang là owner) -->
+      <div v-else-if="isOwner" class="reply-form-wrap">
+        <div v-if="replyingTo === review._id" class="reply-form">
+          <textarea
+            v-model="replyContent"
+            placeholder="Write your response... (max 500 characters)"
+            class="reply-textarea"
+            maxlength="500"
+            rows="2"
+          ></textarea>
+          <div class="reply-form-actions">
+            <span class="reply-char-count">{{ replyContent.length }}/500</span>
+            <button class="cancel-reply-btn" @click="cancelReply">Cancel</button>
+            <button
+              class="submit-reply-btn"
+              :disabled="!replyContent.trim() || replySubmitting"
+              @click="submitReply(review._id)"
+            >{{ replySubmitting ? 'Submitting...' : 'Post Response' }}</button>
+          </div>
+        </div>
+        <button v-else class="open-reply-btn" @click="openReply(review._id)">
+          ↩ Reply to this review
+        </button>
+      </div>
+    </div>
+
+    <button v-if="reviews.length > reviewsShown" class="show-more-btn" @click="reviewsShown += 5">
+      Show more ({{ reviews.length - reviewsShown }} remaining)
+    </button>
+  </div>
 
 </div>
 
@@ -272,7 +377,28 @@ export default {
 
       showBuyModal: false,
 
-      modalMode: "cart"
+      modalMode: "cart",
+
+      // Reviews
+      reviews: [],
+      reviewsLoading: false,
+      reviewsShown: 5,
+      canReview: false,
+      showReviewForm: false,
+      reviewForm: {
+        rating: 0,
+        hover: 0,
+        comment: "",
+        submitting: false,
+        error: "",
+        success: false,
+        eligibleOrderId: null
+      },
+
+      // Seller reply
+      replyingTo: null,       // reviewId đang mở form reply
+      replyContent: "",
+      replySubmitting: false
 
 
     };
@@ -289,6 +415,10 @@ export default {
       if (res.data?.isDeleted === true || res.data?.status === "hidden") {
         this.isDeleted = true;
       }
+
+      // Load reviews sau khi có item
+      await this.fetchReviews();
+      await this.checkCanReview();
     } catch (err) {
       console.error(
         "DETAIL ERROR:",
@@ -344,6 +474,20 @@ export default {
     };
     return map[this.item.type] || "Item";
   },
+
+  avgRating() {
+    if (!this.reviews.length) return 0;
+    return this.reviews.reduce((sum, r) => sum + r.rating, 0) / this.reviews.length;
+  },
+
+  visibleReviews() {
+    return this.reviews.slice(0, this.reviewsShown);
+  },
+
+  starInputLabel() {
+    const map = { 1: "Poor", 2: "Fair", 3: "Good", 4: "Very Good", 5: "Excellent" };
+    return map[this.reviewForm.hover || this.reviewForm.rating] || "";
+  }
 
   },
 
@@ -471,7 +615,120 @@ export default {
     openModal(mode) {
     this.modalMode = mode;
     this.showBuyModal = true;
-  }
+  },
+
+  /* ========================= */
+  /* REVIEWS                   */
+  /* ========================= */
+  async fetchReviews() {
+    this.reviewsLoading = true;
+    try {
+      const res = await axios.get(
+        `${process.env.VUE_APP_API_URL}/reviews/item/${this.$route.params.id}`
+      );
+      this.reviews = res.data?.reviews || res.data || [];
+    } catch (err) {
+      console.error("Fetch reviews error:", err);
+    } finally {
+      this.reviewsLoading = false;
+    }
+  },
+
+  // Kiểm tra user có đơn hàng completed chứa item này chưa review không
+  async checkCanReview() {
+    const token = localStorage.getItem("token");
+    if (!token || this.isOwner) return;
+    try {
+      const res = await axios.get(
+        `${process.env.VUE_APP_API_URL}/reviews/can-review/${this.$route.params.id}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      this.canReview = res.data?.canReview || false;
+      this.reviewForm.eligibleOrderId = res.data?.orderId || null;
+    } catch {
+      this.canReview = false;
+    }
+  },
+
+  cancelReviewForm() {
+    this.showReviewForm = false;
+    this.reviewForm = { rating: 0, hover: 0, comment: "", submitting: false, error: "", success: false, eligibleOrderId: this.reviewForm.eligibleOrderId };
+  },
+
+  async submitReview() {
+    if (!this.reviewForm.rating) return;
+    this.reviewForm.submitting = true;
+    this.reviewForm.error = "";
+    this.reviewForm.success = false;
+    try {
+      const token = localStorage.getItem("token");
+      await axios.post(
+        `${process.env.VUE_APP_API_URL}/orders/review`,
+        {
+          orderId: this.reviewForm.eligibleOrderId,
+          itemId: this.$route.params.id,
+          rating: this.reviewForm.rating,
+          comment: this.reviewForm.comment
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      this.reviewForm.success = true;
+      this.canReview = false;
+      // Đợi 1s rồi đóng form, reload reviews
+      setTimeout(async () => {
+        this.showReviewForm = false;
+        await this.fetchReviews();
+      }, 1200);
+    } catch (err) {
+      this.reviewForm.error = err.response?.data?.msg || "Failed to submit review.";
+    } finally {
+      this.reviewForm.submitting = false;
+    }
+  },
+
+  formatDate(dateStr) {
+    if (!dateStr) return "";
+    return new Date(dateStr).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  },
+
+  /* ========================= */
+  /* SELLER REPLY               */
+  /* ========================= */
+  openReply(reviewId) {
+    this.replyingTo = reviewId;
+    this.replyContent = "";
+  },
+
+  cancelReply() {
+    this.replyingTo = null;
+    this.replyContent = "";
+  },
+
+  async submitReply(reviewId) {
+    if (!this.replyContent.trim()) return;
+    this.replySubmitting = true;
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.post(
+        `${process.env.VUE_APP_API_URL}/reviews/${reviewId}/reply`,
+        { content: this.replyContent.trim() },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      // Cập nhật trực tiếp trong array thay vì refetch cả list
+      const review = this.reviews.find(r => r._id === reviewId);
+      if (review) {
+        review.sellerReply = res.data.sellerReply;
+      }
+
+      this.replyingTo = null;
+      this.replyContent = "";
+    } catch (err) {
+      alert(err.response?.data?.msg || "Failed to submit reply.");
+    } finally {
+      this.replySubmitting = false;
+    }
+  },
 
 
   },
@@ -1061,6 +1318,371 @@ export default {
 }
 
 
+
+/* ========================= */
+/* REVIEWS SECTION           */
+/* ========================= */
+
+.reviews-section {
+  gap: 0;
+}
+
+.reviews-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.reviews-title-block {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.reviews-title {
+  font-size: 17px;
+}
+
+.rating-summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.avg-stars { display: flex; gap: 1px; }
+.avg-star { font-size: 18px; color: #ddd; }
+.avg-star.full { color: #f5a623; }
+
+.avg-score {
+  font-size: 16px;
+  font-weight: 700;
+  color: #333;
+}
+
+.avg-count {
+  font-size: 13px;
+  color: #888;
+}
+
+.no-reviews-yet {
+  font-size: 13px;
+  color: #aaa;
+  font-style: italic;
+}
+
+.write-review-btn {
+  padding: 9px 18px;
+  background: #ff642f;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: 0.2s;
+  white-space: nowrap;
+}
+.write-review-btn:hover { background: #e05522; }
+
+/* FORM */
+.review-form-box {
+  background: #fff8f5;
+  border: 1px solid #ffe0d0;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.form-title {
+  font-weight: 700;
+  font-size: 15px;
+  margin-bottom: 14px;
+  color: #333;
+}
+
+.star-input-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 14px;
+}
+
+.star-input {
+  font-size: 32px;
+  cursor: pointer;
+  color: #ddd;
+  transition: color 0.1s;
+  line-height: 1;
+  user-select: none;
+}
+.star-input.active { color: #f5a623; }
+
+.star-label-text {
+  font-size: 13px;
+  color: #888;
+  margin-left: 8px;
+  min-width: 75px;
+}
+
+.review-textarea {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  resize: vertical;
+  box-sizing: border-box;
+  font-family: inherit;
+  line-height: 1.5;
+}
+.review-textarea:focus { outline: none; border-color: #ff642f; }
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.cancel-review-btn {
+  padding: 9px 18px;
+  border: 1px solid #ddd;
+  background: white;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+}
+.cancel-review-btn:hover { border-color: #ff642f; color: #ff642f; }
+
+.submit-review-btn {
+  padding: 9px 20px;
+  background: #ff642f;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+.submit-review-btn:hover:not(:disabled) { background: #e05522; }
+.submit-review-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.review-error   { color: #e74c3c; font-size: 13px; margin-top: 8px; }
+.review-success { color: #27ae60; font-size: 13px; margin-top: 8px; font-weight: 500; }
+
+/* LIST */
+.reviews-loading {
+  text-align: center;
+  color: #aaa;
+  padding: 20px 0;
+  font-size: 14px;
+}
+
+.empty-reviews {
+  text-align: center;
+  padding: 28px 0 10px;
+  color: #aaa;
+}
+.empty-reviews p { font-size: 14px; margin-top: 6px; }
+
+.review-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 4px;
+}
+
+.review-card {
+  padding: 16px;
+  border: 1px solid #f0f0f0;
+  border-radius: 12px;
+  background: #fafafa;
+  transition: box-shadow 0.15s;
+}
+.review-card:hover { box-shadow: 0 2px 10px rgba(0,0,0,0.06); }
+
+.review-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.reviewer-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.reviewer-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.reviewer-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.review-date {
+  font-size: 12px;
+  color: #999;
+  margin-top: 2px;
+}
+
+.review-stars {
+  display: flex;
+  gap: 2px;
+}
+
+.rs {
+  font-size: 17px;
+  color: #ddd;
+}
+.rs.filled { color: #f5a623; }
+
+.review-comment {
+  font-size: 14px;
+  color: #444;
+  line-height: 1.6;
+  margin: 0;
+  white-space: pre-line;
+}
+
+.show-more-btn {
+  width: 100%;
+  padding: 10px;
+  background: white;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  color: #ff642f;
+  font-weight: 500;
+  font-size: 14px;
+  cursor: pointer;
+  transition: 0.2s;
+  margin-top: 4px;
+}
+.show-more-btn:hover { background: #fff4f0; border-color: #ff642f; }
+
+/* ========================= */
+/* SELLER REPLY              */
+/* ========================= */
+
+.seller-reply-box {
+  margin-top: 12px;
+  background: #f8f8f8;
+  border-left: 3px solid #ff642f;
+  border-radius: 0 8px 8px 0;
+  padding: 10px 14px;
+}
+
+.seller-reply-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #ff642f;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.reply-icon { font-size: 14px; }
+
+.reply-date {
+  font-weight: 400;
+  color: #aaa;
+}
+
+.seller-reply-content {
+  font-size: 13px;
+  color: #444;
+  line-height: 1.6;
+  margin: 0;
+  white-space: pre-line;
+}
+
+.reply-form-wrap { margin-top: 12px; }
+
+.open-reply-btn {
+  background: none;
+  border: none;
+  color: #ff642f;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0;
+  opacity: 0.75;
+  transition: opacity 0.15s;
+}
+.open-reply-btn:hover { opacity: 1; }
+
+.reply-form {
+  background: #fff8f5;
+  border: 1px solid #ffe0d0;
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.reply-textarea {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 13px;
+  resize: none;
+  box-sizing: border-box;
+  font-family: inherit;
+  line-height: 1.5;
+}
+.reply-textarea:focus { outline: none; border-color: #ff642f; }
+
+.reply-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  justify-content: flex-end;
+}
+
+.reply-char-count {
+  font-size: 11px;
+  color: #bbb;
+  margin-right: auto;
+}
+
+.cancel-reply-btn {
+  padding: 6px 14px;
+  border: 1px solid #ddd;
+  background: white;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.cancel-reply-btn:hover { border-color: #ff642f; color: #ff642f; }
+
+.submit-reply-btn {
+  padding: 6px 16px;
+  background: #ff642f;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s;
+}
+.submit-reply-btn:hover:not(:disabled) { background: #e05522; }
+.submit-reply-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 @media (max-width: 1024px) {
   .detail-wrapper {

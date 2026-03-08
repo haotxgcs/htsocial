@@ -99,9 +99,9 @@
 
           <!-- Review -->
           <button
-            v-if="order.status === 'completed'"
+            v-if="order.status === 'completed' && hasUnreviewedItems(order)"
             class="btn-outline"
-            @click="$router.push(`/review/${order._id}`)"
+            @click="openReviewModal"
           >Review</button>
 
           <!-- Request Refund -->
@@ -230,6 +230,7 @@
     <!-- STATUS MODAL (Seller only) -->
     <ActionModal
       v-if="modal.visible"
+      ref="actionModalRef"
       :type="modal.type"
       :order="order"
       :refund="null"
@@ -341,8 +342,49 @@ export default {
     // MỞ MODAL                  //
     // ========================= //
     openRefundModal() {
-      // Order completed → evidence bắt buộc (logic backend cũng yêu cầu)
       this.modal = { visible: true, type: "request-refund", requireEvidence: true };
+    },
+
+    hasUnreviewedItems(order) {
+      return order?.items?.some(i => !i.reviewed);
+    },
+
+    openReviewModal() {
+      this.modal = { visible: true, type: "review", requireEvidence: false };
+    },
+
+    /* ========================= */
+    /* BUYER: Submit Review      */
+    /* ========================= */
+    async submitReview({ itemId, rating, comment }) {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await fetch(
+          `${process.env.VUE_APP_API_URL}/orders/review`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              orderId: this.order._id,
+              itemId,
+              rating,
+              comment
+            })
+          }
+        );
+        const data = await res.json();
+        if (!res.ok) { alert(data.msg || "Failed to submit review"); return; }
+
+        // Reset modal về list để có thể review item tiếp
+        this.$refs.actionModalRef?.reviewSubmitted();
+        await this.fetchOrder();
+
+      } catch (err) {
+        alert("Network error.");
+      }
     },
 
     canRequestRefund(order) {
@@ -384,6 +426,8 @@ export default {
         }
       } else if (this.modal.type === "request-refund") {
         await this.submitRefund(payload);
+      } else if (this.modal.type === "review") {
+        await this.submitReview(payload);
       }
     },
 

@@ -123,9 +123,9 @@
 
           <!-- REVIEW -->
           <button
-            v-if="order.status === 'completed'"
+            v-if="order.status === 'completed' && hasUnreviewedItems(order)"
             class="btn-outline"
-            @click="reviewOrder(order._id)"
+            @click.stop="openReviewModal(order)"
           >
             Review
           </button>
@@ -161,6 +161,16 @@
         :require-evidence="refundModal.requireEvidence"
         @cancel="refundModal.visible = false"
         @confirm="submitRefund"
+      />
+
+      <!-- REVIEW MODAL -->
+      <ActionModal
+        v-if="reviewModal.visible"
+        ref="reviewModalRef"
+        type="review"
+        :order="reviewModal.order"
+        @cancel="reviewModal.visible = false"
+        @confirm="submitReview"
       />
 
       <Pagination
@@ -216,6 +226,11 @@ export default {
         visible: false,
         order: null,
         requireEvidence: false
+      },
+
+      reviewModal: {
+        visible: false,
+        order: null
       }
     }
   },
@@ -387,8 +402,47 @@ async fetchOrders() {
       }
     },
 
-    reviewOrder(orderId) {
-      this.$router.push(`/orders/${orderId}/review`)
+    /* ===========================
+       REVIEW
+    =========================== */
+    hasUnreviewedItems(order) {
+      return order.items?.some(i => !i.reviewed)
+    },
+
+    openReviewModal(order) {
+      this.reviewModal = { visible: true, order }
+    },
+
+    async submitReview({ itemId, rating, comment }) {
+      try {
+        const token = localStorage.getItem("token")
+        const res = await fetch(
+          `${process.env.VUE_APP_API_URL}/orders/review`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              orderId: this.reviewModal.order._id,
+              itemId,
+              rating,
+              comment
+            })
+          }
+        )
+        const data = await res.json()
+        if (!res.ok) { alert(data.msg || "Failed to submit review"); return }
+
+        // Reset modal về list để review item tiếp theo
+        this.$refs.reviewModalRef?.reviewSubmitted()
+        await this.fetchOrders()
+
+      } catch (err) {
+        console.error("Review error:", err)
+        alert("Network error.")
+      }
     },
 
     /* ===========================

@@ -29,10 +29,32 @@ const ReviewSchema = new mongoose.Schema(
 
     comment: {
       type: String,
-      default: ""
+      default: "",
+      trim: true,
+      maxlength: 1000
+    },
+
+    // =============================================
+    // SELLER REPLY — 1 lần duy nhất, không sửa
+    // =============================================
+    sellerReply: {
+      content: {
+        type: String,
+        trim: true,
+        maxlength: 500,
+        default: ""
+      },
+      repliedAt: {
+        type: Date,
+        default: null
+      }
     }
   },
   { timestamps: true }
 );
+
+// Index query nhanh + ngăn buyer review trùng (1 user, 1 item, 1 order)
+ReviewSchema.index({ item: 1, createdAt: -1 });
+ReviewSchema.index({ user: 1, item: 1, order: 1 }, { unique: true });
 
 module.exports = mongoose.model("Review", ReviewSchema);
