@@ -116,7 +116,7 @@
           <button
             v-if="order.status === 'pending'"
             class="btn-outline"
-            @click="cancelOrder(order._id)"
+            @click="cancelOrder(order)"
           >
             Cancel Order
           </button>
@@ -171,6 +171,15 @@
         :order="reviewModal.order"
         @cancel="reviewModal.visible = false"
         @confirm="submitReview"
+      />
+
+      <!-- CANCEL MODAL -->
+      <ActionModal
+        v-if="cancelModal.visible"
+        type="cancel"
+        :order="cancelModal.order"
+        @cancel="cancelModal.visible = false"
+        @confirm="cancelOrderConfirmed"
       />
 
       <Pagination
@@ -229,6 +238,11 @@ export default {
       },
 
       reviewModal: {
+        visible: false,
+        order: null
+      },
+
+      cancelModal: {
         visible: false,
         order: null
       }
@@ -320,10 +334,9 @@ async fetchOrders() {
     /* ===========================
        ACTIONS
     =========================== */
-    cancelOrder(orderId) {
-      this.confirmDialog.message = "Are you sure you want to cancel this order?"
-      this.confirmDialog.onConfirm = () => this.cancelOrderConfirmed(orderId)
-      this.confirmDialog.visible = true
+    cancelOrder(order) {
+      this.cancelModal.order = order
+      this.cancelModal.visible = true
     },
 
     handleConfirm(){
@@ -343,29 +356,35 @@ async fetchOrders() {
     },
 
 
-    async cancelOrderConfirmed(orderId) {
+    async cancelOrderConfirmed(reason) {
       try {
         const token = localStorage.getItem("token")
+        const orderId = this.cancelModal.order._id
 
         const response = await fetch(
-          `http://localhost:3000/orders/${orderId}/cancel`,
+          `${process.env.VUE_APP_API_URL}/orders/${orderId}/cancel`,
           {
             method: "PUT",
             headers: {
               "Content-Type": "application/json",
               Authorization: `Bearer ${token}`
-            }
+            },
+            body: JSON.stringify({ reason })
           }
         )
 
         if (!response.ok) {
-          throw new Error("Cancel failed")
+          const data = await response.json()
+          alert(data.msg || "Cancel failed")
+          return
         }
 
+        this.cancelModal.visible = false
         this.fetchOrders()
 
       } catch (err) {
         console.error("Cancel error:", err)
+        alert("Network error. Please try again.")
       }
     },
 

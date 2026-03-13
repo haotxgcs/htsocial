@@ -63,6 +63,7 @@
             v-for="cartItem in group.items"
             :key="cartItem._id"
             class="cart-item"
+            :class="{ 'cart-item--oos': cartItem.item.quantity === 0 }"
           >
 
             <!-- CHECKBOX -->
@@ -70,6 +71,7 @@
               type="checkbox"
               :value="cartItem._id"
               v-model="selectedItems"
+              :disabled="cartItem.item.quantity === 0"
             />
 
             <!-- IMAGE -->
@@ -87,15 +89,17 @@
               >
                 {{ cartItem.item.title }}
               </div>
-              <div class="item-price">
+              <span v-if="cartItem.item.quantity === 0" class="oos-badge">Out of Stock</span>
+              <div class="item-price" :class="{ 'item-price--oos': cartItem.item.quantity === 0 }">
                 ${{ cartItem.item.price }}
               </div>
             </div>
 
             <!-- QUANTITY -->
-            <div class="qty-control">
+            <div class="qty-control" :class="{ 'qty-control--oos': cartItem.item.quantity === 0 }">
               <button
                 class="qty-btn"
+                :disabled="cartItem.item.quantity === 0"
                 @click="decreaseQty(cartItem)"
               >
                 <Minus size="16" />
@@ -107,6 +111,7 @@
 
               <button
                 class="qty-btn"
+                :disabled="cartItem.item.quantity === 0"
                 @click="increaseQty(cartItem)"
               >
                 <Plus size="16" />
@@ -154,10 +159,11 @@
 
           <button
             class="checkout-btn"
-            :disabled="selectedItems.length === 0"
+            :disabled="selectedItems.length === 0 || hasOosSelected"
             @click="checkout"
           >
-            Checkout ({{ selectedItems.length }})
+            <span v-if="hasOosSelected">Remove out-of-stock items to checkout</span>
+            <span v-else>Checkout ({{ selectedItems.length }})</span>
           </button>
 
         </div>
@@ -244,6 +250,15 @@ export default {
       return this.cartItems
         .filter(i => this.selectedItems.includes(i._id))
         .reduce((sum, i) => sum + i.item.price * i.quantity, 0)
+    },
+
+    // =========================
+    // OUT OF STOCK IN SELECTION
+    // =========================
+    hasOosSelected() {
+      return this.cartItems
+        .filter(i => this.selectedItems.includes(i._id))
+        .some(i => i.item.quantity === 0);
     },
 
     // =========================
@@ -526,6 +541,39 @@ text-align: center; margin-bottom: 24px; padding: 24px;
   cursor: pointer;
 }
 
+.cart-item--oos {
+  background: #fafafa;
+  opacity: 0.75;
+}
+
+.oos-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+  background: #e74c3c;
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin-bottom: 4px;
+  letter-spacing: 0.3px;
+}
+
+.item-price--oos {
+  text-decoration: line-through;
+  color: #bbb;
+}
+
+.qty-control--oos {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.checkout-btn:disabled {
+  background: #ccc !important;
+  cursor: not-allowed;
+  font-size: 13px;
+}
+
 .cart-item:last-child {
   border-bottom: none;
 }
@@ -690,11 +738,6 @@ text-align: center; margin-bottom: 24px; padding: 24px;
 
 .checkout-btn:hover {
   opacity: 0.9;
-}
-
-.checkout-btn:disabled {
-  background: #ccc;
-  cursor: not-allowed;
 }
 
 /* ========================

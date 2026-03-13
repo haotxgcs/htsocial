@@ -92,7 +92,7 @@
 
     <p class="quantity" v-if="item.quantity > 0">Quantity: {{ item.quantity }}</p>
 
-    <p class="sold-out" v-if="item.quantity === 0">Sold Out</p>
+    <strong class="sold-out" v-if="item.quantity === 0">SOLD OUT</strong>
 
     <p class="condition" v-if="item.type === 'tool'">Condition: {{ item.condition }}</p>
 
@@ -185,6 +185,7 @@
 </div>
 
 <!-- ========================= -->
+<!-- ========================= -->
 <!-- REVIEWS SECTION          -->
 <!-- ========================= -->
 <div class="info info-extra reviews-section">
@@ -202,91 +203,69 @@
       </div>
       <span v-else class="no-reviews-yet">No reviews yet</span>
     </div>
-    <button v-if="!isOwner && canReview && !showReviewForm" class="write-review-btn" @click="showReviewForm = true">
+    <button v-if="!isOwner && canReview" class="write-review-btn" @click="openReviewModal">
       ✏️ Write a Review
     </button>
-  </div>
-
-  <!-- REVIEW FORM -->
-  <div v-if="showReviewForm" class="review-form-box">
-    <div class="form-title">Your Review</div>
-    <div class="star-input-row">
-      <span
-        v-for="s in 5" :key="s"
-        class="star-input"
-        :class="{ active: s <= (reviewForm.hover || reviewForm.rating) }"
-        @click="reviewForm.rating = s"
-        @mouseover="reviewForm.hover = s"
-        @mouseleave="reviewForm.hover = 0"
-      >{{ s <= (reviewForm.hover || reviewForm.rating) ? '\u2605' : '\u2606' }}</span>
-      <span class="star-label-text">{{ starInputLabel }}</span>
-    </div>
-    <textarea v-model="reviewForm.comment" placeholder="Share your experience with this item... (optional)" class="review-textarea" rows="3"></textarea>
-    <div class="form-actions">
-      <button class="cancel-review-btn" @click="cancelReviewForm">Cancel</button>
-      <button class="submit-review-btn" :disabled="!reviewForm.rating || reviewForm.submitting" @click="submitReview">
-        {{ reviewForm.submitting ? 'Submitting...' : 'Submit Review' }}
-      </button>
-    </div>
-    <p v-if="reviewForm.error" class="review-error">{{ reviewForm.error }}</p>
-    <p v-if="reviewForm.success" class="review-success">✅ Review submitted!</p>
   </div>
 
   <!-- REVIEW LIST -->
   <div v-if="reviewsLoading" class="reviews-loading">Loading reviews...</div>
 
-  <div v-else-if="reviews.length === 0 && !showReviewForm" class="empty-reviews">
+  <div v-else-if="reviews.length === 0" class="empty-reviews">
     <p>🌟 Be the first to review this item!</p>
   </div>
 
   <div v-else class="review-list">
     <div v-for="review in visibleReviews" :key="review._id" class="review-card">
       <div class="review-top">
-        <div class="reviewer-info">
-          <img :src="review.user?.avatar ? imageFromPath(review.user.avatar) : '/default-avatar.png'" class="reviewer-avatar" />
-          <div>
-            <div class="reviewer-name">{{ review.user?.firstname }} {{ review.user?.lastname }}</div>
-            <div class="review-date">{{ formatDate(review.createdAt) }}</div>
+        <img :src="review.user?.avatar ? imageFromPath(review.user.avatar) : '/default-avatar.png'" class="reviewer-avatar" />
+        <div class="review-main">
+          <!-- Row 1: name + stars -->
+          <div class="review-row1">
+            <span class="reviewer-name">{{ review.user?.firstname }} {{ review.user?.lastname }}</span>
+            <div class="review-stars">
+              <span v-for="s in 5" :key="s" class="rs" :class="{ filled: s <= review.rating }">&#9733;</span>
+            </div>
+          </div>
+          <!-- Row 2: date + order id + actions -->
+          <div class="review-row2">
+            <span class="review-date">{{ formatDate(review.createdAt) }}</span>
+            <span class="review-order-id" v-if="review.order">· Order #{{ typeof review.order === 'object' ? review.order._id.slice(-6) : review.order.toString().slice(-6) }}</span>
+            <div v-if="isMyReview(review)" class="review-owner-actions">
+              <button class="review-edit-btn" @click="openEditReviewModal(review)">Edit</button>
+              <button class="review-delete-btn" @click="deleteReview(review)">Delete</button>
+            </div>
+          </div>
+          <!-- Comment -->
+          <div v-if="review.comment">
+            <p class="review-comment" :class="{ 'text-clamped': !expandedComments[review._id] }">{{ review.comment }}</p>
+            <button v-if="review.comment.length > 150" class="toggle-btn" @click="toggleComment(review._id)">
+              {{ expandedComments[review._id] ? 'Show less ▲' : 'Show more ▼' }}
+            </button>
           </div>
         </div>
-        <div class="review-stars">
-          <span v-for="s in 5" :key="s" class="rs" :class="{ filled: s <= review.rating }">&#9733;</span>
-        </div>
       </div>
-      <p class="review-comment" v-if="review.comment">{{ review.comment }}</p>
 
-      <!-- SELLER REPLY (đã có) -->
+      <!-- SELLER REPLY (da co) -->
       <div v-if="review.sellerReply && review.sellerReply.repliedAt" class="seller-reply-box">
         <div class="seller-reply-label">
           <span class="reply-icon">↩</span> Seller's response
           <span class="reply-date">· {{ formatDate(review.sellerReply.repliedAt) }}</span>
         </div>
-        <p class="seller-reply-content">{{ review.sellerReply.content }}</p>
+        <p class="seller-reply-content" :class="{ 'reply-clamped': !expandedReplies[review._id] }">
+          {{ review.sellerReply.content }}
+        </p>
+        <button
+          v-if="review.sellerReply.content.length > 200"
+          class="reply-toggle-btn"
+          @click="toggleReply(review._id)"
+        >{{ expandedReplies[review._id] ? 'Show less ▲' : 'Show more ▼' }}</button>
+        <button v-if="isOwner" class="open-reply-btn" @click="openReplyModal(review)">Edit Reply</button>
       </div>
 
-      <!-- SELLER REPLY FORM (chưa reply + đang là owner) -->
-      <div v-else-if="isOwner" class="reply-form-wrap">
-        <div v-if="replyingTo === review._id" class="reply-form">
-          <textarea
-            v-model="replyContent"
-            placeholder="Write your response... (max 500 characters)"
-            class="reply-textarea"
-            maxlength="500"
-            rows="2"
-          ></textarea>
-          <div class="reply-form-actions">
-            <span class="reply-char-count">{{ replyContent.length }}/500</span>
-            <button class="cancel-reply-btn" @click="cancelReply">Cancel</button>
-            <button
-              class="submit-reply-btn"
-              :disabled="!replyContent.trim() || replySubmitting"
-              @click="submitReply(review._id)"
-            >{{ replySubmitting ? 'Submitting...' : 'Post Response' }}</button>
-          </div>
-        </div>
-        <button v-else class="open-reply-btn" @click="openReply(review._id)">
-          ↩ Reply to this review
-        </button>
+      <!-- SELLER chua reply -->
+      <div v-else-if="isOwner">
+        <button class="open-reply-btn" @click="openReplyModal(review)">↩ Reply to this review</button>
       </div>
     </div>
 
@@ -294,6 +273,16 @@
       Show more ({{ reviews.length - reviewsShown }} remaining)
     </button>
   </div>
+
+  <!-- ACTION MODAL -->
+  <ActionModal
+    v-if="actionModal.visible"
+    :type="actionModal.type"
+    :order="actionModal.order"
+    :review="actionModal.review"
+    @cancel="actionModal.visible = false"
+    @confirm="handleModalConfirm"
+  />
 
 </div>
 
@@ -344,6 +333,7 @@ import axios from "axios";
 import LoadingOverlay from "../components/LoadingOverlay.vue";
 import MarketplaceEditModal from "../components/MarketplaceEditModal.vue";
 import MarketplaceBuyModal from "../components/MarketplaceBuyModal.vue";
+import ActionModal from "../components/ActionModal.vue";
 import {
   ShoppingCart,
   Zap,
@@ -358,7 +348,7 @@ export default {
     LoadingOverlay,
     MarketplaceEditModal,
     MarketplaceBuyModal,
-
+    ActionModal,
     ShoppingCart,
     Zap,
     MessageCircle
@@ -384,21 +374,18 @@ export default {
       reviewsLoading: false,
       reviewsShown: 5,
       canReview: false,
-      showReviewForm: false,
-      reviewForm: {
-        rating: 0,
-        hover: 0,
-        comment: "",
-        submitting: false,
-        error: "",
-        success: false,
-        eligibleOrderId: null
+      eligibleOrderId: null,
+
+      // ActionModal
+      actionModal: {
+        visible: false,
+        type: "",       // "review" | "seller-review"
+        order: null,
+        review: null
       },
 
-      // Seller reply
-      replyingTo: null,       // reviewId đang mở form reply
-      replyContent: "",
-      replySubmitting: false
+      expandedReplies: {}, // { [reviewId]: bool }
+      expandedComments: {}
 
 
     };
@@ -482,11 +469,6 @@ export default {
 
   visibleReviews() {
     return this.reviews.slice(0, this.reviewsShown);
-  },
-
-  starInputLabel() {
-    const map = { 1: "Poor", 2: "Fair", 3: "Good", 4: "Very Good", 5: "Excellent" };
-    return map[this.reviewForm.hover || this.reviewForm.rating] || "";
   }
 
   },
@@ -644,45 +626,131 @@ export default {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       this.canReview = res.data?.canReview || false;
-      this.reviewForm.eligibleOrderId = res.data?.orderId || null;
+      this.eligibleOrderId = res.data?.orderId || null;
     } catch {
       this.canReview = false;
     }
   },
 
-  cancelReviewForm() {
-    this.showReviewForm = false;
-    this.reviewForm = { rating: 0, hover: 0, comment: "", submitting: false, error: "", success: false, eligibleOrderId: this.reviewForm.eligibleOrderId };
+  openReviewModal() {
+    this.actionModal = {
+      visible: true,
+      type: "review",
+      order: {
+        _id: this.eligibleOrderId,
+        items: [{
+          _id: this.item._id,
+          item: this.item,
+          quantity: 1,
+          reviewed: false
+        }]
+      },
+      review: null
+    };
   },
 
-  async submitReview() {
-    if (!this.reviewForm.rating) return;
-    this.reviewForm.submitting = true;
-    this.reviewForm.error = "";
-    this.reviewForm.success = false;
+  openReplyModal(review) {
+    // Inject item data vì review.item từ API chỉ là ObjectId, không populate
+    const reviewWithItem = { ...review, item: this.item };
+    this.actionModal = {
+      visible: true,
+      type: "seller-review",
+      order: null,
+      review: reviewWithItem
+    };
+  },
+
+  toggleReply(reviewId) {
+    this.expandedReplies = { ...this.expandedReplies, [reviewId]: !this.expandedReplies[reviewId] };
+  },
+
+  toggleComment(reviewId) {
+    this.expandedComments = { ...this.expandedComments, [reviewId]: !this.expandedComments[reviewId] };
+  },
+
+  isMyReview(review) {    const user = JSON.parse(localStorage.getItem("user"));
+    if (!user || !review.user) return false;
+    return review.user._id === (user._id || user.id);
+  },
+
+  openEditReviewModal(review) {
+    this.actionModal = {
+      visible: true,
+      type: "edit-review",
+      order: {
+        _id: review.order,
+        items: [{ _id: this.item._id, item: this.item, quantity: 1, reviewed: true }]
+      },
+      review
+    };
+  },
+
+  async updateReview(payload) {
+    const token = localStorage.getItem("token");
     try {
-      const token = localStorage.getItem("token");
+      await axios.put(
+        `${process.env.VUE_APP_API_URL}/reviews/${this.actionModal.review._id}`,
+        { rating: payload.rating, comment: payload.comment },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      // Merge chỉ rating/comment, giữ nguyên user/sellerReply/... để tránh mất avatar
+      const idx = this.reviews.findIndex(r => r._id === this.actionModal.review._id);
+      if (idx !== -1) {
+        this.reviews[idx].rating = payload.rating;
+        this.reviews[idx].comment = payload.comment;
+        this.reviews[idx].sellerReply = null; // backend clear reply sau khi buyer edit
+      }
+      this.actionModal.visible = false;
+    } catch (err) {
+      alert(err.response?.data?.msg || "Failed to update review.");
+    }
+  },
+
+  async deleteReview(review) {
+    if (!confirm("Delete your review? This cannot be undone.")) return;
+    const token = localStorage.getItem("token");
+    try {
+      await axios.delete(
+        `${process.env.VUE_APP_API_URL}/reviews/${review._id}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      this.reviews = this.reviews.filter(r => r._id !== review._id);
+      this.canReview = true;
+      this.eligibleOrderId = review.order;
+    } catch (err) {
+      alert(err.response?.data?.msg || "Failed to delete review.");
+    }
+  },
+
+  async handleModalConfirm(payload) {
+    if (this.actionModal.type === "review") {
+      await this.submitReview(payload);
+    } else if (this.actionModal.type === "edit-review") {
+      await this.updateReview(payload);
+    } else if (this.actionModal.type === "seller-review") {
+      if (payload === "__delete_reply__") await this.deleteReply(this.actionModal.review._id);
+      else await this.submitReply(this.actionModal.review._id, payload);
+    }
+  },
+
+  async submitReview(payload) {
+    const token = localStorage.getItem("token");
+    try {
       await axios.post(
         `${process.env.VUE_APP_API_URL}/orders/review`,
         {
-          orderId: this.reviewForm.eligibleOrderId,
+          orderId: this.eligibleOrderId,
           itemId: this.$route.params.id,
-          rating: this.reviewForm.rating,
-          comment: this.reviewForm.comment
+          rating: payload.rating,
+          comment: payload.comment
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      this.reviewForm.success = true;
       this.canReview = false;
-      // Đợi 1s rồi đóng form, reload reviews
-      setTimeout(async () => {
-        this.showReviewForm = false;
-        await this.fetchReviews();
-      }, 1200);
+      this.actionModal.visible = false;
+      await this.fetchReviews();
     } catch (err) {
-      this.reviewForm.error = err.response?.data?.msg || "Failed to submit review.";
-    } finally {
-      this.reviewForm.submitting = false;
+      alert(err.response?.data?.msg || "Failed to submit review.");
     }
   },
 
@@ -691,47 +759,38 @@ export default {
     return new Date(dateStr).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
   },
 
-  /* ========================= */
-  /* SELLER REPLY               */
-  /* ========================= */
-  openReply(reviewId) {
-    this.replyingTo = reviewId;
-    this.replyContent = "";
-  },
-
-  cancelReply() {
-    this.replyingTo = null;
-    this.replyContent = "";
-  },
-
-  async submitReply(reviewId) {
-    if (!this.replyContent.trim()) return;
-    this.replySubmitting = true;
+  async submitReply(reviewId, content) {
+    const token = localStorage.getItem("token");
     try {
-      const token = localStorage.getItem("token");
       const res = await axios.post(
         `${process.env.VUE_APP_API_URL}/reviews/${reviewId}/reply`,
-        { content: this.replyContent.trim() },
+        { content },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-
-      // Cập nhật trực tiếp trong array thay vì refetch cả list
       const review = this.reviews.find(r => r._id === reviewId);
-      if (review) {
-        review.sellerReply = res.data.sellerReply;
-      }
-
-      this.replyingTo = null;
-      this.replyContent = "";
+      if (review) review.sellerReply = res.data.sellerReply;
+      this.actionModal.visible = false;
     } catch (err) {
       alert(err.response?.data?.msg || "Failed to submit reply.");
-    } finally {
-      this.replySubmitting = false;
     }
   },
 
-
+  async deleteReply(reviewId) {
+    const token = localStorage.getItem("token");
+    try {
+      await axios.delete(
+        `${process.env.VUE_APP_API_URL}/reviews/${reviewId}/reply`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const review = this.reviews.find(r => r._id === reviewId);
+      if (review) review.sellerReply = null;
+      this.actionModal.visible = false;
+    } catch (err) {
+      alert(err.response?.data?.msg || "Failed to delete reply.");
+    }
   },
+
+}
 };
 </script>
 
@@ -996,7 +1055,7 @@ export default {
 .sold-out{
   font-size: 14px;
   font-style: italic;
-  font-weight: 600;
+  font-weight: 800;
   margin-bottom: 8px;
   color:#ff4d4f;
 }
@@ -1506,14 +1565,70 @@ export default {
 }
 .review-card:hover { box-shadow: 0 2px 10px rgba(0,0,0,0.06); }
 
+/* Review card layout */
 .review-top {
   display: flex;
-  justify-content: space-between;
+  gap: 12px;
   align-items: flex-start;
-  margin-bottom: 10px;
+}
+
+.review-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.review-row1 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   flex-wrap: wrap;
+}
+
+.review-row2 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 3px;
+  flex-wrap: wrap;
+}
+
+.review-top-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
   gap: 8px;
 }
+
+.review-owner-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.review-edit-btn {
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 6px;
+  border: 1px solid #ff642f;
+  background: white;
+  color: #ff642f;
+  cursor: pointer;
+  transition: 0.15s;
+}
+.review-edit-btn:hover { background: #ff642f; color: white; }
+
+.review-delete-btn {
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 6px;
+  border: 1px solid #ef4444;
+  background: white;
+  color: #ef4444;
+  cursor: pointer;
+  transition: 0.15s;
+}
+.review-delete-btn:hover { background: #ef4444; color: white; }
 
 .reviewer-info {
   display: flex;
@@ -1537,7 +1652,11 @@ export default {
 .review-date {
   font-size: 12px;
   color: #999;
-  margin-top: 2px;
+}
+
+.review-order-id {
+  font-size: 12px;
+  color: #bbb;
 }
 
 .review-stars {
@@ -1555,9 +1674,31 @@ export default {
   font-size: 14px;
   color: #444;
   line-height: 1.6;
+  margin: 6px 0 0;
+  white-space: pre-line;
+}
+
+.review-comment {
+  font-size: 14px;
+  color: #444;
+  line-height: 1.6;
   margin: 0;
   white-space: pre-line;
 }
+
+.text-clamped { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+.toggle-btn {
+  background: none;
+  border: none;
+  color: #ff642f;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 3px 0;
+  display: block;
+}
+.toggle-btn:hover { text-decoration: underline; }
 
 .show-more-btn {
   width: 100%;
@@ -1610,6 +1751,25 @@ export default {
   margin: 0;
   white-space: pre-line;
 }
+
+.reply-clamped {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.reply-toggle-btn {
+  background: none;
+  border: none;
+  color: #ff642f;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 4px 0 0;
+  display: block;
+}
+.reply-toggle-btn:hover { text-decoration: underline; }
 
 .reply-form-wrap { margin-top: 12px; }
 

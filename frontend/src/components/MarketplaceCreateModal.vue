@@ -289,7 +289,7 @@ async submit() {
 
   // Append fields (except price)
   Object.entries(this.form).forEach(([k, v]) => {
-    if (k !== "price" && v !== null && v !== "") {
+    if (k !== "price" && k !== "quantity" && v !== null && v !== "") {
       formData.append(k, v);
     }
   });
@@ -554,4 +554,3 @@ onQuantityBlur() {
 
 
 </style>
-

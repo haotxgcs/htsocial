@@ -81,6 +81,11 @@
                   class="btn-update"
                   @click="openStatusModal(order)"
                 >Update</button>
+                <button
+                  v-if="['pending','shipping'].includes(order.status)"
+                  class="btn-cancel-order"
+                  @click="openCancelModal(order)"
+                >Cancel</button>
               </td>
             </tr>
           </tbody>
@@ -105,6 +110,7 @@
               <th>Buyer</th>
               <th>Reason</th>
               <th>Evidence</th>
+              <th>Date</th>
               <th>Status</th>
               <th>Action</th>
             </tr>
@@ -126,6 +132,7 @@
                 </div>
                 <span v-else class="no-evidence-text">—</span>
               </td>
+              <td>{{ formatDate(refund.refund?.requestedAt) }}</td>
               <td><span class="refund-status-badge" :class="refund.refund?.status">{{ refund.refund?.status }}</span></td>
               <td><button class="btn-view" @click="openRefundModal(refund)">View</button></td>
             </tr>
@@ -200,7 +207,7 @@
 
           <!-- Reviewer -->
           <div class="reviewer-row">
-            <img :src="review.user?.avatar || '/default-avatar.png'" class="reviewer-avatar" />
+            <img :src="getAvatar(review.user?.avatar) || '/default-avatar.png'" class="reviewer-avatar" />
             <div>
               <div class="reviewer-name">{{ review.user?.firstname }} {{ review.user?.lastname }}</div>
               <div class="review-date">{{ formatDate(review.createdAt) }}</div>
@@ -208,7 +215,12 @@
           </div>
 
           <!-- Comment -->
-          <p class="review-comment" v-if="review.comment">{{ review.comment }}</p>
+          <div v-if="review.comment">
+            <p class="review-comment" :class="{ 'text-clamped': !expandedComments[review._id] }">{{ review.comment }}</p>
+            <button v-if="review.comment.length > 150" class="toggle-btn" @click="toggleExpand('comment', review._id)">
+              {{ expandedComments[review._id] ? 'Show less \u25b2' : 'Show more \u25bc' }}
+            </button>
+          </div>
           <p class="review-comment no-comment" v-else>No written review.</p>
 
           <!-- Already replied -->
@@ -217,7 +229,10 @@
               ↩ Your response
               <span class="reply-date">· {{ formatDate(review.sellerReply.repliedAt) }}</span>
             </div>
-            <p class="seller-reply-text">{{ review.sellerReply.content }}</p>
+            <p class="seller-reply-text" :class="{ 'text-clamped': !expandedReplies[review._id] }">{{ review.sellerReply.content }}</p>
+            <button v-if="review.sellerReply.content.length > 150" class="toggle-btn" @click="toggleExpand('reply', review._id)">
+              {{ expandedReplies[review._id] ? 'Show less \u25b2' : 'Show more \u25bc' }}
+            </button>
             <button class="btn-edit-reply" @click="openReplyModal(review)">Edit Reply</button>
           </div>
 
@@ -238,6 +253,7 @@
       :order="modal.order"
       :refund="modal.refund"
       :review="modal.review"
+      :actor="modal.type === 'cancel' ? 'seller' : 'buyer'"
       @cancel="modal.visible = false"
       @confirm="handleModalConfirm"
     />
@@ -269,7 +285,10 @@ export default {
       reviewFilter: "all",
       starFilter: 0,
       // Modal
-      modal: { visible: false, type: "", order: null, refund: null, review: null }
+      modal: { visible: false, type: "", order: null, refund: null, review: null },
+      // Show more/less for review content
+      expandedComments: {},
+      expandedReplies: {}
     };
   },
 
@@ -361,14 +380,17 @@ export default {
     openStatusModal(order) { this.modal = { visible: true, type: "status", order, refund: null, review: null }; },
     openRefundModal(refund) { this.modal = { visible: true, type: "refund", order: null, refund, review: null }; },
     openReplyModal(review) { this.modal = { visible: true, type: "seller-review", order: null, refund: null, review }; },
+    openCancelModal(order) { this.modal = { visible: true, type: "cancel", order, refund: null, review: null }; },
 
     async handleModalConfirm(payload) {
       if (this.modal.type === "status") await this.updateStatus(payload);
+      else if (this.modal.type === "cancel") await this.cancelOrder(payload);
       else if (this.modal.type === "refund") {
         if (payload === "approve") await this.approveRefund();
         else if (payload === "reject") await this.rejectRefund();
       } else if (this.modal.type === "seller-review") {
-        await this.submitReply(this.modal.review._id, payload);
+        if (payload === "__delete_reply__") await this.deleteReply(this.modal.review._id);
+        else await this.submitReply(this.modal.review._id, payload);
       }
     },
 
@@ -382,6 +404,21 @@ export default {
         });
         const data = await res.json();
         if (!res.ok) { alert(data.msg || "Failed to update status"); return; }
+        this.modal.visible = false;
+        await this.fetchOrders();
+      } catch { alert("Network error. Please try again."); }
+    },
+
+    async cancelOrder(reason) {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await fetch(`${process.env.VUE_APP_API_URL}/orders/${this.modal.order._id}/seller-cancel`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ reason })
+        });
+        const data = await res.json();
+        if (!res.ok) { alert(data.msg || "Failed to cancel order"); return; }
         this.modal.visible = false;
         await this.fetchOrders();
       } catch { alert("Network error. Please try again."); }
@@ -431,12 +468,40 @@ export default {
       } catch { alert("Network error."); }
     },
 
+    async deleteReply(reviewId) {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await fetch(`${process.env.VUE_APP_API_URL}/reviews/${reviewId}/reply`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (!res.ok) { alert(data.msg || "Failed to delete reply"); return; }
+        const r = this.reviews.find(rv => rv._id === reviewId);
+        if (r) r.sellerReply = null;
+        this.modal.visible = false;
+      } catch { alert("Network error."); }
+    },
+
+    toggleExpand(type, reviewId) {
+      if (type === 'comment') {
+        this.expandedComments = { ...this.expandedComments, [reviewId]: !this.expandedComments[reviewId] };
+      } else {
+        this.expandedReplies = { ...this.expandedReplies, [reviewId]: !this.expandedReplies[reviewId] };
+      }
+    },
+
     formatDate(d) {
       if (!d) return "";
-      return new Date(d).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+      return new Date(d).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" , hour:"2-digit", minute:"2-digit"});
     },
     ratingLabel(r) { return { 1: "Poor", 2: "Fair", 3: "Good", 4: "Very Good", 5: "Excellent" }[r] || ""; },
-    ratingClass(r) { return r >= 4 ? "rating--green" : r === 3 ? "rating--yellow" : "rating--red"; }
+    ratingClass(r) { return r >= 4 ? "rating--green" : r === 3 ? "rating--yellow" : "rating--red"; },
+    getAvatar(avatar) {
+      if (!avatar) return '/default-avatar.png'
+      if (avatar.startsWith('http')) return avatar  // URL đầy đủ → giữ nguyên
+      return `${process.env.VUE_APP_API_URL}/${avatar.replace(/^\/uploads\//, '')}`
+    },
   }
 };
 </script>
@@ -648,6 +713,14 @@ export default {
 }
 .btn-update:hover { background: #e05522; }
 
+.btn-cancel-order {
+  padding: 5px 12px; background: white; color: #ef4444;
+  border: 1.5px solid #ef4444; border-radius: 7px;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.btn-cancel-order:hover { background: #ef4444; color: white; }
+
 button:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* ========================= */
@@ -700,6 +773,9 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .review-date { font-size: 11px; color: #bbb; margin-top: 1px; }
 
 .review-comment { font-size: 13px; color: #444; line-height: 1.6; margin: 0; white-space: pre-line; }
+.text-clamped { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.toggle-btn { background: none; border: none; color: #FF642F; font-size: 12px; font-weight: 500; cursor: pointer; padding: 3px 0; display: block; }
+.toggle-btn:hover { text-decoration: underline; }
 .review-comment.no-comment { color: #ccc; font-style: italic; }
 
 .seller-reply-box {

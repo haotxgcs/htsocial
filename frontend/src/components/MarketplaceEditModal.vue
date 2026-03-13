@@ -67,9 +67,10 @@
           <input
             class="recipe-input"
             type="number"
-            min="1"
+            min="0"
             v-model.number="form.quantity"
           />
+          <div v-if="form.quantity === 0" style="font-size:12px;color:#e67e22;margin-top:4px;">0 = Out of Stock (item will be marked as sold)</div>
 
         </div>
 
@@ -147,7 +148,7 @@ export default {
       form: {
         title: "",
         description: "",
-        quantity: 1,
+        quantity: 0,
         type: "ingredient",
         condition: null
       },
@@ -161,7 +162,7 @@ export default {
         this.form.title.trim() &&
         this.form.description.trim() &&
         Number(this.priceInput) > 0 &&
-        this.form.quantity >= 1 &&
+        this.form.quantity >= 0 &&
         this.totalImagesCount > 0 
       );
     },
@@ -191,7 +192,7 @@ watch: {
     initForm() {
     this.form.title = this.item.title ?? "";
     this.form.description = this.item.description ?? "";
-    this.form.quantity = this.item.quantity ?? 1;
+    this.form.quantity = this.item.quantity ?? 0;
     this.form.type = this.item.type ?? "ingredient";
     this.form.condition = this.item.condition ?? null;
 

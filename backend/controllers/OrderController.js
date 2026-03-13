@@ -3,7 +3,6 @@ const Cart = require("../models/CartModel");
 const MarketplaceItem = require("../models/MarketplaceItemModel");
 const User = require("../models/UserModel");
 const Review = require("../models/ReviewModel");
-// const nodemailer = require("nodemailer");
 
 const { sendEmail } = require("../services/emailService");
 const { orderEmailTemplate } = require("../services/emailTemplates");
@@ -857,8 +856,8 @@ exports.cancelOrderBySeller = async (req, res) => {
       });
     }
 
-    // ✅ Cannot cancel if shipping/completed
-    if (["shipping", "completed"].includes(order.status)) {
+    // ✅ Cannot cancel if completed
+    if (order.status === "completed") {
       return res.status(400).json({
         msg: "Order cannot be cancelled at this stage"
       });
@@ -1126,7 +1125,3 @@ exports.reviewItem = async (req, res) => {
     });
   }
 };
-
-
-
-

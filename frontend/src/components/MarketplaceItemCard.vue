@@ -24,6 +24,18 @@
     <div class="content" @click="$emit('open', item)">
       <div class="price">{{ formatPrice(item.price) }}</div>
       <div class="title" :title="item.title">{{ item.title }}</div>
+      <!-- <div v-if="item.rating.count > 0" class="review">{{ item.rating.average }}★
+      ({{ item.rating.count }} {{item.rating.count === 1 ? 'review' : 'reviews'  }})
+    </div> -->
+    <div class="rating-summary" v-if="item.rating.count > 0">
+        <span class="avg-stars">
+          <span v-for="s in 5" :key="s" class="avg-star" :class="{ full: s <= item.rating.average }">&#9733;</span>
+        </span>
+        <span class="avg-score">{{ item.rating.average }}</span>
+        <span class="avg-count">({{ item.rating.count }} {{ item.rating.count === 1 ? 'review' : 'reviews' }})</span>
+      </div>
+    <div v-else class="no-review">No reviews yet.</div>
+     
       <div class="seller">
         <img :src="avatarUrl" />
         <span>{{ item.seller?.firstname }} {{ item.seller?.lastname }}</span>
@@ -128,7 +140,7 @@ export default {
         currency: "USD"
       }).format(v);
 
-    }
+    },
   }
 };
 </script>
@@ -201,6 +213,42 @@ export default {
   overflow: hidden;
   text-overflow: ellipsis;
   word-break: break-word;
+}
+
+.review{
+  font-size:14px;
+  font-weight:500;
+  color: #f5a623;
+  font-style:italic;
+  margin-bottom: 5px;
+}
+
+.no-review{
+  font-size: 13px;
+  color: #aaa;
+  font-style: italic;
+  margin-bottom:5px;
+}
+
+.rating-summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.avg-stars { display: flex; gap: 1px; }
+.avg-star { font-size: 18px; color: #ddd; }
+.avg-star.full { color: #f5a623; }
+
+.avg-score {
+  font-size: 16px;
+  font-weight: 700;
+  color: #333;
+}
+
+.avg-count {
+  font-size: 13px;
+  color: #888;
 }
 
 .seller {

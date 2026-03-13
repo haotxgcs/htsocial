@@ -17,87 +17,157 @@ const transporter = nodemailer.createTransport({
  * ✅ Send Payment Success Email
  */
 async function sendOrderPaidEmail(order) {
+  const brand      = "#ff5757";
+  const brandLight = "#fff3ee";
+  const textDark   = "#1a1a1a";
+  const textGray   = "#666666";
+  const borderCol  = "#eeeeee";
+
   await transporter.sendMail({
     from: `"HT Social Marketplace" <${process.env.EMAIL_USER}>`,
     to: order.user.email,
-    subject: "✅ Payment Successful - Order Confirmed",
+    subject: "Payment Successful — Order Confirmed",
+    html: `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f0f2f5;font-family:'Segoe UI',Arial,sans-serif;">
+<div style="max-width:560px;margin:36px auto 60px;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10);">
 
-    html: `
-      <div style="font-family:Arial;background:#f6f6f6;padding:40px;">
-        <div style="max-width:600px;margin:auto;background:white;
-          border-radius:14px;overflow:hidden;
-          box-shadow:0 6px 18px rgba(0,0,0,0.15);">
+  <div style="background:${brand};padding:26px 28px;text-align:center;">
+    <div style="font-size:22px;font-weight:800;color:#fff;">HT Social Marketplace</div>
+    <div style="margin-top:5px;font-size:13px;color:rgba(255,255,255,0.82);">Payment Receipt</div>
+  </div>
 
-          <div style="background:#ff5757;color:white;
-            padding:20px;text-align:center;
-            font-size:24px;font-weight:bold;">
-            HT Social
-          </div>
+  <div style="padding:32px 28px 24px;text-align:center;border-bottom:1px solid ${borderCol};">
+    <div style="font-size:40px;margin-bottom:10px;">✅</div>
+    <h2 style="margin:0 0 10px;font-size:20px;color:${textDark};font-weight:700;">Payment Successful!</h2>
+    <p style="margin:0 0 16px;font-size:14px;color:${textGray};line-height:1.6;">
+      Hi <strong>${order.user.firstname} ${order.user.lastname}</strong>,<br/>
+      your payment has been received and your order is now confirmed.
+    </p>
+    <div style="display:inline-block;background:#f5f5f5;border-radius:8px;padding:8px 20px;font-size:13px;color:${textGray};">
+      Order ID:&nbsp;<strong style="color:${textDark};font-family:monospace;font-size:14px;">#${order._id.toString().slice(-6)}</strong>
+    </div>
+  </div>
 
-          <div style="padding:35px;text-align:center;">
-            <h2>Thank you for your purchase ✅</h2>
-            <p>Hello <b>${order.user.firstname} ${order.user.lastname}</b>, your payment was successful!</p>
-            <p><b>Order ID:</b> ${order._id}</p>
-            <p><b>Total Paid:</b> $${order.totalPrice}</p>
+  <div style="padding:24px 28px;border-bottom:1px solid ${borderCol};">
+    <table width="100%" cellspacing="0" cellpadding="0" style="font-size:14px;">
+      <tr>
+        <td style="padding:8px 0;color:${textGray};">Payment Method</td>
+        <td align="right"><span style="background:#fff3e0;color:#e67e22;font-size:12px;font-weight:600;padding:3px 10px;border-radius:20px;border:1px solid #f0c07a;">Online Payment (Stripe)</span></td>
+      </tr>
+      <tr>
+        <td style="padding:8px 0;color:${textGray};border-top:1px solid ${borderCol};">Payment Status</td>
+        <td style="border-top:1px solid ${borderCol};" align="right"><span style="background:#e8f5e9;color:#27ae60;font-size:12px;font-weight:600;padding:3px 10px;border-radius:20px;">Paid</span></td>
+      </tr>
+      <tr>
+        <td style="padding:8px 0;color:${textGray};border-top:1px solid ${borderCol};">Order Status</td>
+        <td style="border-top:1px solid ${borderCol};" align="right"><span style="background:${brandLight};color:${brand};font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;border:1px solid #ffd0c0;text-transform:uppercase;">Confirmed</span></td>
+      </tr>
+    </table>
+  </div>
 
-            <a href="http://localhost:8080/orders/${order._id}"
-              style="display:inline-block;margin-top:20px;
-              padding:14px 26px;
-              background:#ff5757; color:white;
-              border-radius:10px;text-decoration:none;">
-              View Order Details
-            </a>
-          </div>
+  <div style="margin:20px 28px 24px;background:${brandLight};border-radius:12px;padding:18px 22px;">
+    <table width="100%" cellspacing="0" cellpadding="0">
+      <tr>
+        <td style="font-size:15px;font-weight:600;color:${textDark};">Total Paid</td>
+        <td align="right" style="font-size:24px;font-weight:800;color:${brand};">$${Number(order.totalPrice).toFixed(2)}</td>
+      </tr>
+    </table>
+  </div>
 
-          <div style="background:#fafafa;padding:15px;
-            text-align:center;font-size:12px;color:#888;">
-            © ${new Date().getFullYear()} HT Social Marketplace. All rights reserved.
-          </div>
-        </div>
-      </div>
-    `
+  <div style="padding:0 28px 28px;text-align:center;">
+    <a href="${process.env.CLIENT_URL || "http://localhost:8080"}/orders/${order._id}"
+      style="display:inline-block;padding:14px 32px;background:${brand};color:#fff;font-size:14px;font-weight:700;border-radius:10px;text-decoration:none;">
+      View Order Details
+    </a>
+  </div>
+
+  <div style="background:#fafafa;border-top:1px solid ${borderCol};padding:18px 28px;text-align:center;">
+    <p style="margin:0 0 6px;font-size:13px;color:${textGray};">Questions? Contact our support team.</p>
+    <p style="margin:0;font-size:12px;color:#bbb;">&copy; ${new Date().getFullYear()} HT Social Marketplace. All rights reserved.</p>
+  </div>
+
+</div>
+</body>
+</html>`
   });
 }
-
-/**
- * ✅ Send Refund Success Email
- */
 async function sendRefundSuccessEmail(order) {
+  const brand      = "#ff5757";
+  const brandLight = "#fff3ee";
+  const textDark   = "#1a1a1a";
+  const textGray   = "#666666";
+  const borderCol  = "#eeeeee";
+
   await transporter.sendMail({
     from: `"HT Social Marketplace" <${process.env.EMAIL_USER}>`,
     to: order.user.email,
-    subject: "✅ Refund Completed Successfully",
+    subject: "Refund Completed Successfully",
+    html: `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f0f2f5;font-family:'Segoe UI',Arial,sans-serif;">
+<div style="max-width:560px;margin:36px auto 60px;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10);">
 
-    html: `
-      <div style="font-family:Arial;background:#f6f6f6;padding:40px;">
-        <div style="max-width:600px;margin:auto;background:white;
-          border-radius:14px;overflow:hidden;
-          box-shadow:0 6px 18px rgba(0,0,0,0.15);">
+  <div style="background:${brand};padding:26px 28px;text-align:center;">
+    <div style="font-size:22px;font-weight:800;color:#fff;">HT Social Marketplace</div>
+    <div style="margin-top:5px;font-size:13px;color:rgba(255,255,255,0.82);">Refund Receipt</div>
+  </div>
 
-          <div style="background:#ff5757 ;color:white;
-            padding:20px;text-align:center;
-            font-size:24px;font-weight:bold;">
-            HT Social
-          </div>
+  <div style="padding:32px 28px 24px;text-align:center;border-bottom:1px solid ${borderCol};">
+    <div style="font-size:40px;margin-bottom:10px;">💸</div>
+    <h2 style="margin:0 0 10px;font-size:20px;color:${textDark};font-weight:700;">Refund Processed!</h2>
+    <p style="margin:0 0 16px;font-size:14px;color:${textGray};line-height:1.6;">
+      Hi <strong>${order.user.firstname} ${order.user.lastname}</strong>,<br/>
+      your refund has been processed successfully.
+    </p>
+    <div style="display:inline-block;background:#f5f5f5;border-radius:8px;padding:8px 20px;font-size:13px;color:${textGray};">
+      Order ID:&nbsp;<strong style="color:${textDark};font-family:monospace;font-size:14px;">#${order._id.toString().slice(-6)}</strong>
+    </div>
+  </div>
 
-          <div style="padding:35px;text-align:center;">
-            <h2>Your refund has been processed ✅</h2>
+  <div style="padding:24px 28px;border-bottom:1px solid ${borderCol};">
+    <table width="100%" cellspacing="0" cellpadding="0" style="font-size:14px;">
+      <tr>
+        <td style="padding:8px 0;color:${textGray};">Refund Status</td>
+        <td align="right"><span style="background:#e8f5e9;color:#27ae60;font-size:12px;font-weight:600;padding:3px 10px;border-radius:20px;">Refunded</span></td>
+      </tr>
+      <tr>
+        <td style="padding:8px 0;color:${textGray};border-top:1px solid ${borderCol};">Order Status</td>
+        <td style="border-top:1px solid ${borderCol};" align="right"><span style="background:${brandLight};color:${brand};font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;border:1px solid #ffd0c0;text-transform:uppercase;">Refunded</span></td>
+      </tr>
+    </table>
+  </div>
 
-            <p>Order <b>${order._id}</b> has been refunded successfully.</p>
-            <p>Status: <b>Refunded</b></p>
+  <div style="margin:20px 28px 8px;background:#e8f5e9;border-radius:12px;padding:18px 22px;">
+    <table width="100%" cellspacing="0" cellpadding="0">
+      <tr>
+        <td style="font-size:15px;font-weight:600;color:${textDark};">Amount Refunded</td>
+        <td align="right" style="font-size:24px;font-weight:800;color:#27ae60;">$${Number(order.totalPrice).toFixed(2)}</td>
+      </tr>
+    </table>
+  </div>
 
-            <p style="color:#555;font-size:14px;">
-              The refunded amount will return to your bank/card soon.
-            </p>
-          </div>
+  <div style="margin:12px 28px 28px;padding:14px 18px;background:#f0fff4;border-radius:10px;border-left:3px solid #a5d6a7;font-size:13px;color:#2e7d32;line-height:1.6;">
+    The refunded amount will be returned to your original payment method within <strong>5–7 business days</strong>.
+  </div>
 
-          <div style="background:#fafafa;padding:15px;
-            text-align:center;font-size:12px;color:#888;">
-            © ${new Date().getFullYear()} HT Social Marketplace. All rights reserved.
-          </div>
-        </div>
-      </div>
-    `
+  <div style="padding:0 28px 28px;text-align:center;">
+    <a href="${process.env.CLIENT_URL || "http://localhost:8080"}/orders/${order._id}"
+      style="display:inline-block;padding:14px 32px;background:${brand};color:#fff;font-size:14px;font-weight:700;border-radius:10px;text-decoration:none;">
+      View Order Details
+    </a>
+  </div>
+
+  <div style="background:#fafafa;border-top:1px solid ${borderCol};padding:18px 28px;text-align:center;">
+    <p style="margin:0 0 6px;font-size:13px;color:${textGray};">Questions? Contact our support team.</p>
+    <p style="margin:0;font-size:12px;color:#bbb;">&copy; ${new Date().getFullYear()} HT Social Marketplace. All rights reserved.</p>
+  </div>
+
+</div>
+</body>
+</html>`
   });
 }
 

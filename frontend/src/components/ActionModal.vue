@@ -3,15 +3,18 @@
     <div class="modal" :class="'modal--' + type">
 
       <!-- ===== CLOSE BUTTON ===== -->
-      <button class="modal-close" @click="$emit('cancel')"><X /></button>
+      <!-- <button class="modal-close" @click="$emit('cancel')"><X /></button> -->
 
       <!-- ===================== -->
       <!-- STATUS UPDATE         -->
       <!-- ===================== -->
       <div v-if="type === 'status'" class="modal-body">
         <div class="modal-header">
-          <div class="modal-icon modal-icon--blue"><Package /></div>
-          <h3 class="modal-title">Update Order Status</h3>
+          <div class="modal-icon" :class="status === 'cancelled' ? 'modal-icon--red' : 'modal-icon--blue'">
+            <TriangleAlert v-if="status === 'cancelled'" />
+            <Package v-else />
+          </div>
+          <h3 class="modal-title">{{ status === 'cancelled' ? 'Cancel Order' : 'Update Order Status' }}</h3>
           <p class="modal-sub">Order <span class="mono">#{{ order._id.slice(-6) }}</span></p>
         </div>
 
@@ -21,18 +24,31 @@
         </div>
 
         <div class="select-wrap">
-          <select v-model="status" class="styled-select">
+          <select v-model="status" class="styled-select" @change="cancelReason = ''">
             <option disabled value="">Select new status...</option>
-            <option value="confirmed">Confirmed</option>
-            <option value="shipping">Shipping</option>
-            <option value="completed">Completed</option>
+            <option value="confirmed">✅ Confirmed</option>
+            <option value="shipping">🚚 Shipping</option>
+            <option value="completed">🎉 Completed</option>
           </select>
         </div>
 
         <div class="modal-actions">
-          <button class="btn btn-ghost" @click="$emit('cancel')">Cancel</button>
-          <button class="btn btn-primary" :disabled="!status" @click="$emit('confirm', status)">
+          <button class="btn btn-ghost" @click="$emit('cancel')">Close</button>
+          <button
+            v-if="status !== 'cancelled'"
+            class="btn btn-primary"
+            :disabled="!status"
+            @click="$emit('confirm', status)"
+          >
             Update Status
+          </button>
+          <button
+            v-else
+            class="btn btn-danger"
+            :disabled="!cancelReason.trim()"
+            @click="$emit('confirm', { status: 'cancelled', reason: cancelReason.trim() })"
+          >
+            Confirm Cancel
           </button>
         </div>
       </div>
@@ -83,7 +99,8 @@
         <!-- Reject reason input -->
         <div class="info-block" v-if="showRejectInput">
           <div class="info-label">Rejection reason <span class="required">*</span></div>
-          <textarea v-model="rejectReason" class="styled-textarea" placeholder="Explain why you are rejecting..." rows="2"></textarea>
+          <textarea v-model="rejectReason" class="styled-textarea" placeholder="Explain why you are rejecting..." rows="2" maxlength="300"></textarea>
+          <div class="char-count">{{ rejectReason.length }} / 300</div>
         </div>
 
         <div class="modal-actions">
@@ -110,7 +127,8 @@
 
         <div class="field">
           <label class="field-label">Reason <span class="required">*</span></label>
-          <textarea v-model="refundReason" class="styled-textarea" placeholder="Describe the issue in detail..." rows="3"></textarea>
+          <textarea v-model="refundReason" class="styled-textarea" placeholder="Describe the issue in detail..." rows="3" maxlength="500"></textarea>
+          <div class="char-count">{{ refundReason.length }} / 500</div>
         </div>
 
         <div class="field">
@@ -209,7 +227,8 @@
               >{{ s <= (reviewDraft.hover || reviewDraft.rating) ? '\u2605' : '\u2606' }}</span>
               <span class="star-label" :class="{ 'star-label--active': starLabel }">{{ starLabel || 'Tap to rate' }}</span>
             </div>
-            <textarea v-model="reviewDraft.comment" class="styled-textarea" placeholder="Share your experience... (optional)" rows="3"></textarea>
+            <textarea v-model="reviewDraft.comment" class="styled-textarea" placeholder="Share your experience... (optional)" rows="3" maxlength="1000"></textarea>
+            <div class="char-count">{{ reviewDraft.comment.length }} / 1000</div>
             <div class="modal-actions">
               <button class="btn btn-ghost" @click="$emit('cancel')">Close</button>
               <button class="btn btn-primary" :disabled="!reviewDraft.rating || submittingReview" @click="submitReview">
@@ -222,14 +241,52 @@
 
 
       <!-- ===================== -->
+      <!-- EDIT REVIEW (buyer)   -->
+      <!-- ===================== -->
+      <div v-if="type === 'edit-review'" class="modal-body">
+        <div class="modal-header">
+          <div class="modal-icon modal-icon--yellow"><Star /></div>
+          <h3 class="modal-title">Edit Your Review</h3>
+          <p class="modal-sub">Order <span class="mono">#{{ order._id.slice(-6) }}</span></p>
+        </div>
+
+        <div class="review-item-card">
+          <img :src="order?.items?.[0]?.item?.images?.[0]" class="review-item-img" />
+          <div class="review-item-title">{{ order?.items?.[0]?.item?.title }}</div>
+        </div>
+
+        <div class="star-row">
+          <span
+            v-for="s in 5" :key="s"
+            class="star"
+            :class="{ active: s <= (reviewDraft.hover || reviewDraft.rating) }"
+            @click="reviewDraft.rating = s"
+            @mouseover="reviewDraft.hover = s"
+            @mouseleave="reviewDraft.hover = 0"
+          >{{ s <= (reviewDraft.hover || reviewDraft.rating) ? '\u2605' : '\u2606' }}</span>
+          <span class="star-label" :class="{ 'star-label--active': starLabel }">{{ starLabel || 'Tap to rate' }}</span>
+        </div>
+
+        <textarea v-model="reviewDraft.comment" class="styled-textarea" placeholder="Update your experience... (optional)" rows="3" maxlength="1000"></textarea>
+        <div class="char-count">{{ reviewDraft.comment.length }} / 1000</div>
+
+        <div class="modal-actions">
+          <button class="btn btn-ghost" @click="$emit('cancel')">Cancel</button>
+          <button class="btn btn-primary" :disabled="!reviewDraft.rating" @click="$emit('confirm', { rating: reviewDraft.rating, comment: reviewDraft.comment })">
+            Save Changes
+          </button>
+        </div>
+      </div>
+
+
+      <!-- ===================== -->
       <!-- SELLER-REVIEW         -->
       <!-- (Seller xem + reply)  -->
       <!-- ===================== -->
-      <div v-if="type === 'seller-review'" class="modal-body">
-        <div class="modal-header">
+      <div v-if="type === 'seller-review'" class="modal-body">        <div class="modal-header">
           <div class="modal-icon modal-icon--yellow"><Star /></div>
           <h3 class="modal-title">Customer Review</h3>
-          <p class="modal-sub">{{ review?.item?.title || 'Item Review' }}</p>
+          <p class="modal-sub">Order <span class="mono">#{{typeof review.order === 'object' ? review.order._id.slice(-6) : review.order.toString().slice(-6) }}</span></p>
         </div>
 
         <!-- Item info -->
@@ -251,10 +308,11 @@
         <div class="info-block">
           <div class="info-label">Reviewer</div>
           <div class="sr-reviewer-row">
-            <img :src="review?.user?.avatar || '/default-avatar.png'" class="sr-avatar" />
+            <img :src="getAvatar(review?.user?.avatar) || '/default-avatar.png'" class="sr-avatar" />
             <div>
               <div class="sr-reviewer-name">{{ review?.user?.firstname }} {{ review?.user?.lastname }}</div>
               <div class="sr-reviewer-date">{{ formatDate(review?.createdAt) }}</div>
+              <div class="sr-reviewer-date" v-if="review?.order">Order #{{ typeof review.order === 'object' ? review.order._id.slice(-6) : review.order.toString().slice(-6) }}</div>
             </div>
           </div>
         </div>
@@ -262,21 +320,22 @@
         <!-- Comment -->
         <div class="info-block">
           <div class="info-label">Comment</div>
-          <div class="info-value" v-if="review?.comment">{{ review.comment }}</div>
+          <div class="info-value sr-clamped" v-if="review?.comment">{{ review.comment }}</div>
           <div class="no-evidence" v-else>No written comment.</div>
         </div>
 
-        <!-- Already replied: show reply + option to edit -->
+        <!-- Already replied: show reply + option to edit/delete -->
         <div v-if="review?.sellerReply?.repliedAt && !editingReply">
           <div class="sr-replied-box">
             <div class="sr-replied-label">
               ↩ Your response
               <span class="sr-reply-date">· {{ formatDate(review.sellerReply.repliedAt) }}</span>
             </div>
-            <p class="sr-reply-content">{{ review.sellerReply.content }}</p>
+            <p class="sr-reply-content sr-clamped">{{ review.sellerReply.content }}</p>
           </div>
           <div class="modal-actions">
             <button class="btn btn-ghost" @click="$emit('cancel')">Close</button>
+            <button class="btn btn-danger" @click="$emit('confirm', '__delete_reply__')">Delete Reply</button>
             <button class="btn btn-primary" @click="startEditReply">Edit Reply</button>
           </div>
         </div>
@@ -314,20 +373,46 @@
 
 
       <!-- ===================== -->
-      <!-- CANCEL ORDER          -->
+      <!-- CANCEL ORDER (buyer)  -->
       <!-- ===================== -->
       <div v-if="type === 'cancel'" class="modal-body">
         <div class="modal-header">
           <div class="modal-icon modal-icon--red"><TriangleAlert /></div>
-          <h3 class="modal-title">Cancel Order</h3>
-          <p class="modal-sub">Order <span class="mono">#{{ order._id.slice(-6) }}</span></p>
+          <h3 class="modal-title">{{ actor === "seller" ? "Cancel Order" : "Cancel Order" }}</h3>
+          <p class="modal-sub">
+            Order <span class="mono">#{{ order._id.slice(-6) }}</span>
+            <span v-if="actor === 'seller'" style="margin-left:6px;font-size:11px;background:#fee2e2;color:#b91c1c;padding:2px 7px;border-radius:10px;font-weight:600;">Seller Cancel</span>
+            <span v-else style="margin-left:6px;font-size:11px;background:#fef3c7;color:#92400e;padding:2px 7px;border-radius:10px;font-weight:600;">Buyer Cancel</span>
+          </p>
         </div>
 
-        <p class="cancel-warning">This action cannot be undone. Stock will be restored automatically.</p>
+        <p class="cancel-warning">
+          ⚠️ This action cannot be undone. Stock will be restored automatically.
+          <span v-if="actor === 'seller' && order?.status === 'shipping'"><br/>🚚 Note: Order is currently shipping. Please coordinate with the delivery service.</span>
+        </p>
 
         <div class="field">
-          <label class="field-label">Reason <span class="required">*</span></label>
-          <textarea v-model="reason" class="styled-textarea" placeholder="Let us know why you're cancelling..." rows="3"></textarea>
+          <label class="field-label">Reason for cancellation <span class="required">*</span></label>
+
+          <!-- Quick reason pills -->
+          <div class="reason-pills">
+            <button
+              v-for="r in cancelReasonPresets" :key="r"
+              class="reason-pill"
+              :class="{ active: reason === r }"
+              @click="reason = r"
+            >{{ r }}</button>
+          </div>
+
+          <textarea
+            v-model="reason"
+            class="styled-textarea"
+            placeholder="Or describe your reason..."
+            rows="2"
+            maxlength="300"
+            style="margin-top: 10px"
+          ></textarea>
+          <div class="char-count">{{ reason.length }} / 300</div>
         </div>
 
         <div class="modal-actions">
@@ -370,7 +455,8 @@ export default {
     order: Object,
     refund: Object,
     review: Object,
-    requireEvidence: { type: Boolean, default: false }
+    requireEvidence: { type: Boolean, default: false },
+    actor: { type: String, default: "buyer" } // "buyer" | "seller"
   },
 
   computed: {
@@ -385,6 +471,30 @@ export default {
     hasEvidence() {
       const ev = this.refund?.refund?.evidence;
       return ev && (ev.images?.length > 0 || ev.videos?.length > 0);
+    },
+    cancelReasonPresets() {
+      if (this.actor === "seller") {
+        const base = [
+          "Out of stock",
+          "Item damaged before shipment",
+          "Incorrect order details",
+          "Unable to fulfill order",
+          "Other"
+        ];
+        // Neu dang shipping thi co the buyer tu choi nhan
+        if (this.order?.status === "shipping") {
+          base.splice(0, 0, "Delivery refused by buyer");
+        }
+        return base;
+      }
+      // Buyer presets
+      return [
+        "Changed my mind",
+        "Ordered by mistake",
+        "Found a better price",
+        "Delivery too slow",
+        "Other"
+      ];
     }
   },
 
@@ -392,7 +502,8 @@ export default {
     return {
       // Status
       status: "",
-      // Cancel
+      cancelReason: "",
+      // Cancel (buyer)
       reason: "",
       // Request refund
       refundReason: "",
@@ -425,6 +536,22 @@ export default {
         }
         this.editingReply = false;
       }
+    },
+    // Pre-fill reviewDraft when editing buyer's own review
+    type: {
+      immediate: true,
+      handler(val) {
+        if (val === "edit-review" && this.review) {
+          this.reviewDraft = {
+            rating: this.review.rating || 0,
+            hover: 0,
+            comment: this.review.comment || ""
+          };
+        } else if (val === "review") {
+          this.reviewDraft = { rating: 0, hover: 0, comment: "" };
+          this.selectedItem = null;
+        }
+      }
     }
   },
 
@@ -440,7 +567,12 @@ export default {
     },
     formatDate(d) {
       if (!d) return "";
-      return new Date(d).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+      return new Date(d).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric", hour:"2-digit", minute:"2-digit"});
+    },
+    getAvatar(avatar) {
+      if (!avatar) return '/default-avatar.png'
+      if (avatar.startsWith('http')) return avatar  // URL đầy đủ → giữ nguyên
+      return `${process.env.VUE_APP_API_URL}/${avatar.replace(/^\/uploads\//, '')}`
     },
 
     /* ---- Buyer review ---- */
@@ -569,11 +701,11 @@ export default {
   display: flex; align-items: center; gap: 8px;
 }
 .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-.status-dot.pending   { background: #f59e0b; }
-.status-dot.confirmed { background: #3b82f6; }
-.status-dot.shipping  { background: #8b5cf6; }
-.status-dot.completed { background: #10b981; }
-.status-dot.cancelled { background: #ef4444; }
+.status-dot.pending   { background: #c8c8c8; }
+.status-dot.confirmed { background: #f9cc39; }
+.status-dot.shipping  { background: #449af6; }
+.status-dot.completed { background: #42fc6d; }
+.status-dot.cancelled { background: #ff4959; }
 
 .select-wrap { margin-bottom: 4px; }
 .styled-select {
@@ -723,6 +855,7 @@ export default {
 .sr-replied-label { font-size: 11px; font-weight: 700; color: #FF642F; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
 .sr-reply-date { font-weight: 400; color: #bbb; }
 .sr-reply-content { font-size: 13px; color: #444; margin: 0; line-height: 1.6; white-space: pre-line; }
+.sr-clamped { max-height: 80px; overflow-y: auto; scrollbar-width: thin; }
 
 /* ACTIONS */
 .modal-actions {
@@ -744,7 +877,7 @@ export default {
 
 /* LIGHTBOX */
 .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 10000; display: flex; align-items: center; justify-content: center; }
-.lightbox-img { max-width: 90vw; max-height: 85vh; object-fit: contain; border-radius: 8px; }
+.lightbox-img { max-width: 90vw; max-height: 85vh; object-fit: contain; border-radius: 8px; background: #eee;}
 .lightbox-video { max-width: 90vw; max-height: 85vh; border-radius: 8px; }
 .lightbox-close { position: fixed; top: 18px; right: 22px; width: 36px; height: 36px; background: rgba(255,255,255,0.15); border: none; color: white; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .lightbox-close:hover { background: rgba(255,255,255,0.3); }
@@ -753,5 +886,42 @@ export default {
 .lightbox-nav--prev { left: 18px; }
 .lightbox-nav--next { right: 18px; }
 .lightbox-counter { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.5); color: rgba(255,255,255,0.8); font-size: 13px; padding: 4px 14px; border-radius: 20px; }
+
+/* CANCEL REASON BLOCK (in status modal) */
+.cancel-reason-block {
+  margin-top: 4px;
+}
+
+/* Quick reason pills (buyer cancel) */
+.reason-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.reason-pill {
+  padding: 5px 13px;
+  border-radius: 20px;
+  border: 1.5px solid #e5e5e5;
+  background: white;
+  color: #666;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.reason-pill:hover  { border-color: #ef4444; color: #ef4444; }
+.reason-pill.active { background: #ef4444; color: white; border-color: #ef4444; }
+
+/* Fade-slide transition for cancel reason block */
+.fade-slide-enter-active,
+.fade-slide-leave-active {
+  transition: all 0.25s ease;
+}
+.fade-slide-enter-from,
+.fade-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
+}
 
 </style>
