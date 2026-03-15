@@ -88,7 +88,7 @@
           </div>
 
           <div class="item-price">
-            ${{ item.price }}
+            {{ formatPrice(item.price) }}
           </div>
 
         </div>
@@ -97,7 +97,16 @@
         <!-- TOTAL -->
         <div class="order-total">
           Total:
-          <span class="total-price">${{ order.totalPrice }}</span>
+          <span class="total-price">{{ formatPrice(order.totalPrice) }}</span>
+        </div>
+
+        <!-- ESTIMATED DELIVERY -->
+        <div
+          v-if="order.estimatedDeliveryDate && ['confirmed','shipping'].includes(order.status)"
+          class="delivery-date-row"
+        >
+          <Truck/> Estimated delivery:
+          <strong>{{ formatDate(order.estimatedDeliveryDate) }}</strong>
         </div>
 
         <!-- ACTION BUTTONS -->
@@ -197,6 +206,7 @@ import LoadingOverlay from "./LoadingOverlay.vue"
 import ConfirmDialog from "./ConfirmDialog.vue"
 import Pagination from "./Pagination.vue"
 import ActionModal from "./ActionModal.vue"
+import { Truck } from 'lucide-vue-next';
 
 export default {
   name: "OrderPage",
@@ -204,7 +214,9 @@ export default {
     LoadingOverlay,
     ConfirmDialog,
     Pagination,
-    ActionModal
+    ActionModal,
+
+    Truck
   }, 
 
   data() {
@@ -314,6 +326,11 @@ async fetchOrders() {
        FORMAT STATUS
     =========================== */
 
+    formatDate(d) {
+      if (!d) return "";
+      return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    },
+
     formatStatus(status) {
       const map = {
         pending: "Pending",
@@ -329,6 +346,13 @@ async fetchOrders() {
 
     formatPayment(status) {
       return status === "paid" ? "Paid" : "Unpaid"
+    },
+
+    formatPrice(price) {
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD"
+      }).format(price);
     },
 
     /* ===========================
@@ -663,6 +687,16 @@ async fetchOrders() {
 }
 
 /* TOTAL */
+.delivery-date-row {
+  font-size: 13px;
+  color: #555;
+  padding: 6px 16px 2px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.delivery-date-row strong { color: #ff642f; }
+
 .order-total {
   text-align: right;
   padding-top: 10px;

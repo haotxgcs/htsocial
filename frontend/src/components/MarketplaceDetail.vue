@@ -96,6 +96,10 @@
 
     <p class="condition" v-if="item.type === 'tool'">Condition: {{ item.condition }}</p>
 
+    <div class="delivery-estimate" v-if="item.quantity > 0">
+      <Truck/>Estimated delivery: <strong>{{ item.estimatedDeliveryDays || 7 }} days</strong> after order confirmation
+    </div>
+
     <!-- ACTION BUTTONS -->
     <div v-if="!isOwner" class="buyer-actions">
 
@@ -337,7 +341,8 @@ import ActionModal from "../components/ActionModal.vue";
 import {
   ShoppingCart,
   Zap,
-  MessageCircle
+  MessageCircle,
+  Truck
 } from "lucide-vue-next";
 
 
@@ -351,7 +356,8 @@ export default {
     ActionModal,
     ShoppingCart,
     Zap,
-    MessageCircle
+    MessageCircle,
+    Truck
   },
 
   data() {
@@ -1051,6 +1057,16 @@ export default {
   font-weight: 600;
   margin-bottom: 8px;
 }
+
+.delivery-estimate {
+  font-size: 14px;
+  color: #555;
+  margin: 8px 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.delivery-estimate strong { color: #ff642f; }
 
 .sold-out{
   font-size: 14px;

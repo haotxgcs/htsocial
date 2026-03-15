@@ -91,7 +91,7 @@
               </div>
               <span v-if="cartItem.item.quantity === 0" class="oos-badge">Out of Stock</span>
               <div class="item-price" :class="{ 'item-price--oos': cartItem.item.quantity === 0 }">
-                ${{ cartItem.item.price }}
+                {{ formatPrice(cartItem.item.price) }}
               </div>
             </div>
 
@@ -120,7 +120,7 @@
 
             <!-- ITEM TOTAL -->
             <div class="item-total">
-              ${{ cartItem.item.price * cartItem.quantity }}
+              {{ formatPrice(cartItem.item.price * cartItem.quantity) }}
             </div>
 
             <!-- REMOVE -->
@@ -138,11 +138,11 @@
           <div class="seller-total">
             Subtotal:
             <span>
-              ${{
+              {{formatPrice(
                 group.items
                   .filter(i => selectedItems.includes(i._id))
                   .reduce((sum, i) => sum + i.item.price * i.quantity, 0)
-              }}
+              )}}
             </span>
           </div>
           
@@ -435,7 +435,14 @@ export default {
           ids: this.selectedItems.join(",")
         }
       });
-    }
+    },
+
+    formatPrice(price) {
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD"
+      }).format(price);
+    },
 
   }
 }

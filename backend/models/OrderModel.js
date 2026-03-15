@@ -146,6 +146,16 @@ const OrderSchema = new mongoose.Schema(
       type: String
     },
 
+    // Estimated delivery
+    estimatedDeliveryDays: {
+      type: Number,
+      default: 7
+    },
+    estimatedDeliveryDate: {
+      type: Date,
+      default: null
+    },
+
   },
   { timestamps: true, versionKey : false }
 );

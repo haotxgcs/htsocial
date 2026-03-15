@@ -74,7 +74,7 @@
           />
         </div>
 
-        <!-- ❗ FIX Ở ĐÂY: bỏ div bọc dư -->
+        <!-- FIX: bo div boc du -->
         <div class="recipe-field">
           <label class="field-label">Quantity</label>
           <input
@@ -85,6 +85,21 @@
             @blur="onQuantityBlur"
             :disabled="loading"
           />
+        </div>
+
+        <div class="recipe-field">
+          <label class="field-label">Estimated Delivery (days)</label>
+          <input
+            type="number"
+            class="recipe-input"
+            v-model.number="form.estimatedDeliveryDays"
+            min="1"
+            max="60"
+            :disabled="loading"
+          />
+          <div style="font-size:12px;color:#999;margin-top:4px;">
+            Buyers will see this as estimated shipping time.
+          </div>
         </div>
 
         <div class="recipe-field">
@@ -184,6 +199,7 @@ export default {
         description: "",
         price: null,
         quantity: 1,
+        estimatedDeliveryDays: 7,
         type: "ingredient",
         condition: "new"
       },
@@ -268,6 +284,7 @@ export default {
         description: "",
         price: null,
         quantity: 1,
+        estimatedDeliveryDays: 7,
         type: "ingredient",
         condition: null
       };
@@ -289,7 +306,7 @@ async submit() {
 
   // Append fields (except price)
   Object.entries(this.form).forEach(([k, v]) => {
-    if (k !== "price" && k !== "quantity" && v !== null && v !== "") {
+    if (k !== "price" && k !== "quantity" && k !== "estimatedDeliveryDays" && v !== null && v !== "") {
       formData.append(k, v);
     }
   });
@@ -297,6 +314,7 @@ async submit() {
   // Price + quantity as number
   formData.append("price", Number(this.priceInput));
   formData.append("quantity", Number(this.form.quantity));
+  formData.append("estimatedDeliveryDays", Number(this.form.estimatedDeliveryDays) || 7);
 
   // Images
   this.files.forEach(f => formData.append("images", f));

@@ -5,6 +5,8 @@ const nodemailer = require("nodemailer");
 /**
  * ✅ Mail Transporter
  */
+const fmtPrice = (v) => "$" + Number(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
@@ -71,7 +73,7 @@ async function sendOrderPaidEmail(order) {
     <table width="100%" cellspacing="0" cellpadding="0">
       <tr>
         <td style="font-size:15px;font-weight:600;color:${textDark};">Total Paid</td>
-        <td align="right" style="font-size:24px;font-weight:800;color:${brand};">$${Number(order.totalPrice).toFixed(2)}</td>
+        <td align="right" style="font-size:24px;font-weight:800;color:${brand};">${fmtPrice(order.totalPrice)}</td>
       </tr>
     </table>
   </div>
@@ -144,7 +146,7 @@ async function sendRefundSuccessEmail(order) {
     <table width="100%" cellspacing="0" cellpadding="0">
       <tr>
         <td style="font-size:15px;font-weight:600;color:${textDark};">Amount Refunded</td>
-        <td align="right" style="font-size:24px;font-weight:800;color:#27ae60;">$${Number(order.totalPrice).toFixed(2)}</td>
+        <td align="right" style="font-size:24px;font-weight:800;color:#27ae60;">${fmtPrice(order.totalPrice)}</td>
       </tr>
     </table>
   </div>

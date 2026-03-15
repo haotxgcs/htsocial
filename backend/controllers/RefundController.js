@@ -11,6 +11,8 @@ const transporter = nodemailer.createTransport({
 // =============================================
 // EMAIL: COD Refund Approved
 // =============================================
+const fmtPrice = (v) => "$" + Number(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 async function sendCODRefundEmail(order) {
   const brand      = "#ff5757";
   const brandLight = "#fff3ee";
@@ -41,7 +43,7 @@ async function sendCODRefundEmail(order) {
       your refund request has been approved by the seller.
     </p>
     <div style="display:inline-block;background:#f5f5f5;border-radius:8px;padding:8px 20px;font-size:13px;color:${textGray};">
-      Order ID:&nbsp;<strong style="color:${textDark};font-family:monospace;font-size:14px;">#${order._id.toString().slice(-8).toUpperCase()}</strong>
+      Order ID:&nbsp;<strong style="color:${textDark};font-family:monospace;font-size:14px;">#${order._id.toString().slice(-6)}</strong>
     </div>
   </div>
 
@@ -66,7 +68,7 @@ async function sendCODRefundEmail(order) {
     <table width="100%" cellspacing="0" cellpadding="0">
       <tr>
         <td style="font-size:15px;font-weight:600;color:${textDark};">Amount to be Refunded</td>
-        <td align="right" style="font-size:24px;font-weight:800;color:#27ae60;">$${Number(order.totalPrice).toFixed(2)}</td>
+        <td align="right" style="font-size:24px;font-weight:800;color:#27ae60;">${fmtPrice(order.totalPrice)}</td>
       </tr>
     </table>
   </div>
@@ -415,10 +417,10 @@ exports.getRefundsForBuyer = async (req, res) => {
 
     const orders = await Order.find({
       user: userId,
-      "refund.status": { $in: ["requested", "approved", "rejected"] }
+      "refund.status": { $in: ["requested", "approved", "rejected", "refunded"] }
     })
     .populate("items.item","title images price")
-    .select("refund items createdAt");
+    .select("refund items totalPrice createdAt");
 
     const refunds = orders.map(order => ({
       orderId: order._id,
@@ -450,18 +452,20 @@ exports.getRefundsForSeller = async (req, res) => {
     const sellerId = req.user.id;
 
     const orders = await Order.find({
-      "items.itemSnapshot.seller": sellerId,
-      "refund.status": { $in: ["requested", "approved", "rejected"] }
+      seller: sellerId,
+      "refund.status": { $in: ["requested", "approved", "rejected", "refunded"] }
     })
-    .populate("user","firstname lastname email avatar")
-    .populate("items.item","title images price")
-    .select("refund items user createdAt");
+    .populate("user", "firstname lastname email avatar")
+    .populate("items.item", "title images price")
+    .select("refund items user totalPrice payment createdAt");
 
     const refunds = orders.map(order => ({
       orderId: order._id,
       buyer: order.user,
       items: order.items,
       refund: order.refund,
+      payment: order.payment,
+      totalPrice: order.totalPrice,
       createdAt: order.createdAt
     }));
 

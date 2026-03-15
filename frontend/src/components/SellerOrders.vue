@@ -57,6 +57,7 @@
               <th>Total</th>
               <th>Status</th>
               <th>Date</th>
+              <th>Estimated Delivery</th>
               <th>Action</th>
             </tr>
           </thead>
@@ -71,9 +72,10 @@
                   </div>
                 </div>
               </td>
-              <td><strong class="total-price">${{ order.subtotal }}</strong></td>
+              <td><strong class="total-price">{{ formatPrice(order.subtotal) }}</strong></td>
               <td><span class="status-badge" :class="order.status">{{ order.status }}</span></td>
               <td class="date-cell">{{ formatDate(order.createdAt) }}</td>
+              <td>{{ formatDate(order.estimatedDeliveryDate) || '—' }}</td>
               <td class="action-cell">
                 <button class="btn-view" @click="$router.push(`/seller-orders/${order._id}`)">View</button>
                 <button
@@ -102,7 +104,22 @@
     <!-- REFUNDS TAB                             -->
     <!-- ======================================= -->
     <div v-if="!loading && tab === 'refunds'">
-      <div class="table-wrapper" v-if="refunds.length > 0">
+
+      <!-- Refund filter pills -->
+      <div class="filter-bar">
+        <button
+          v-for="f in refundFilters" :key="f.value"
+          class="filter-pill"
+          :class="{ active: refundFilter === f.value }"
+          @click="refundFilter = f.value"
+        >
+          <span v-if="f.value !== 'all'" class="pill-dot" :class="'rf-' + f.value"></span>
+          {{ f.label }}
+          <span class="pill-count">{{ f.value === 'all' ? refunds.length : refunds.filter(r => r.refund?.status === f.value).length }}</span>
+        </button>
+      </div>
+
+      <div class="table-wrapper" v-if="filteredRefunds.length > 0">
         <table class="table">
           <thead>
             <tr>
@@ -116,7 +133,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="refund in refunds" :key="refund.orderId">
+            <tr v-for="refund in filteredRefunds" :key="refund.orderId">
               <td class="order-id">#{{ refund.orderId.slice(-6) }}</td>
               <td>{{ refund.buyer?.firstname }} {{ refund.buyer?.lastname }}</td>
               <td class="reason-cell">{{ refund.refund?.reason }}</td>
@@ -141,7 +158,7 @@
       </div>
       <div v-else class="empty-state">
         <div class="empty-icon">🎉</div>
-        <p>No refund requests. Great job!</p>
+        <p>{{ refundFilter === "all" ? "No refund requests. Great job!" : `No ${refundFilter} refund requests.` }}</p>
       </div>
     </div>
 
@@ -279,6 +296,7 @@ export default {
       error: null,
       // Refunds
       refunds: [],
+      refundFilter: "all",
       // Reviews
       reviews: [],
       reviewsLoading: false,
@@ -312,6 +330,19 @@ export default {
     /* Refunds */
     pendingRefunds() {
       return this.refunds.filter(r => r.refund?.status === "requested");
+    },
+    refundFilters() {
+      return [
+        { label: "All",       value: "all"       },
+        { label: "Requested", value: "requested" },
+        { label: "Approved",  value: "approved"  },
+        { label: "Refunded",  value: "refunded"  },
+        { label: "Rejected",  value: "rejected"  }
+      ];
+    },
+    filteredRefunds() {
+      if (this.refundFilter === "all") return this.refunds;
+      return this.refunds.filter(r => r.refund?.status === this.refundFilter);
     },
     /* Reviews */
     reviewFilters() {
@@ -387,20 +418,21 @@ export default {
       else if (this.modal.type === "cancel") await this.cancelOrder(payload);
       else if (this.modal.type === "refund") {
         if (payload === "approve") await this.approveRefund();
-        else if (payload === "reject") await this.rejectRefund();
+        else if (payload?.action === "reject" || payload === "reject") await this.rejectRefund(payload?.rejectReason || "");
       } else if (this.modal.type === "seller-review") {
         if (payload === "__delete_reply__") await this.deleteReply(this.modal.review._id);
         else await this.submitReply(this.modal.review._id, payload);
       }
     },
 
-    async updateStatus(status) {
+    async updateStatus(payload) {
       try {
         const token = localStorage.getItem("token");
+        const body = typeof payload === "object" ? payload : { status: payload };
         const res = await fetch(`${process.env.VUE_APP_API_URL}/orders/${this.modal.order._id}/seller-status`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ status })
+          body: JSON.stringify(body)
         });
         const data = await res.json();
         if (!res.ok) { alert(data.msg || "Failed to update status"); return; }
@@ -437,13 +469,13 @@ export default {
       } catch { alert("Network error. Please try again."); }
     },
 
-    async rejectRefund() {
+    async rejectRefund(rejectReason = "") {
       try {
         const token = localStorage.getItem("token");
         const res = await fetch(`${process.env.VUE_APP_API_URL}/refund/reject/${this.modal.refund.orderId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ rejectReason: "" })
+          body: JSON.stringify({ rejectReason })
         });
         const data = await res.json();
         if (!res.ok) { alert(data.msg || "Failed to reject refund"); return; }
@@ -494,6 +526,12 @@ export default {
     formatDate(d) {
       if (!d) return "";
       return new Date(d).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" , hour:"2-digit", minute:"2-digit"});
+    },
+    formatPrice(price) {
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD"
+      }).format(price);
     },
     ratingLabel(r) { return { 1: "Poor", 2: "Fair", 3: "Good", 4: "Very Good", 5: "Excellent" }[r] || ""; },
     ratingClass(r) { return r >= 4 ? "rating--green" : r === 3 ? "rating--yellow" : "rating--red"; },
@@ -603,6 +641,10 @@ export default {
 .pill-dot.completed { background: #10b981; }
 .pill-dot.cancelled { background: #ef4444; }
 .pill-dot.refunded  { background: #ec4899; }
+.pill-dot.rf-requested { background: #f59e0b; }
+.pill-dot.rf-approved  { background: #3b82f6; }
+.pill-dot.rf-refunded  { background: #10b981; }
+.pill-dot.rf-rejected  { background: #ef4444; }
 .filter-pill.active .pill-dot { background: rgba(255,255,255,0.8); }
 
 .pill-count {

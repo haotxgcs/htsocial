@@ -3,6 +3,7 @@ const router = express.Router();
 
 const auth = require("../middleware/authMiddleware");
 const uploadCloud = require("../middleware/uploadCloudinary");
+const { uploadEvidence } = require("../middleware/uploadCloudinary");
 
 const {
   requestRefund,
@@ -19,7 +20,7 @@ const {
 router.post(
   "/request/:orderId",
   auth,
-  uploadCloud.array("evidence", 5),
+  uploadEvidence.array("evidence", 5),
   requestRefund
 );
 

@@ -18,7 +18,7 @@
 
         <div class="item-text">
           <p class="title">{{ item.title }}</p>
-          <p class="price">${{ item.price }}</p>
+          <p class="price">{{ formatPrice(item.price) }}</p>
           <p class="stock">Quantity: {{ item.quantity }}</p>
           <p class="condition" v-if="item.type === 'tool'">Condition: {{ item.condition }}</p>
         </div>
@@ -42,7 +42,7 @@
       <!-- ✅ TOTAL PRICE -->
       <div class="total-row">
         <span>Total:</span>
-        <strong>${{ totalPrice }}</strong>
+        <strong>{{ formatPrice(totalPrice) }}</strong>
       </div>
 
 
@@ -111,7 +111,14 @@ export default {
     closeModal() {
       this.$emit("close");
 
-    }
+    },
+
+    formatPrice(price) {
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD"
+      }).format(price);
+    },
   },
 
   computed: {

@@ -75,6 +75,20 @@
         </div>
 
         <div class="recipe-field">
+          <label class="field-label">Estimated Delivery (days)</label>
+          <input
+            class="recipe-input"
+            type="number"
+            min="1"
+            max="60"
+            v-model.number="form.estimatedDeliveryDays"
+          />
+          <div style="font-size:12px;color:#999;margin-top:4px;">
+            Buyers will see this as estimated shipping time.
+          </div>
+        </div>
+
+        <div class="recipe-field">
           <label class="field-label">Description</label>
           <textarea
             class="recipe-textarea"
@@ -149,6 +163,7 @@ export default {
         title: "",
         description: "",
         quantity: 0,
+        estimatedDeliveryDays: 7,
         type: "ingredient",
         condition: null
       },
@@ -195,6 +210,7 @@ watch: {
     this.form.quantity = this.item.quantity ?? 0;
     this.form.type = this.item.type ?? "ingredient";
     this.form.condition = this.item.condition ?? null;
+    this.form.estimatedDeliveryDays = this.item.estimatedDeliveryDays ?? 7;
 
     this.priceInput = Number(this.item.price).toFixed(2);
     this.previews =
@@ -281,6 +297,7 @@ handleFiles(e) {
       fd.append("type", this.form.type);
       fd.append("price", Number(this.priceInput));
       fd.append("quantity", Number(this.form.quantity));
+      fd.append("estimatedDeliveryDays", Number(this.form.estimatedDeliveryDays) || 7);
 
       if (this.form.condition) {
         fd.append("condition", this.form.condition);

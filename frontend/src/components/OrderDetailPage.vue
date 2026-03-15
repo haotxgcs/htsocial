@@ -7,7 +7,7 @@
         <span @click="goBack">
           {{ isSeller ? 'Seller Orders' : 'My Orders' }}
         </span>
-        <span> / Order #{{ order._id }}</span>
+        <span> / Order #{{ order._id.slice(-6) }}</span>
       </div>
 
       <div class="order-card">
@@ -61,7 +61,7 @@
               <div class="item-sub">x{{ item.quantity }}</div>
             </div>
 
-            <div class="item-price">${{ item.price }}</div>
+            <div class="item-price">{{ formatPrice(item.price) }}</div>
           </div>
         </div>
 
@@ -72,7 +72,7 @@
             Total:
             <!-- buyer có totalPrice, seller response có subtotal -->
             <strong class="total-price">
-              ${{ order.totalPrice ?? order.subtotal }}
+              {{ formatPrice(order.totalPrice ?? order.subtotal) }}
             </strong>
           </div>
         </div>
@@ -134,7 +134,7 @@
 
           <!-- Cancel Order (Seller) -->
           <button
-            v-if="['pending','confirmed'].includes(order.status)"
+            v-if="['pending','shipping'].includes(order.status)"
             class="btn-outline danger"
             @click="openCancelModal"
           >Cancel Order</button>
@@ -142,14 +142,30 @@
         </div>
 
 
+        <!-- ESTIMATED DELIVERY -->
+        <div
+          v-if="order.estimatedDeliveryDate && ['confirmed','shipping'].includes(order.status)"
+          class="delivery-box"
+        >
+          <div class="delivery-icon"><Truck/></div>
+          <div>
+            <div class="delivery-label">Estimated Delivery</div>
+            <div class="delivery-date">{{ formatDate(order.estimatedDeliveryDate) }}</div>
+            <div class="delivery-sub" v-if="order.estimatedDeliveryDays">
+              Within {{ order.estimatedDeliveryDays }} day{{ order.estimatedDeliveryDays > 1 ? 's' : '' }} of confirmation
+            </div>
+          </div>
+        </div>
+
         <!-- PAYMENT INFO -->
         <div class="payment-box">
           <div class="payment-title">
             Payment Method
-            <strong class="method-badge">{{ order.payment?.method?.toUpperCase() }}</strong>
+            <strong class="method-badge" :class=order.payment?.method>{{ order.payment?.method === "cod" ? "COD" : "ONLINE" }}</strong>
           </div>
           <div class="meta">
             Status: {{ order.payment?.status }}<br>
+            Ordered At: {{ order.createdAt ? formatDate(order.createdAt): 'N/A' }}<br>
             Paid At: {{ order.paidAt ? formatDate(order.paidAt) : 'N/A' }}
           </div>
         </div>
@@ -235,6 +251,7 @@
       :order="order"
       :refund="null"
       :require-evidence="modal.requireEvidence"
+      :actor="modal.type === 'cancel' ? (isSeller ? 'seller' : 'buyer') : 'buyer'"
       @cancel="modal.visible = false"
       @confirm="handleModalConfirm"
     />
@@ -246,13 +263,16 @@
 <script>
 import ActionModal from "./ActionModal.vue";
 import LoadingOverlay from "./LoadingOverlay.vue";
+import { Truck } from 'lucide-vue-next';
 
 export default {
   name: "OrderDetailPage",
 
   components: { 
     ActionModal,
-    LoadingOverlay
+    LoadingOverlay,
+
+    Truck
   },
 
   data() {
@@ -336,6 +356,13 @@ export default {
         refunded: "Refunded"
       };
       return map[status] || status;
+    },
+
+    formatPrice(price) {
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD"
+      }).format(price);
     },
 
     // ========================= //
@@ -460,9 +487,10 @@ export default {
     // ========================= //
     // SELLER: Update status     //
     // ========================= //
-    async updateStatus(status) {
+    async updateStatus(payload) {
       try {
         const token = localStorage.getItem("token");
+        const body = typeof payload === "object" ? payload : { status: payload };
 
         const res = await fetch(
           `${process.env.VUE_APP_API_URL}/orders/${this.order._id}/seller-status`,
@@ -472,7 +500,7 @@ export default {
               "Content-Type": "application/json",
               Authorization: `Bearer ${token}`
             },
-            body: JSON.stringify({ status })
+            body: JSON.stringify(body)
           }
         );
 
@@ -719,6 +747,21 @@ export default {
 }
 
 /* INFO BOXES */
+.delivery-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  background: #f0fff4;
+  border: 1px solid #a5d6a7;
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-top: 16px;
+}
+.delivery-icon { font-size: 22px; line-height: 1; margin-top: 2px; }
+.delivery-label { font-size: 12px; font-weight: 600; color: #2e7d32; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 2px; }
+.delivery-date { font-size: 16px; font-weight: 700; color: #1a1a1a; }
+.delivery-sub { font-size: 12px; color: #666; margin-top: 2px; }
+
 .payment-box,
 .note-box,
 .cancel-box,
@@ -741,9 +784,10 @@ export default {
 }
 
 .method-badge {
-  color: #FF642F;
-  font-size: 13px;
+  font-size: 13px;font-weight:700;padding:2px 8px;border-radius:10px;
 }
+.method-badge.cod    { background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7; }
+.method-badge.online { background:#e3f2fd;color:#1565c0;border:1px solid #90caf9; }
 
 /* REFUND STATUS BADGE */
 .refund-status-badge {

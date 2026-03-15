@@ -32,15 +32,35 @@
           </select>
         </div>
 
+        <!-- Delivery days input when confirming or shipping -->
+        <div v-if="status === 'confirmed' || status === 'shipping'" class="field" style="margin-top:12px;">
+          <label class="field-label">
+            <Truck/> Estimated Delivery
+            <span style="font-size:11px;color:#999;font-weight:400;"> (days from now)</span>
+          </label>
+          <input
+            type="number"
+            class="styled-input"
+            v-model.number="deliveryDays"
+            min="1"
+            max="60"
+            placeholder="7"
+            
+          />
+          <div style="font-size:12px;color:#999;margin-top:4px;">
+            Buyer will see: delivery by <strong>{{ estimatedDateLabel }}</strong>
+          </div>
+        </div>
+
         <div class="modal-actions">
           <button class="btn btn-ghost" @click="$emit('cancel')">Close</button>
           <button
             v-if="status !== 'cancelled'"
             class="btn btn-primary"
-            :disabled="!status"
-            @click="$emit('confirm', status)"
+            :disabled="!status || submitting"
+            @click="submitting = true; $emit('confirm', { status, estimatedDeliveryDays: deliveryDays || 7 })"
           >
-            Update Status
+            {{ submitting ? 'Updating...' : 'Update Status' }}
           </button>
           <button
             v-else
@@ -96,6 +116,11 @@
           <p v-else class="no-evidence">No files attached</p>
         </div>
 
+        <div class="info-block" v-if="refund.refund.status === 'rejected'">
+          <div class="info-label">Reject reason from seller</div>
+          <div class="info-value">{{ refund.refund?.rejectReason || '—' }}</div>
+        </div>
+
         <!-- Reject reason input -->
         <div class="info-block" v-if="showRejectInput">
           <div class="info-label">Rejection reason <span class="required">*</span></div>
@@ -105,12 +130,12 @@
 
         <div class="modal-actions">
           <button v-if="!showRejectInput" class="btn btn-ghost" @click="$emit('cancel')">Close</button>
-          <button v-if="!showRejectInput" class="btn btn-danger" @click="showRejectInput = true">Reject</button>
+          <button v-if="!showRejectInput && refund.refund.status ==='requested'" class="btn btn-danger" @click="showRejectInput = true">Reject</button>
           <template v-if="showRejectInput">
             <button class="btn btn-ghost" @click="showRejectInput = false; rejectReason = ''">Back</button>
-            <button class="btn btn-danger" :disabled="!rejectReason.trim()" @click="$emit('confirm', 'reject')">Confirm Reject</button>
+            <button class="btn btn-danger" :disabled="!rejectReason.trim() || submitting" @click="submitting = true; $emit('confirm', { action: 'reject', rejectReason: rejectReason.trim() })">{{ submitting ? 'Rejecting...' : 'Confirm Reject' }}</button>
           </template>
-          <button v-if="!showRejectInput" class="btn btn-success" @click="$emit('confirm','approve')">Approve</button>
+          <button v-if="!showRejectInput && refund.refund.status ==='requested'" class="btn btn-success" :disabled="submitting" @click="submitting = true; $emit('confirm','approve')">{{ submitting ? 'Processing...' : 'Approve' }}</button>
         </div>
       </div>
 
@@ -136,13 +161,16 @@
             Evidence
             <span v-if="requireEvidence" class="badge-required">required</span>
             <span v-else class="badge-optional">optional</span>
+            <span class="evidence-counter" :class="{ 'evidence-counter--full': previewFiles.length >= 5 }">
+              {{ previewFiles.length }}/5
+            </span>
           </label>
           <div
             class="upload-area"
-            :class="{ 'upload-area--active': previewFiles.length }"
-            @click="$refs.fileInput.click()"
+            :class="{ 'upload-area--active': previewFiles.length, 'upload-area--full': previewFiles.length >= 5 }"
+            @click="previewFiles.length < 5 && $refs.fileInput.click()"
             @dragover.prevent
-            @drop.prevent="onDrop"
+            @drop.prevent="previewFiles.length < 5 && onDrop($event)"
           >
             <div v-if="!previewFiles.length" class="upload-placeholder">
               <span class="upload-icon"><CloudUpload /></span>
@@ -157,20 +185,21 @@
                 </div>
                 <button class="remove-btn" @click.stop="removeFile(i)"><X /></button>
               </div>
-              <div class="add-more-btn" @click.stop="$refs.fileInput.click()"><Plus /></div>
+              <div v-if="previewFiles.length < 5" class="add-more-btn" @click.stop="$refs.fileInput.click()"><Plus /></div>
+              <div v-else class="evidence-full-badge">Max 5 files reached</div>
             </div>
           </div>
           <input ref="fileInput" type="file" multiple accept="image/*,video/*" style="display:none" @change="onFileChange" />
-          <p class="upload-hint">Supports .JPG, .PNG, .MP4,...</p>
+          <p class="upload-hint">Supports .JPG, .PNG, .MP4,... &nbsp;&bull;&nbsp; Max 5 files</p>
         </div>
 
         <div class="modal-actions">
           <button class="btn btn-ghost" @click="$emit('cancel')">Cancel</button>
           <button
             class="btn btn-primary"
-            :disabled="!refundReason.trim() || (requireEvidence && !previewFiles.length)"
+            :disabled="!refundReason.trim() || (requireEvidence && !previewFiles.length) || submitting"
             @click="submitRefund"
-          >Submit Refund</button>
+          >{{ submitting ? 'Submitting...' : 'Submit Refund' }}</button>
         </div>
       </div>
 
@@ -335,7 +364,7 @@
           </div>
           <div class="modal-actions">
             <button class="btn btn-ghost" @click="$emit('cancel')">Close</button>
-            <button class="btn btn-danger" @click="$emit('confirm', '__delete_reply__')">Delete Reply</button>
+            <button class="btn btn-danger" :disabled="submitting" @click="submitting = true; $emit('confirm', '__delete_reply__')">{{ submitting ? 'Deleting...' : 'Delete Reply' }}</button>
             <button class="btn btn-primary" @click="startEditReply">Edit Reply</button>
           </div>
         </div>
@@ -362,10 +391,10 @@
             </button>
             <button
               class="btn btn-primary"
-              :disabled="!sellerReplyContent.trim()"
-              @click="$emit('confirm', sellerReplyContent.trim())"
+              :disabled="!sellerReplyContent.trim() || submitting"
+              @click="submitting = true; $emit('confirm', sellerReplyContent.trim())"
             >
-              {{ review?.sellerReply?.repliedAt ? 'Update Response' : 'Post Response' }}
+              {{ submitting ? 'Saving...' : (review?.sellerReply?.repliedAt ? 'Update Response' : 'Post Response') }}
             </button>
           </div>
         </div>
@@ -417,7 +446,7 @@
 
         <div class="modal-actions">
           <button class="btn btn-ghost" @click="$emit('cancel')">Keep Order</button>
-          <button class="btn btn-danger" :disabled="!reason.trim()" @click="$emit('confirm', reason)">
+          <button class="btn btn-danger" :disabled="!reason.trim() || submitting" @click="submitting = true; $emit('confirm', reason)">
             Confirm Cancel
           </button>
         </div>
@@ -444,11 +473,11 @@
 </template>
 
 <script>
-import { CloudUpload, HandCoins, Clapperboard, ChevronLeft, ChevronRight, X, Plus, Package, Repeat, ZoomIn, Play, Star, BadgeCheck, TriangleAlert } from "lucide-vue-next";
+import { CloudUpload, HandCoins, Clapperboard, ChevronLeft, ChevronRight, X, Plus, Package, Repeat, ZoomIn, Play, Star, BadgeCheck, TriangleAlert, Truck } from "lucide-vue-next";
 
 export default {
   name: "ActionModal",
-  components: { Package, Repeat, ZoomIn, Play, CloudUpload, HandCoins, Clapperboard, ChevronLeft, ChevronRight, X, Plus, Star, BadgeCheck, TriangleAlert },
+  components: { Package, Repeat, ZoomIn, Play, CloudUpload, HandCoins, Clapperboard, ChevronLeft, ChevronRight, X, Plus, Star, BadgeCheck, TriangleAlert, Truck },
 
   props: {
     type: String,
@@ -471,6 +500,11 @@ export default {
     hasEvidence() {
       const ev = this.refund?.refund?.evidence;
       return ev && (ev.images?.length > 0 || ev.videos?.length > 0);
+    },
+    estimatedDateLabel() {
+      const days = this.deliveryDays || 7;
+      const d = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+      return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
     },
     cancelReasonPresets() {
       if (this.actor === "seller") {
@@ -502,6 +536,7 @@ export default {
     return {
       // Status
       status: "",
+      deliveryDays: 7,
       cancelReason: "",
       // Cancel (buyer)
       reason: "",
@@ -514,6 +549,7 @@ export default {
       // Buyer review
       selectedItem: null,
       submittingReview: false,
+      submitting: false,   // chung cho approve/reject/reply/cancel
       reviewDraft: { rating: 0, hover: 0, comment: "" },
       // Seller reply
       sellerReplyContent: "",
@@ -537,10 +573,12 @@ export default {
         this.editingReply = false;
       }
     },
-    // Pre-fill reviewDraft when editing buyer's own review
+    // Pre-fill reviewDraft + reset submitting khi doi type
     type: {
       immediate: true,
       handler(val) {
+        // Reset chong spam moi khi mo modal moi
+        this.submitting = false;
         if (val === "edit-review" && this.review) {
           this.reviewDraft = {
             rating: this.review.rating || 0,
@@ -611,7 +649,8 @@ export default {
     onFileChange(e) { this.addFiles(Array.from(e.target.files)); },
     onDrop(e) { this.addFiles(Array.from(e.dataTransfer.files)); },
     addFiles(files) {
-      files.forEach(f => {
+      const remaining = 5 - this.previewFiles.length;
+      files.slice(0, remaining).forEach(f => {
         this.previewFiles.push({
           file: f, name: f.name, type: f.type,
           url: f.type.startsWith("image") ? URL.createObjectURL(f) : null
@@ -620,6 +659,8 @@ export default {
     },
     removeFile(i) { this.previewFiles.splice(i, 1); },
     submitRefund() {
+      if (this.submitting) return;
+      this.submitting = true;
       this.$emit("confirm", {
         reason: this.refundReason,
         files: this.previewFiles.map(f => f.file)
@@ -757,9 +798,27 @@ export default {
   display: flex; align-items: center; gap: 6px;
   font-size: 13px; font-weight: 600; color: #444; margin-bottom: 8px;
 }
+
+.styled-input{
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 50px;     /* thấp hơn */
+  padding: 12px 14px;
+  border-radius: 12px;  /* nhỏ hơn 18px */
+  border: 1px solid #e5e5e5;
+  font-size: 14px;
+  resize: vertical;     /* cho phép kéo nếu cần */
+  transition: 0.2s;
+  background: #fafafa;
+}
+
+.styled-input:focus { outline: none; border-color: #FF642F; background: #fff; }
+
 .required { color: #ef4444; }
 .badge-required { font-size: 10px; font-weight: 600; background: #fde8e8; color: #ef4444; padding: 2px 7px; border-radius: 20px; }
 .badge-optional { font-size: 10px; font-weight: 500; background: #f0f0f0; color: #999; padding: 2px 7px; border-radius: 20px; }
+.evidence-counter { font-size: 11px; font-weight: 600; background: #f0f0f0; color: #666; padding: 2px 8px; border-radius: 20px; margin-left: 6px; }
+.evidence-counter--full { background: #fde8e8; color: #ef4444; }
 
 .styled-textarea {
   width: 100%; padding: 12px 14px;
@@ -780,6 +839,8 @@ export default {
   transition: border-color 0.2s, background 0.2s; background: #fafafa;
 }
 .upload-area:hover, .upload-area--active { border-color: #FF642F; background: #fff8f5; }
+.upload-area--full { border-color: #ef4444 !important; background: #fff5f5 !important; cursor: not-allowed; opacity: 0.7; }
+.evidence-full-badge { font-size: 11px; color: #ef4444; font-weight: 600; align-self: center; padding: 4px 10px; background: #fde8e8; border-radius: 8px; }
 .upload-placeholder { display: flex; flex-direction: column; align-items: center; gap: 6px; color: #ccc; font-size: 13px; pointer-events: none; }
 .upload-icon { color: #ccc; }
 .preview-grid { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }

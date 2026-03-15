@@ -17,13 +17,15 @@ exports.orderEmailTemplate = ({
   const borderCol  = "#eeeeee";
   const isOnline   = paymentMethod === "online";
 
+  const fmt = (v) => "$" + Number(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
   const itemsHtml = items.map((i) => {
     const img = i.itemSnapshot.images?.length > 0
       ? i.itemSnapshot.images[0].startsWith("http")
         ? i.itemSnapshot.images[0]
         : `http://localhost:3000/${i.itemSnapshot.images[0]}`
       : "https://via.placeholder.com/70x70?text=No+Image";
-    const lineTotal = (i.price * i.quantity).toFixed(2);
+    const lineTotal = fmt(i.price * i.quantity);
     return `
       <tr>
         <td style="padding:14px 0;border-bottom:1px solid ${borderCol};">
@@ -33,10 +35,10 @@ exports.orderEmailTemplate = ({
             </td>
             <td style="padding-left:14px;" valign="top">
               <div style="font-size:14px;font-weight:600;color:${textDark};margin-bottom:4px;">${i.itemSnapshot.title}</div>
-              <div style="font-size:13px;color:${textGray};">$${Number(i.price).toFixed(2)} &times; ${i.quantity}</div>
+              <div style="font-size:13px;color:${textGray};">${fmt(i.price)} &times; ${i.quantity}</div>
             </td>
             <td align="right" valign="top" style="white-space:nowrap;">
-              <div style="font-size:14px;font-weight:700;color:${textDark};">$${lineTotal}</div>
+              <div style="font-size:14px;font-weight:700;color:${textDark};">${lineTotal}</div>
             </td>
           </tr></table>
         </td>
@@ -130,13 +132,20 @@ exports.orderEmailTemplate = ({
     <table width="100%" cellspacing="0" cellpadding="0">
       <tr>
         <td style="font-size:15px;font-weight:600;color:${textDark};">Total Payment</td>
-        <td align="right" style="font-size:24px;font-weight:800;color:${brand};">$${Number(totalPrice).toFixed(2)}</td>
+        <td align="right" style="font-size:24px;font-weight:800;color:${brand};">${fmt(totalPrice)}</td>
       </tr>
     </table>
     ${isOnline ? `
     <div style="margin-top:14px;padding:10px 14px;background:#fff3e0;border-radius:8px;font-size:13px;color:#b7640a;border-left:3px solid #f0c07a;line-height:1.5;">
       <strong>Action required:</strong> Please complete your payment to confirm this order.
     </div>` : ""}
+  </div>
+
+  <div style="padding:0 28px 28px;text-align:center;">
+    <a href="${process.env.CLIENT_URL || 'http://localhost:8080'}/orders/${order._id}"
+      style="display:inline-block;padding:14px 32px;background:${brand};color:#fff;font-size:14px;font-weight:700;border-radius:10px;text-decoration:none;">
+      View Order Details
+    </a>
   </div>
 
   <!-- FOOTER -->

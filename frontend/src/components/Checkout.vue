@@ -152,7 +152,7 @@
             </div>
 
             <div class="product-price">
-              ${{ cartItem.item?.price * cartItem.quantity }}
+              {{ formatPrice(cartItem.item?.price * cartItem.quantity) }}
             </div>
 
           </div>
@@ -161,13 +161,7 @@
           <div class="seller-subtotal">
             Subtotal:
             <strong>
-              ${{
-                group.items.reduce(
-                  (sum, i) =>
-                    sum + (i.item?.price || 0) * i.quantity,
-                  0
-                )
-              }}
+              {{ formatPrice(group.items.reduce((sum, i) => sum + (i.item?.price || 0) * i.quantity, 0)) }}
             </strong>
           </div>
 
@@ -261,7 +255,7 @@
 
       <div class="total-row">
         <span>Total Payment:</span>
-        <strong>${{ totalPrice }}</strong>
+        <strong>{{ formatPrice(totalPrice) }}</strong>
       </div>
 
       <button
@@ -421,6 +415,11 @@ export default {
   },
 
   methods: {
+    formatPrice(value) {
+      if (value === null || value === undefined || isNaN(value)) return "$0.00";
+      return "$" + Number(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    },
+
     // ===============================
     // LOAD DATA
     // ===============================
@@ -653,6 +652,8 @@ export default {
     // Nếu là ảnh local server
     return `${process.env.VUE_APP_API_URL}/${path}`;
   },
+
+  
 
   async setDefault(id) {
     const token = localStorage.getItem("token");
@@ -1247,4 +1248,3 @@ export default {
 
 
 </style>
-

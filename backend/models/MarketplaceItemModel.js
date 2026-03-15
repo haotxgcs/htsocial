@@ -65,6 +65,12 @@ const MarketplaceItemSchema = new mongoose.Schema(
       default: 0
     },
 
+    estimatedDeliveryDays: {
+      type: Number,
+      default: 7,
+      min: 1
+    },
+
     rating: {
       average: { type: Number, default: 0 },
       count: { type: Number, default: 0 }

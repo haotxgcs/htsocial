@@ -26,7 +26,8 @@ exports.createItem = async (req, res) => {
       condition: type === "tool" ? condition || "new" : null,
       seller: req.user.id,
       images,
-      status: normalizedQuantity > 0 ? "active" : "sold"
+      status: normalizedQuantity > 0 ? "active" : "sold",
+      estimatedDeliveryDays: Number(req.body.estimatedDeliveryDays) > 0 ? Number(req.body.estimatedDeliveryDays) : 7
     });
 
     await item.save();
@@ -128,13 +129,17 @@ exports.updateItem = async (req, res) => {
       price,
       quantity,
       condition,
-      status
+      status,
+      estimatedDeliveryDays
     } = req.body;
 
     // ===== UPDATE BASIC FIELDS =====
     if (title !== undefined) item.title = title;
     if (description !== undefined) item.description = description;
     if (price !== undefined) item.price = price;
+    if (estimatedDeliveryDays !== undefined && Number(estimatedDeliveryDays) > 0) {
+      item.estimatedDeliveryDays = Number(estimatedDeliveryDays);
+    }
 
     // ===== QUANTITY & STATUS LOGIC =====
     if (quantity !== undefined) {
@@ -236,8 +241,3 @@ exports.deleteItem = async (req, res) => {
     res.status(500).json({ msg: "Server error" });
   }
 };
-
-
-
-
-

@@ -685,7 +685,11 @@ exports.getOrdersForSeller = async (req, res) => {
       payment: order.payment,
 
       // ✅ Refund info (if exists)
-      refund: order.refund || null
+      refund: order.refund || null,
+
+      // ✅ Estimated delivery
+      estimatedDeliveryDays: order.estimatedDeliveryDays || 7,
+      estimatedDeliveryDate: order.estimatedDeliveryDate || null
     }));
 
     res.json({
@@ -709,7 +713,7 @@ exports.getOrdersForSeller = async (req, res) => {
 exports.updateOrderStatusBySeller = async (req, res) => {
   try {
     const sellerId = req.user.id;
-    const { status } = req.body;
+    const { status, estimatedDeliveryDays } = req.body;
 
     // =========================================================
     // ✅ 0. VALIDATE STATUS INPUT
@@ -809,7 +813,21 @@ exports.updateOrderStatusBySeller = async (req, res) => {
     }
 
     // =========================================================
-    // ✅ 7. SAVE ORDER
+    // ✅ 7. SET ESTIMATED DELIVERY DATE
+    // =========================================================
+    if (status === "confirmed") {
+      if (estimatedDeliveryDays && Number(estimatedDeliveryDays) > 0) {
+        order.estimatedDeliveryDays = Number(estimatedDeliveryDays);
+      }
+      const days = order.estimatedDeliveryDays || 7;
+      order.estimatedDeliveryDate = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+    }
+    if (status === "shipping" && estimatedDeliveryDays && Number(estimatedDeliveryDays) > 0) {
+      order.estimatedDeliveryDays = Number(estimatedDeliveryDays);
+      order.estimatedDeliveryDate = new Date(Date.now() + Number(estimatedDeliveryDays) * 24 * 60 * 60 * 1000);
+    }
+
+    // ✅ 8. SAVE ORDER
     // =========================================================
     await order.save();
 
