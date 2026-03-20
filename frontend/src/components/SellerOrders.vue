@@ -46,6 +46,18 @@
         </button>
       </div>
 
+      <!-- Orders search -->
+      <div class="search-bar">
+        <span class="search-icon"><Search/></span>
+        <input
+          v-model="orderSearch"
+          class="search-input"
+          type="text"
+          placeholder="Search by order ID, buyer name or item..."
+        />
+        <button v-if="orderSearch" class="search-clear" @click="orderSearch = ''"><X/></button>
+      </div>
+
       <!-- Orders table -->
       <div class="table-wrapper" v-if="filteredOrders.length > 0">
         <table class="table">
@@ -53,6 +65,7 @@
             <tr>
               <th>Order</th>
               <th>Buyer</th>
+              <th>Payment</th>
               <th>Items</th>
               <th>Total</th>
               <th>Status</th>
@@ -65,6 +78,9 @@
             <tr v-for="order in filteredOrders" :key="order._id">
               <td class="order-id">#{{ order._id.slice(-6) }}</td>
               <td>{{ order.buyer?.firstname }} {{ order.buyer?.lastname }}</td>
+              <td>
+                <span class="order-status-badge" :class="order.payment.method">{{order.payment.method === 'cod' ? 'COD':'ONLINE' }}</span>
+              </td>
               <td>
                 <div class="item-scroll">
                   <div v-for="item in order.items" :key="item._id" class="item-row">
@@ -96,7 +112,11 @@
 
       <div v-else class="empty-state">
         <div class="empty-icon">📦</div>
-        <p>No orders found{{ statusFilter !== 'all' ? ` with status "${statusFilter}"` : '' }}.</p>
+        <p>
+          No orders found
+          <template v-if="statusFilter !== 'all'"> with status "{{ statusFilter }}"</template>
+          <template v-if="orderSearch"> matching "{{ orderSearch }}"</template>.
+        </p>
       </div>
     </div>
 
@@ -119,12 +139,25 @@
         </button>
       </div>
 
+      <!-- Refunds search -->
+      <div class="search-bar">
+        <span class="search-icon"><Search/></span>
+        <input
+          v-model="refundSearch"
+          class="search-input"
+          type="text"
+          placeholder="Search by order ID, buyer name or reason..."
+        />
+        <button v-if="refundSearch" class="search-clear" @click="refundSearch = ''"><X/></button>
+      </div>
+
       <div class="table-wrapper" v-if="filteredRefunds.length > 0">
         <table class="table">
           <thead>
             <tr>
               <th>Order</th>
               <th>Buyer</th>
+              <th>Payment</th>
               <th>Reason</th>
               <th>Evidence</th>
               <th>Date</th>
@@ -136,6 +169,9 @@
             <tr v-for="refund in filteredRefunds" :key="refund.orderId">
               <td class="order-id">#{{ refund.orderId.slice(-6) }}</td>
               <td>{{ refund.buyer?.firstname }} {{ refund.buyer?.lastname }}</td>
+              <td>
+                <span class="order-status-badge" :class="refund.payment.method">{{ refund.payment?.method === 'cod' ? 'COD':'ONLINE' }}</span>
+              </td>
               <td class="reason-cell">{{ refund.refund?.reason }}</td>
               <td>
                 <div class="evidence-thumbs" v-if="refund.refund?.evidence?.images?.length || refund.refund?.evidence?.videos?.length">
@@ -158,7 +194,10 @@
       </div>
       <div v-else class="empty-state">
         <div class="empty-icon">🎉</div>
-        <p>{{ refundFilter === "all" ? "No refund requests. Great job!" : `No ${refundFilter} refund requests.` }}</p>
+        <p>
+          <template v-if="!refundSearch">{{ refundFilter === "all" ? "No refund requests. Great job!" : `No ${refundFilter} refund requests.` }}</template>
+          <template v-else>No refund requests matching "{{ refundSearch }}".</template>
+        </p>
       </div>
     </div>
 
@@ -204,14 +243,14 @@
       </div>
 
       <div v-else class="reviews-grid">
-        <div v-for="review in filteredReviews" :key="review._id" class="review-card">
+        <div v-for="review in pagedReviews" :key="review._id" class="review-card">
 
           <!-- Item bar -->
           <div class="review-item-bar">
             <img :src="review.item?.images?.[0]" class="review-item-img" />
             <div class="review-item-info">
               <div class="review-item-title">{{ review.item?.title || 'Unknown Item' }}</div>
-              <div class="review-item-price">${{ review.item?.price }}</div>
+              <div class="review-item-price">{{ formatPrice(review.item?.price) }}</div>
             </div>
             <div class="rating-badge" :class="ratingClass(review.rating)">{{ review.rating }}★</div>
           </div>
@@ -227,7 +266,7 @@
             <img :src="getAvatar(review.user?.avatar) || '/default-avatar.png'" class="reviewer-avatar" />
             <div>
               <div class="reviewer-name">{{ review.user?.firstname }} {{ review.user?.lastname }}</div>
-              <div class="review-date">{{ formatDate(review.createdAt) }}</div>
+              <div class="review-date">{{ formatDate(review.createdAt) }} · Order #{{ typeof review.order === 'object' ? review.order._id.slice(-6) : review.order.toString().slice(-6) }}</div>
             </div>
           </div>
 
@@ -258,6 +297,15 @@
 
         </div>
       </div>
+
+      <!-- PAGINATION -->
+      <Pagination
+        v-if="reviewTotalPages > 1"
+        :currentPage="reviewPage"
+        :totalPages="reviewTotalPages"
+        @update:page="reviewPage = $event"
+      />
+
     </div>
 
     <!-- ========================= -->
@@ -282,9 +330,17 @@
 <script>
 import LoadingOverlay from "./LoadingOverlay.vue";
 import ActionModal from "./ActionModal.vue";
+import Pagination from "./Pagination.vue";
+import { Search, X } from 'lucide-vue-next';
 
 export default {
-  components: { LoadingOverlay, ActionModal },
+  components: { 
+    LoadingOverlay, 
+    ActionModal, 
+    Pagination,
+    Search,
+    X 
+  },
 
   data() {
     return {
@@ -292,16 +348,20 @@ export default {
       // Orders
       orders: [],
       statusFilter: "all",
+      orderSearch: "",
       loading: false,
       error: null,
       // Refunds
       refunds: [],
       refundFilter: "all",
+      refundSearch: "",
       // Reviews
       reviews: [],
       reviewsLoading: false,
       reviewFilter: "all",
       starFilter: 0,
+      reviewPage: 1,
+      reviewsPerPage: 12,
       // Modal
       modal: { visible: false, type: "", order: null, refund: null, review: null },
       // Show more/less for review content
@@ -324,8 +384,17 @@ export default {
       ];
     },
     filteredOrders() {
-      if (this.statusFilter === "all") return this.orders;
-      return this.orders.filter(o => o.status === this.statusFilter);
+      let list = this.orders;
+      if (this.statusFilter !== "all") list = list.filter(o => o.status === this.statusFilter);
+      if (this.orderSearch.trim()) {
+        const q = this.orderSearch.trim().toLowerCase();
+        list = list.filter(o =>
+          o._id.slice(-6).toLowerCase().includes(q) ||
+          (o.buyer?.firstname + " " + o.buyer?.lastname).toLowerCase().includes(q) ||
+          o.items?.some(i => i.itemSnapshot?.title?.toLowerCase().includes(q))
+        );
+      }
+      return list;
     },
     /* Refunds */
     pendingRefunds() {
@@ -341,8 +410,17 @@ export default {
       ];
     },
     filteredRefunds() {
-      if (this.refundFilter === "all") return this.refunds;
-      return this.refunds.filter(r => r.refund?.status === this.refundFilter);
+      let list = this.refunds;
+      if (this.refundFilter !== "all") list = list.filter(r => r.refund?.status === this.refundFilter);
+      if (this.refundSearch.trim()) {
+        const q = this.refundSearch.trim().toLowerCase();
+        list = list.filter(r =>
+          r.orderId.slice(-6).toLowerCase().includes(q) ||
+          (r.buyer?.firstname + " " + r.buyer?.lastname).toLowerCase().includes(q) ||
+          r.refund?.reason?.toLowerCase().includes(q)
+        );
+      }
+      return list;
     },
     /* Reviews */
     reviewFilters() {
@@ -361,12 +439,25 @@ export default {
       if (this.reviewFilter === "replied")   list = list.filter(r =>  r.sellerReply?.repliedAt);
       if (this.starFilter > 0) list = list.filter(r => r.rating === this.starFilter);
       return list;
+    },
+    reviewTotalPages() {
+      return Math.ceil(this.filteredReviews.length / this.reviewsPerPage) || 1;
+    },
+    pagedReviews() {
+      const start = (this.reviewPage - 1) * this.reviewsPerPage;
+      return this.filteredReviews.slice(start, start + this.reviewsPerPage);
     }
   },
 
   mounted() {
     this.fetchOrders();
     this.fetchRefunds();
+  },
+
+  watch: {
+    // Reset ve trang 1 khi doi filter
+    reviewFilter() { this.reviewPage = 1; },
+    starFilter()   { this.reviewPage = 1; }
   },
 
   methods: {
@@ -611,6 +702,40 @@ export default {
 /* ========================= */
 /* FILTER BAR                */
 /* ========================= */
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f8f9fa;
+  border: 1.5px solid #e9ecef;
+  border-radius: 10px;
+  padding: 8px 14px;
+  margin-bottom: 14px;
+  transition: border-color 0.2s;
+}
+.search-bar:focus-within { border-color: #FF642F; background: #fff; }
+.search-icon { font-size: 15px; color: #aaa; flex-shrink: 0; }
+.search-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 14px;
+  color: #333;
+}
+.search-input::placeholder { color: #bbb; }
+.search-clear {
+  background: none;
+  border: none;
+  color: #aaa;
+  font-size: 18px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 2px;
+  flex-shrink: 0;
+}
+.search-clear:hover { color: #FF642F; }
+
 .filter-bar {
   display: flex;
   flex-wrap: wrap;
@@ -635,12 +760,12 @@ export default {
 .pill-dot {
   width: 7px; height: 7px; border-radius: 50%;
 }
-.pill-dot.pending   { background: #f59e0b; }
-.pill-dot.confirmed { background: #3b82f6; }
-.pill-dot.shipping  { background: #8b5cf6; }
+.pill-dot.pending   { background: #555; }
+.pill-dot.confirmed { background: #f59e0b; }
+.pill-dot.shipping  { background: #3b82f6; }
 .pill-dot.completed { background: #10b981; }
 .pill-dot.cancelled { background: #ef4444; }
-.pill-dot.refunded  { background: #ec4899; }
+.pill-dot.refunded  { background: #7950da; }
 .pill-dot.rf-requested { background: #f59e0b; }
 .pill-dot.rf-approved  { background: #3b82f6; }
 .pill-dot.rf-refunded  { background: #10b981; }
@@ -698,6 +823,18 @@ export default {
 .table tr:hover td { background: #fdfaf9; }
 
 .order-id { font-family: monospace; font-weight: 600; color: #666; }
+
+.order-status-badge {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 20px;
+  text-transform: capitalize;
+}
+
+.order-status-badge.cod    { background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7; }
+.order-status-badge.online { background:#e3f2fd;color:#1565c0;border:1px solid #90caf9; }
+
 .total-price { font-size: 15px; font-weight: 700; color: #FF642F; }
 .date-cell { font-size: 12px; color: #bbb; white-space: nowrap; }
 .reason-cell { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #666; font-size: 13px; }
@@ -713,22 +850,22 @@ export default {
   display: inline-block; padding: 3px 10px;
   border-radius: 20px; font-size: 12px; font-weight: 600; text-transform: capitalize;
 }
-.status-badge.pending   { background: #f3f4f6; color: #6b7280; }
-.status-badge.confirmed { background: #dbeafe; color: #1d4ed8; }
-.status-badge.shipping  { background: #ede9fe; color: #6d28d9; }
-.status-badge.completed { background: #dcfce7; color: #15803d; }
-.status-badge.cancelled { background: #fee2e2; color: #b91c1c; }
-.status-badge.refunded  { background: #fce7f3; color: #9d174d; }
+.status-badge.pending   { background: #e2e3e5; color: #555;  }
+.status-badge.confirmed { background: #fff3cd; color: #856404; }
+.status-badge.shipping  { background: #cce5ff; color: #004085; }
+.status-badge.completed { background: #d4edda; color: #155724; }
+.status-badge.cancelled { background: #f8d7da; color: #721c24; }
+.status-badge.refunded  { background: #f0d9f5; color: #5a1a6e; }
 
 /* Refund status */
 .refund-status-badge {
   display: inline-block; padding: 3px 10px;
   border-radius: 20px; font-size: 12px; font-weight: 600; text-transform: capitalize;
 }
-.refund-status-badge.requested { background: #fff3cd; color: #92400e; }
-.refund-status-badge.approved  { background: #dcfce7; color: #15803d; }
-.refund-status-badge.rejected  { background: #fee2e2; color: #b91c1c; }
-.refund-status-badge.refunded  { background: #fce7f3; color: #9d174d; }
+.refund-status-badge.requested { background: #fff3cd; color: #856404; }
+.refund-status-badge.approved  { background: #d4edda; color: #155724; }
+.refund-status-badge.rejected  { background: #f8d7da; color: #721c24; }
+.refund-status-badge.refunded  { background: #f0d9f5; color: #5a1a6e; }
 
 /* Evidence in refund table */
 .evidence-thumbs { display: flex; align-items: center; gap: 4px; }

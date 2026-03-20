@@ -47,7 +47,7 @@
             class="order-item"
           >
             <img
-              :src="item.item?.images?.[0] || item.itemSnapshot?.images?.[0]"
+              :src="getItemImage(item.item?.images || item.itemSnapshot?.images)"
               class="item-img"
             />
 
@@ -87,7 +87,7 @@
           <button
             v-if="order.payment?.method === 'online' && order.payment?.status === 'unpaid' && order.status === 'pending'"
             class="btn-primary"
-            @click="$router.push(`/payment/${order._id}`)"
+            @click="$router.push(`/payment/${order._id}?from=/orders/${order._id}`)"
           >Pay Now</button>
 
           <!-- Cancel (Buyer) -->
@@ -190,17 +190,31 @@
             </span>
           </div>
 
-          <!-- Evidence images -->
+          <!-- Evidence: images + videos -->
           <div
-            v-if="order.refund.evidence?.images?.length"
+            v-if="order.refund.evidence?.images?.length || order.refund.evidence?.videos?.length"
             class="evidence-list"
           >
-            <img
-              v-for="(img, i) in order.refund.evidence.images"
-              :key="i"
-              :src="img"
-              class="evidence-img"
-            />
+            <!-- Images -->
+            <div
+              v-for="(img, i) in (order.refund.evidence.images || [])"
+              :key="'img-' + i"
+              class="evidence-thumb"
+              @click="openLightbox(order.refund.evidence.images, i)"
+            >
+              <img :src="img" class="evidence-img" />
+              <div class="evidence-overlay"><ZoomIn :size="18" /></div>
+            </div>
+            <!-- Videos -->
+            <div
+              v-for="(vid, i) in (order.refund.evidence.videos || [])"
+              :key="'vid-' + i"
+              class="evidence-thumb evidence-thumb--video"
+              @click="openVideo(vid)"
+            >
+              <div class="evidence-video-icon"><Play :size="22" /></div>
+              <div class="evidence-video-label">Video {{ i + 1 }}</div>
+            </div>
           </div>
         </div>
 
@@ -256,6 +270,31 @@
       @confirm="handleModalConfirm"
     />
 
+    <!-- LIGHTBOX -->
+    <div v-if="lightbox.visible" class="ev-lightbox" @click.self="lightbox.visible = false">
+      <button class="ev-lightbox-close" @click="lightbox.visible = false"><X :size="22" /></button>
+      <button
+        v-if="lightbox.images.length > 1"
+        class="ev-lightbox-nav ev-lightbox-nav--prev"
+        @click="lightbox.index = (lightbox.index - 1 + lightbox.images.length) % lightbox.images.length"
+      >&#8249;</button>
+      <img :src="lightbox.images[lightbox.index]" class="ev-lightbox-img" />
+      <button
+        v-if="lightbox.images.length > 1"
+        class="ev-lightbox-nav ev-lightbox-nav--next"
+        @click="lightbox.index = (lightbox.index + 1) % lightbox.images.length"
+      >&#8250;</button>
+      <div v-if="lightbox.images.length > 1" class="ev-lightbox-counter">
+        {{ lightbox.index + 1 }} / {{ lightbox.images.length }}
+      </div>
+    </div>
+
+    <!-- VIDEO MODAL -->
+    <div v-if="videoModal.visible" class="ev-lightbox" @click.self="videoModal.visible = false">
+      <button class="ev-lightbox-close" @click="videoModal.visible = false"><X :size="22" /></button>
+      <video :src="videoModal.url" controls autoplay class="ev-lightbox-video" />
+    </div>
+
   </div>
 </template>
 
@@ -263,7 +302,7 @@
 <script>
 import ActionModal from "./ActionModal.vue";
 import LoadingOverlay from "./LoadingOverlay.vue";
-import { Truck } from 'lucide-vue-next';
+import { Truck, ZoomIn, Play, X } from 'lucide-vue-next';
 
 export default {
   name: "OrderDetailPage",
@@ -272,14 +311,19 @@ export default {
     ActionModal,
     LoadingOverlay,
 
-    Truck
+    Truck,
+    ZoomIn,
+    Play,
+    X
   },
 
   data() {
     return {
       order: null,
       error: null,
-      modal: { visible: false, type: "", requireEvidence: false }
+      modal: { visible: false, type: "", requireEvidence: false },
+      lightbox: { visible: false, images: [], index: 0 },
+      videoModal: { visible: false, url: "" }
     };
   },
 
@@ -339,6 +383,13 @@ export default {
       }
     },
 
+    openLightbox(images, index = 0) {
+      this.lightbox = { visible: true, images, index };
+    },
+    openVideo(url) {
+      this.videoModal = { visible: true, url };
+    },
+
     formatDate(date) {
       return new Date(date).toLocaleString("en-US", {
         dateStyle: "medium",
@@ -356,6 +407,12 @@ export default {
         refunded: "Refunded"
       };
       return map[status] || status;
+    },
+
+    getItemImage(images) {
+      if (!images?.length) return "";
+      const img = images[0];
+      return img.startsWith("http") ? img : `${process.env.VUE_APP_API_URL}/${img}`;
     },
 
     formatPrice(price) {
@@ -803,18 +860,66 @@ export default {
 .refund-status-badge.refunded  { background: #f0d9f5; color: #5a1a6e; }
 
 /* EVIDENCE */
-.evidence-list {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 10px;
-}
-.evidence-img {
-  width: 80px;
-  height: 80px;
-  object-fit: cover;
-  border-radius: 6px;
+.evidence-list { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+
+.evidence-thumb {
+  position: relative;
+  width: 80px; height: 80px;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
   border: 1px solid #ddd;
+  flex-shrink: 0;
+}
+.evidence-thumb:hover .evidence-overlay { opacity: 1; }
+
+.evidence-img { width: 100%; height: 100%; object-fit: cover; display: block; background-color:#fff}
+
+.evidence-overlay {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.evidence-thumb--video {
+  background: #1a1a2e;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 4px;
+  border-color: #444;
+}
+.evidence-video-icon { color: #fff; }
+.evidence-video-label { font-size: 10px; color: #aaa; }
+
+/* Lightbox */
+.ev-lightbox {
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(0,0,0,0.88);
+  display: flex; align-items: center; justify-content: center;
+}
+.ev-lightbox-img { max-width: 90vw; max-height: 85vh; object-fit: contain; border-radius: 8px; background-color:#fff}
+.ev-lightbox-video { max-width: 90vw; max-height: 85vh; border-radius: 8px; }
+.ev-lightbox-close {
+  position: absolute; top: 16px; right: 20px;
+  background: rgba(255,255,255,0.15); border: none;
+  color: #fff; width: 36px; height: 36px; border-radius: 50%;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.ev-lightbox-nav {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  background: rgba(255,255,255,0.15); border: none;
+  color: #fff; font-size: 28px; width: 44px; height: 44px;
+  border-radius: 50%; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.ev-lightbox-nav--prev { left: 20px; }
+.ev-lightbox-nav--next { right: 20px; }
+.ev-lightbox-counter {
+  position: absolute; bottom: 20px;
+  color: rgba(255,255,255,0.7); font-size: 13px;
 }
 
 .meta {

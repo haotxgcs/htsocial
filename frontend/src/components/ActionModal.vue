@@ -323,7 +323,7 @@
           <img :src="review?.item?.images?.[0]" class="sr-item-img" />
           <div class="sr-item-detail">
             <div class="sr-item-title">{{ review?.item?.title }}</div>
-            <div class="sr-item-price">${{ review?.item?.price }}</div>
+            <div class="sr-item-price">{{ formatPrice(review?.item?.price) }}</div>
           </div>
         </div>
 
@@ -340,8 +340,7 @@
             <img :src="getAvatar(review?.user?.avatar) || '/default-avatar.png'" class="sr-avatar" />
             <div>
               <div class="sr-reviewer-name">{{ review?.user?.firstname }} {{ review?.user?.lastname }}</div>
-              <div class="sr-reviewer-date">{{ formatDate(review?.createdAt) }}</div>
-              <div class="sr-reviewer-date" v-if="review?.order">Order #{{ typeof review.order === 'object' ? review.order._id.slice(-6) : review.order.toString().slice(-6) }}</div>
+              <div class="sr-reviewer-date">{{ formatDate(review?.createdAt) }} · Order #{{ typeof review.order === 'object' ? review.order._id.slice(-6) : review.order.toString().slice(-6) }}</div>
             </div>
           </div>
         </div>
@@ -607,6 +606,14 @@ export default {
       if (!d) return "";
       return new Date(d).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric", hour:"2-digit", minute:"2-digit"});
     },
+
+    formatPrice(price) {
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD"
+      }).format(price);
+    },
+
     getAvatar(avatar) {
       if (!avatar) return '/default-avatar.png'
       if (avatar.startsWith('http')) return avatar  // URL đầy đủ → giữ nguyên
@@ -767,7 +774,7 @@ export default {
   font-size: 11px; font-weight: 700; text-transform: uppercase;
   letter-spacing: 0.5px; color: #bbb; margin-bottom: 6px;
 }
-.info-value { font-size: 14px; color: #333; line-height: 1.5; }
+.info-value { font-size: 14px; color: #333; line-height: 1.5; white-space: pre-wrap;}
 .no-evidence { font-size: 13px; color: #ccc; font-style: italic; margin: 0; }
 
 /* Evidence grid */
@@ -826,6 +833,7 @@ export default {
   font-size: 14px; resize: none; box-sizing: border-box;
   font-family: inherit; line-height: 1.5; color: #333;
   background: #fafafa; transition: border-color 0.2s, background 0.2s;
+  white-space: pre-wrap;
 }
 .styled-textarea:focus { outline: none; border-color: #FF642F; background: #fff; }
 

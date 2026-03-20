@@ -75,7 +75,7 @@
         <!-- ITEMS -->
         <div @click="$router.push(`/orders/${order._id}`)" v-for="item in order.items" :key="item._id" class="order-item">
 
-          <img :src="item.item?.images?.[0]" class="item-img" />
+          <img :src="getItemImage(item.item.images)" class="item-img" />
 
           <div class="item-content">
             <div class="item-title">
@@ -116,7 +116,7 @@
           <button
             v-if="order.payment?.method === 'online' && order.payment?.status === 'unpaid' && order.status === 'pending'"
             class="btn-primary"
-            @click="$router.push(`/payment/${order._id}`)"
+            @click="$router.push(`/payment/${order._id}?from=/orders`)"
           >
             Pay Now
           </button>
@@ -342,6 +342,12 @@ async fetchOrders() {
       }
 
       return map[status] || status
+    },
+
+    getItemImage(images) {
+      if (!images?.length) return "";
+      const img = images[0];
+      return img.startsWith("http") ? img : `${process.env.VUE_APP_API_URL}/${img}`;
     },
 
     formatPayment(status) {

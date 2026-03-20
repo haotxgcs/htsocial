@@ -14,7 +14,7 @@
       <!-- ITEM INFO -->
        <div class="item-content">
       <div class="item-info">
-        <img :src="item.images?.[0]" class="item-img" />
+        <img :src="getItemImage(item.images)" class="item-img" />
 
         <div class="item-text">
           <p class="title">{{ item.title }}</p>
@@ -93,6 +93,12 @@ export default {
   },
 
   methods: {
+    getItemImage(images) {
+      if (!images?.length) return "";
+      const img = images[0];
+      return img.startsWith("http") ? img : `${process.env.VUE_APP_API_URL}/${img}`;
+    },
+
     increase() {
       if (this.qty < this.item.quantity) this.qty++;
     },

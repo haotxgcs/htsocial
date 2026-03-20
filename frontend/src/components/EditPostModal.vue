@@ -143,7 +143,7 @@
             >
               <img
                 v-if="item.images?.length"
-                :src="`http://localhost:3000/${item.images[0]}`"
+                :src="getItemImage(item.images)"
                 class="linked-item-thumb"
               />
 
@@ -178,7 +178,7 @@
             >
               <img
                 v-if="item.images?.length"
-                :src="`http://localhost:3000/${item.images[0]}`"
+                :src="getItemImage(item.images)"
                 class="linked-item-thumb"
               />
 
@@ -393,6 +393,12 @@ export default {
     } 
   },
   methods: {
+    getItemImage(images) {
+      if (!images?.length) return "";
+      const img = images[0];
+      return img.startsWith("http") ? img : `http://localhost:3000/${img}`;
+    },
+
     // --- KHỞI TẠO DỮ LIỆU TỪ POST CŨ (LOGIC MỚI) ---
     initializeEditData() {
       if (!this.post) return;

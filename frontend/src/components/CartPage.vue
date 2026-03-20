@@ -76,7 +76,7 @@
 
             <!-- IMAGE -->
             <img
-              :src="cartItem.item.images?.[0] || '/no-image.png'"
+              :src="getItemImage(cartItem.item?.images)"
               class="item-img"
               @click="$router.push(`/marketplace/${cartItem.item._id}`)"
             />
@@ -444,6 +444,11 @@ export default {
       }).format(price);
     },
 
+    getItemImage(images) {
+      if (!images?.length) return "";
+      const img = images[0];
+      return img.startsWith("http") ? img : `${process.env.VUE_APP_API_URL}/${img}`;
+    },
   }
 }
 </script>

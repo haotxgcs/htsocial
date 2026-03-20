@@ -1,11 +1,11 @@
 <template>
   <div>
-    <div class="mobile-toggle" @click="isOpen = !isOpen" :class="{ 'active': isOpen }">
+    <div class="mobile-toggle" :class="{ 'active': isOpen, 'show-on-chat': isMessagesPage }" @click="isOpen = !isOpen">
       <img v-if="!isOpen" src="../assets/menu.png" alt="Menu" />
       <img v-else src="../assets/hide.png" alt="Close" style="filter: invert(1);" /> 
     </div>
 
-    <aside class="vertical-sidebar" :class="{ 'open': isOpen }">
+    <aside class="vertical-sidebar" :class="{ 'open': isOpen, 'collapsed-for-chat': isMessagesPage }">
 
       <div class="sidebar-header">
         <router-link to="/home" class="logo-link">
@@ -62,8 +62,6 @@
 
       <div class="sidebar-actions">
         <div class="action-btn" @click="toggleDark()" title="Theme">
-          <!-- <img v-if="isDark" src="../assets/light.png" />
-          <img v-else src="../assets/dark.png" /> -->
           <div v-if="isDark"><Sun/></div>
           <div v-else><Moon/></div>
         </div>
@@ -78,7 +76,7 @@
                 <p class="empty-text">Không có tin nhắn mới</p>
              </div>
              <div class="popover-footer">
-                <router-link to="/message">Xem tất cả</router-link>
+                <router-link to="/messages">Xem tất cả</router-link>
              </div>
           </div>
         </div>
@@ -170,6 +168,12 @@ export default {
       defaultAssetAvatar: require('../assets/user.png')
     };
   },
+  computed: {
+    isMessagesPage() {
+      return this.$route?.path?.startsWith("/messages");
+    }
+  },
+
   methods: {
     handleSearch() {
       console.log('Searching:', this.search);
@@ -490,5 +494,16 @@ export default {
     backdrop-filter: blur(2px);
     z-index: 999;
   }
+}
+
+/* Messages page: sidebar collapsed, only hamburger visible */
+.vertical-sidebar.collapsed-for-chat {
+  transform: translateX(-100%);
+}
+.vertical-sidebar.collapsed-for-chat.open {
+  transform: translateX(0);
+}
+.show-on-chat {
+  display: flex !important;
 }
 </style>

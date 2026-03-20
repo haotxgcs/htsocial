@@ -32,7 +32,7 @@ const routes = [
   { path: '/marketplace', component: MarketplacePage }, 
   { path: '/marketplace/:id', component: MarketplaceDetail },
   { path: '/game', component: GamePage },
-  { path: '/message', component: MessagePage },
+  { path: '/messages', component: MessagePage },
   { path: '/notification', component: NotificationPage },
   { path: '/profile', component: ProfilePage },
   { path: '/profile/:id', component: ProfilePage },

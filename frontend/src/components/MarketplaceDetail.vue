@@ -547,9 +547,10 @@ export default {
     
     
     onChat() {
-    // Sau này có thể redirect sang chat page
-    alert("Open chat (UI only)");
-  },
+      const sellerId = this.item?.seller?._id || this.item?.seller;
+      if (!sellerId) return;
+      this.$router.push({ path: "/messages", query: { userId: sellerId.toString() } });
+    },
 
 
     nextImage() {

@@ -192,7 +192,7 @@
                 <template v-if="currentItem(post)">
                   <img
                     v-if="currentItem(post).images?.length"
-                    :src="`http://localhost:3000/${currentItem(post).images[0]}`"
+                    :src="getItemImage(currentItem(post).images)"
                     class="linked-item-thumb"
                   />
 
@@ -826,6 +826,12 @@ friendButtonText() {
 
   },
   methods: {
+    getItemImage(images) {
+      if (!images?.length) return "";
+      const img = images[0];
+      return img.startsWith("http") ? img : `http://localhost:3000/${img}`;
+    },
+
     // === CÁC METHOD CŨ GIỮ NGUYÊN ===
     getDefaultAvatarPath(user) {
       if (!user) return "uploads/generic_avatar.png";
@@ -2845,6 +2851,3 @@ watch: {
   .user-identity-card { margin-top: -60px; }
 }
 </style>
-
-
-

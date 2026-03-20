@@ -62,7 +62,7 @@
               <div class="action-group">
                 <button class="btn-primary" @click="$router.push(`/profile/${friend._id}`)">View Profile</button>
                 <div style="display: flex; gap: 8px;">
-                   <button class="btn-secondary" style="flex:1" title="Message">Message</button>
+                   <button class="btn-secondary" style="flex:1" title="Message" @click="$router.push({ path: '/messages', query: { userId: friend._id } })">Message</button>
                    <button class="btn-secondary" style="flex:1; color:#ef4444;" @click="unfriend(friend._id)" title="Unfriend">Unfriend</button>
                 </div>
               </div>

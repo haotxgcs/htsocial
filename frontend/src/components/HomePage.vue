@@ -166,7 +166,7 @@
                 <template v-if="currentItem(post)">
                   <img
                     v-if="currentItem(post).images?.length"
-                    :src="`http://localhost:3000/${currentItem(post).images[0]}`"
+                    :src="getItemImage(currentItem(post).images)"
                     class="linked-item-thumb"
                   />
 
@@ -639,6 +639,12 @@ export default {
   },
 
   methods: {
+    getItemImage(images) {
+      if (!images?.length) return "";
+      const img = images[0];
+      return img.startsWith("http") ? img : `http://localhost:3000/${img}`;
+    },
+
     // --- UI HELPERS ---
 
     selectCategory(category) {

@@ -70,7 +70,7 @@
             <div class="linked-item-left">
               <img
                 v-if="currentLinkedItem?.images?.length"
-                :src="`http://localhost:3000/${currentLinkedItem.images[0]}`"
+                :src="getItemImage(currentLinkedItem.images)"
                 class="linked-item-thumb"
               />
 
@@ -624,6 +624,12 @@ export default {
     }
   },
   methods: {
+    getItemImage(images) {
+      if (!images?.length) return "";
+      const img = images[0];
+      return img.startsWith("http") ? img : `http://localhost:3000/${img}`;
+    },
+
     // --- EMOJI LOGIC METHODS ---
     
     toggleEmojiPicker(pickerId) {

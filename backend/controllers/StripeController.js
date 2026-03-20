@@ -209,6 +209,11 @@ exports.stripeWebhook = async (req, res) => {
       order.status = "confirmed";
       order.paidAt = new Date();
 
+      // Set estimated delivery date (default 7 days, or keep seller-set value)
+      const deliveryDays = order.estimatedDeliveryDays || 7;
+      order.estimatedDeliveryDays = deliveryDays;
+      order.estimatedDeliveryDate = new Date(Date.now() + deliveryDays * 24 * 60 * 60 * 1000);
+
       await order.save();
       await sendOrderPaidEmail(order);
 
