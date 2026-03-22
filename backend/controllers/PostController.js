@@ -2,37 +2,35 @@ const Post = require("../models/PostModel");
 const User = require("../models/UserModel");
 const Comment = require("../models/CommentModel");
 const Share = require("../models/ShareModel");
-const fs = require('fs');
+const cloudinary = require("../services/cloudinary");
 
-// Assuming you know the path to your 'uploads' folder relative to this file
-const path = require('path');
-const UPLOAD_DIR = path.join(__dirname, '..', 'uploads'); // Adjust this path as necessary
+// Helper: extract Cloudinary public_id từ URL để xóa media cũ
+const extractPublicId = (url) => {
+  if (!url || !url.includes("cloudinary.com")) return null;
+  try {
+    const parts = url.split("/upload/");
+    if (parts.length < 2) return null;
+    let p = parts[1].replace(/^v\d+\//, ""); // bỏ version
+    p = p.replace(/\.[^.]+$/, "");             // bỏ extension
+    return p;
+  } catch { return null; }
+};
 
-// Helper function to delete a file from the disk
-const deleteFileFromDisk = (filePath) => {
-    if (!filePath) return;
-    // Assuming post.media stores the relative path like 'uploads/filename.jpg'
-    const fullPath = path.join(__dirname, '..', filePath); 
-    
-    if (fs.existsSync(fullPath)) {
-        try {
-            fs.unlinkSync(fullPath);
-            
-        } catch (error) {
-            console.error(`Failed to delete media file: ${error.message}`);
-        }
-    }
+// Helper: xóa media cũ trên Cloudinary
+const deleteCloudinaryMedia = async (url, resourceType = "image") => {
+  const publicId = extractPublicId(url);
+  if (!publicId) return;
+  await cloudinary.uploader.destroy(publicId, { resource_type: resourceType }).catch(() => {});
 };
 
 exports.createPost = async (req, res) => {
   try {
     const { title, category, ingredients, instructions, author, audience,hiddenBy, linkedItems} = req.body;
-    const media = req.file ? `uploads/${req.file.filename}` : null;
+    // multer-storage-cloudinary trả về URL qua req.file.path
+    const media = req.file ? req.file.path : null;
     const mediaType = req.file
-      ? req.file.mimetype.startsWith("image")
-        ? "image"
-        : req.file.mimetype.startsWith("video")
-        ? "video"
+      ? req.file.mimetype.startsWith("image") ? "image"
+        : req.file.mimetype.startsWith("video") ? "video"
         : null
       : null;
 
@@ -275,24 +273,23 @@ exports.updatePost = async (req, res) => {
         }
 
 
-        // 2. Handle explicit media deletion request (User clicks 'X' on an existing image)
+        // 2. Xóa media nếu user bấm nút xóa
         if (deleteMedia === 'true' && post.media) {
-            deleteFileFromDisk(post.media); // Delete the physical file
+            const resType = post.mediaType === "video" ? "video" : "image";
+            await deleteCloudinaryMedia(post.media, resType);
             post.media = null;
             post.mediaType = null;
         }
 
-        // 3. Handle new file upload
+        // 3. Upload media mới (multer-storage-cloudinary trả URL qua file.path)
         if (file) {
-            // If a new file is uploaded, delete the old one first (if it exists)
             if (post.media) {
-                deleteFileFromDisk(post.media);
+                const resType = post.mediaType === "video" ? "video" : "image";
+                await deleteCloudinaryMedia(post.media, resType);
             }
-            
-            // Update with new file path
-            post.media = file.path; // file.path should contain the relative path (e.g., uploads/filename.jpg)
-            post.mediaType = file.mimetype.startsWith("image") ? "image" :
-                             file.mimetype.startsWith("video") ? "video" : null;
+            post.media = file.path;
+            post.mediaType = file.mimetype.startsWith("image") ? "image"
+                           : file.mimetype.startsWith("video") ? "video" : null;
         }
 
         // NOTE: If deleteMedia is not 'true' and no new file is uploaded,
@@ -318,6 +315,12 @@ exports.deletePost = async (req, res) => {
   try {
     const deleted = await Post.findByIdAndDelete(req.params.id);
     if (!deleted) return res.status(404).json({ msg: "Post not found" });
+
+    // Xóa media trên Cloudinary nếu có
+    if (deleted.media) {
+      const resType = deleted.mediaType === "video" ? "video" : "image";
+      await deleteCloudinaryMedia(deleted.media, resType);
+    }
 
     // Giảm postCount
     await User.findByIdAndUpdate(deleted.author, {
@@ -433,5 +436,3 @@ exports.toggleLike = async (req, res) => {
     res.status(500).json({ msg: "Server error" });
   }
 };
-
-

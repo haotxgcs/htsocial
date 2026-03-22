@@ -69,15 +69,44 @@
         <div class="action-btn" @click.stop="toggleMessage" title="Message">
           <MessageCircle/>
           <span v-if="unreadMessages > 0" class="badge">{{ unreadMessages }}</span>
-          
-          <div v-if="showMessageDropdown" class="popover-panel">
-             <div class="popover-header"><h3>Tin nhắn</h3></div>
-             <div class="popover-body">
-                <p class="empty-text">Không có tin nhắn mới</p>
-             </div>
-             <div class="popover-footer">
-                <router-link to="/messages">Xem tất cả</router-link>
-             </div>
+
+          <div v-if="showMessageDropdown" class="popover-panel msg-popover">
+            <div class="popover-header">
+              <h3>Messages</h3>
+              <span v-if="unreadMessages > 0" class="hdr-badge">{{ unreadMessages }}</span>
+            </div>
+            <div class="msg-list">
+              <div v-if="loadingContacts" class="msg-empty">Loading...</div>
+              <template v-else-if="contacts.length">
+                <div
+                  v-for="c in contacts" :key="c._id"
+                  class="mc-row"
+                  :class="{ 'mc-unread': isUnread(c) }"
+                  @click.stop="openChat(c)"
+                >
+                  <div class="mc-av-wrap">
+                    <img :src="resolveAvatar(getPartner(c))" class="mc-av" @error="onAvErr" />
+                    <span v-if="isOnline(getPartner(c)?._id)" class="mc-dot"></span>
+                  </div>
+                  <div class="mc-info">
+                    <div class="mc-name-row">
+                      <span class="mc-name">{{ getPartner(c)?.firstname }} {{ getPartner(c)?.lastname }}</span>
+                      <span class="mc-time">{{ fmtTime(c.createdAt) }}</span>
+                    </div>
+                    <div class="mc-prev" :class="{ 'mc-bold': isUnread(c) }">
+                      <span v-if="isMine(c)" class="mc-you">You: </span>
+                      <span v-if="c.recalled" class="mc-recalled">recalled a message</span>
+                      <span v-else>{{ c.content || '—' }}</span>
+                    </div>
+                  </div>
+                  <span v-if="isUnread(c)" class="mc-badge"></span>
+                </div>
+              </template>
+              <div v-else class="msg-empty">No messages yet</div>
+            </div>
+            <div class="popover-footer">
+              <router-link to="/messages" @click.stop="closeDropdowns">See all messages</router-link>
+            </div>
           </div>
         </div>
 
@@ -123,6 +152,9 @@
 
 <script>
 import { useDark, useToggle } from '@vueuse/core';
+import { io } from 'socket.io-client';
+
+const API = process.env.VUE_APP_API_URL || 'http://localhost:3000';
 import { House, Users, Store, Bookmark, EyeOff, ShoppingBag, Moon, Sun, MessageCircle, Bell, CircleUserRound, Settings, LogOut, ShoppingCart  } from 'lucide-vue-next';
 
 export default {
@@ -157,13 +189,19 @@ export default {
       showNotificationDropdown: false,
       showUserDropdown: false,
 
-      unreadMessages: 2,
+      unreadMessages: 0,
       unreadNotifications: 5,
+
+      contacts: [],
+      loadingContacts: false,
+      onlineUserIds: new Set(),
+      socket: null,
 
       currentUser: {
         name: 'User',
-        username: '@user', // Thay role bằng username
-        avatarUrl: ''
+        username: '@user',
+        avatarUrl: '',
+        id: null
       },
       defaultAssetAvatar: require('../assets/user.png')
     };
@@ -182,6 +220,11 @@ export default {
       this.showMessageDropdown = !this.showMessageDropdown;
       this.showNotificationDropdown = false;
       this.showUserDropdown = false;
+      if (this.showMessageDropdown) {
+        this.fetchContacts();
+        // Reset unread khi mở
+        this.unreadMessages = 0;
+      }
     },
     toggleNotification() {
       this.showNotificationDropdown = !this.showNotificationDropdown;
@@ -194,7 +237,12 @@ export default {
       this.showNotificationDropdown = false;
     },
     
-    goToProfile() { this.$router.push('/profile'); this.closeDropdowns(); },
+    goToProfile() {
+      const user = JSON.parse(localStorage.getItem('user'));
+      const id = user?._id || user?.id;
+      if (id) this.$router.push(`/profile/${id}`);
+      this.closeDropdowns();
+    },
     goToSettings() { console.log('Settings'); this.closeDropdowns(); },
     closeDropdowns() {
       this.showUserDropdown = false;
@@ -213,24 +261,159 @@ export default {
       if (userStr) {
         try {
           const user = JSON.parse(userStr);
+          this.currentUser.id = user._id || user.id;
           this.currentUser.name = `${user.firstname || ''} ${user.lastname || ''}`.trim() || 'User';
-          
-          // ⭐ SỬA LOGIC: Lấy username hoặc email
-          if (user.username) {
-            this.currentUser.username = `@${user.username}`;
-          } else if (user.email) {
-            this.currentUser.username = user.email;
+          this.currentUser.username = user.username ? `@${user.username}` : (user.email || '@user');
+
+          // Fix avatar: Cloudinary URL đã có https://, local path cần prefix
+          if (user.avatar && user.avatar !== 'uploads/user.png') {
+            this.currentUser.avatarUrl = user.avatar.startsWith('http')
+              ? user.avatar
+              : `http://localhost:3000/${user.avatar}`;
           } else {
-            this.currentUser.username = '@user';
-          }
-          
-          if (user.avatar && user.avatar !== "uploads/user.png") {
-            this.currentUser.avatarUrl = `http://localhost:3000/${user.avatar}`;
-          } else {
-             this.currentUser.avatarUrl = this.defaultAssetAvatar; 
+            this.currentUser.avatarUrl = this.defaultAssetAvatar;
           }
         } catch (e) { console.error(e); }
       }
+    },
+
+    // ── Socket ───────────────────────────────────────────────────
+    initSocket() {
+      if (!this.currentUser.id) return;
+      this.socket = io(API, { transports: ['websocket'] });
+
+      this.socket.on('connect', () => {
+        this.socket.emit('user:online', this.currentUser.id);
+      });
+
+      this.socket.on('users:online', ids => {
+        this.onlineUserIds = new Set(ids.map(String));
+      });
+
+      this.socket.on('user:status', ({ userId, online }) => {
+        const set = new Set(this.onlineUserIds);
+        online ? set.add(String(userId)) : set.delete(String(userId));
+        this.onlineUserIds = set;
+      });
+
+      // Tin nhắn mới → tăng badge + cập nhật contacts
+      this.socket.on('message:new', (message) => {
+        this.unreadMessages++;
+        // Bump contact lên đầu hoặc thêm mới
+        const senderId = message.sender?._id || message.sender;
+        const idx = this.contacts.findIndex(c => {
+          const p = this.getPartner(c);
+          return p && String(p._id) === String(senderId);
+        });
+        if (idx !== -1) {
+          const updated = { ...this.contacts[idx], ...message };
+          this.contacts.splice(idx, 1);
+          this.contacts.unshift(updated);
+        } else {
+          this.contacts.unshift(message);
+        }
+      });
+
+      // Tin mình gửi thành công → cập nhật preview
+      this.socket.on('message:sent', ({ message }) => {
+        if (!message) return;
+        const idx = this.contacts.findIndex(c => {
+          const p = this.getPartner(c);
+          const rid = message.receiver?._id || message.receiver;
+          return p && String(p._id) === String(rid);
+        });
+        if (idx !== -1) {
+          this.contacts.splice(idx, 1, { ...this.contacts[idx], ...message });
+        } else {
+          this.contacts.unshift(message);
+        }
+      });
+    },
+
+    // ── API ──────────────────────────────────────────────────────
+    async fetchUnreadCount() {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        const res = await fetch(`${API}/messages/unread-count`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          this.unreadMessages = data.count || 0;
+        }
+      } catch (e) { console.error('fetchUnreadCount:', e); }
+    },
+
+    async fetchContacts() {
+      if (this.loadingContacts) return;
+      this.loadingContacts = true;
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        const res = await fetch(`${API}/messages/contacts`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          this.contacts = data.contacts || [];
+        }
+      } catch (e) { console.error('fetchContacts:', e); }
+      finally { this.loadingContacts = false; }
+    },
+
+    // ── Helpers ──────────────────────────────────────────────────
+    getPartner(contact) {
+      const myId = this.currentUser.id;
+      if (!myId || !contact) return null;
+      const sid = contact.sender?._id || contact.sender;
+      if (String(sid) === String(myId)) {
+        return contact.receiver?._id ? contact.receiver : null;
+      }
+      return contact.sender?._id ? contact.sender : null;
+    },
+
+    isMine(contact) {
+      const myId = this.currentUser.id;
+      const sid = contact.sender?._id || contact.sender;
+      return String(sid) === String(myId);
+    },
+
+    isUnread(contact) {
+      return !this.isMine(contact) && contact.status !== 'seen';
+    },
+
+    isOnline(userId) {
+      return userId && this.onlineUserIds.has(String(userId));
+    },
+
+    resolveAvatar(user) {
+      if (!user?.avatar) return this.defaultAssetAvatar;
+      if (user.avatar.startsWith('http')) return user.avatar;
+      return `http://localhost:3000/${user.avatar}`;
+    },
+
+    onAvErr(e) {
+      e.target.src = this.defaultAssetAvatar;
+    },
+
+    fmtTime(d) {
+      if (!d) return '';
+      const date = new Date(d);
+      const now = new Date();
+      const diff = now - date;
+      if (diff < 60000) return 'now';
+      if (diff < 3600000) return `${Math.floor(diff / 60000)}m`;
+      if (diff < 86400000) return `${Math.floor(diff / 3600000)}h`;
+      return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    },
+
+    openChat(contact) {
+      const partner = this.getPartner(contact);
+      if (!partner?._id) return;
+      this.closeDropdowns();
+      this.unreadMessages = Math.max(0, this.unreadMessages - (this.isUnread(contact) ? 1 : 0));
+      this.$router.push(`/messages?userId=${partner._id}`);
     },
     
     handleClickOutside(e) {
@@ -248,9 +431,12 @@ export default {
     this.loadUserFromStorage();
     document.addEventListener('click', this.handleClickOutside);
     window.addEventListener('user-profile-updated', this.loadUserFromStorage);
+    this.fetchUnreadCount();
+    this.initSocket();
   },
   beforeUnmount() {
     document.removeEventListener('click', this.handleClickOutside);
+    this.socket?.disconnect();
   }
 };
 </script>
@@ -437,13 +623,81 @@ export default {
 /* --- POPOVERS --- */
 .popover-panel {
   position: absolute; left: 50px; bottom: 40px;
-  width: 280px; background: white; border-radius: 12px;
-  box-shadow: 0 8px 30px rgba(0,0,0,0.12); z-index: 1100; border: 1px solid #eee;
+  width: 280px; background: white; border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.13); z-index: 1100; border: 1px solid #eee;
+  overflow: hidden;
 }
-.popover-header { padding: 12px 16px; border-bottom: 1px solid #f5f5f5; font-weight: 600; font-size: 14px; }
+.popover-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px; border-bottom: 1px solid #f3f4f6;
+}
+.popover-header h3 { margin: 0; font-size: 15px; font-weight: 700; color: #111827; }
 .popover-body { padding: 20px; text-align: center; color: #999; font-size: 13px; }
-.popover-footer { padding: 12px; text-align: center; border-top: 1px solid #f5f5f5; }
+.popover-footer { padding: 12px 16px; text-align: center; border-top: 1px solid #f3f4f6; }
 .popover-footer a { color: #FF642F; font-weight: 600; font-size: 13px; text-decoration: none; }
+.popover-footer a:hover { text-decoration: underline; }
+
+/* Message popup */
+.msg-popover { width: 340px; }
+.hdr-badge {
+  background: #ef4444; color: #fff; font-size: 11px; font-weight: 700;
+  padding: 1px 7px; border-radius: 20px;
+}
+
+/* Contact list inside popup */
+.msg-list { max-height: 360px; overflow-y: auto; }
+.msg-list::-webkit-scrollbar { width: 4px; }
+.msg-list::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 4px; }
+.msg-empty { padding: 24px; text-align: center; color: #9ca3af; font-size: 13px; }
+
+.mc-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; cursor: pointer; transition: background 0.12s;
+  border-bottom: 1px solid #f3f4f6;
+}
+.mc-row:last-child { border-bottom: none; }
+.mc-row:hover { background: #f9fafb; }
+.mc-unread { background: #fff8f6; }
+.mc-unread:hover { background: #fdf4f0; }
+
+.mc-av-wrap {
+  position: relative; flex-shrink: 0;
+  width: 46px; height: 46px; min-width: 46px; min-height: 46px;
+}
+.mc-av {
+  width: 46px !important; height: 46px !important;
+  min-width: 46px; min-height: 46px;
+  border-radius: 50%; object-fit: cover;
+  display: block; border: 2px solid #f3f4f6;
+  aspect-ratio: 1 / 1;
+}
+.mc-dot {
+  position: absolute; bottom: 1px; right: 1px;
+  width: 11px; height: 11px; border-radius: 50%;
+  background: #22c55e; border: 2px solid #fff;
+}
+
+.mc-info { flex: 1; min-width: 0; }
+.mc-name-row {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: 6px; margin-bottom: 3px;
+}
+.mc-name {
+  font-size: 13px; font-weight: 600; color: #111827;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mc-time { font-size: 11px; color: #9ca3af; flex-shrink: 0; white-space: nowrap; }
+.mc-prev {
+  font-size: 12px; color: #6b7280;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mc-bold { font-weight: 600; color: #111827; }
+.mc-you { color: #9ca3af; }
+.mc-recalled { font-style: italic; color: #9ca3af; }
+.mc-badge {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #FF642F; flex-shrink: 0;
+}
 
 /* User Menu Dropdown */
 .user-menu-popover {
@@ -460,7 +714,7 @@ export default {
 .mobile-toggle {
   display: none; 
   position: fixed; 
-  top: 16px; left: 16px;
+  top: 20px; left: 20px;
   width: 40px; height: 40px;
   background: white; 
   border-radius: 8px;
@@ -480,7 +734,7 @@ export default {
   
   .vertical-sidebar {
     transform: translateX(-100%);
-    padding-top: 70px; 
+    padding-top: 80px; /* đủ chỗ cho mobile-toggle (40px) + gap */ 
   }
   
   .vertical-sidebar.open {
@@ -502,6 +756,24 @@ export default {
 }
 .vertical-sidebar.collapsed-for-chat.open {
   transform: translateX(0);
+  padding-top: 0;
+}
+/* Khi chat page sidebar mở: header cố định ở top, ngang hàng nút toggle */
+.vertical-sidebar.collapsed-for-chat.open .sidebar-header {
+  position: fixed;
+  top: 0; left: 0;
+  width: 280px;
+  height: 68px;
+  padding: 14px 16px 14px 72px; /* 72px = left offset để tránh nút toggle */
+  background: white;
+  border-bottom: 1px solid #eaeaea;
+  z-index: 1100;
+  margin-bottom: 0;
+  box-sizing: border-box;
+}
+/* Đẩy nav xuống đúng chiều cao header */
+.vertical-sidebar.collapsed-for-chat.open nav.sidebar-nav {
+  margin-top: 68px;
 }
 .show-on-chat {
   display: flex !important;

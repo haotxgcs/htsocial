@@ -9,7 +9,7 @@
       </div>
 
       <div class="post-creator-info">
-        <img :src="`http://localhost:3000/${user?.avatar || 'user.png'}`" alt="avatar" class="creator-avatar" />
+        <img :src="resolveUrl(user?.avatar, 'uploads/user.png')" alt="avatar" class="creator-avatar" />
         <div class="creator-details">
           <strong>{{ user?.firstname }} {{ user?.lastname }}</strong>
           <div class="privacy-selector">
@@ -387,7 +387,15 @@ export default {
     getItemImage(images) {
       if (!images?.length) return "";
       const img = images[0];
-      return img.startsWith("http") ? img : `http://localhost:3000/${img}`;
+      if (!img) return '';
+      if (img.startsWith('http')) return img;
+      return `http://localhost:3000/${img}`;
+    },
+
+    resolveUrl(url, fallback = 'uploads/user.png') {
+      if (!url) return `http://localhost:3000/${fallback}`;
+      if (url.startsWith('http')) return url;
+      return `http://localhost:3000/${url}`;
     },
 
     openItem(itemId) {

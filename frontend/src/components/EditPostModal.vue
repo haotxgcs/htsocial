@@ -396,7 +396,9 @@ export default {
     getItemImage(images) {
       if (!images?.length) return "";
       const img = images[0];
-      return img.startsWith("http") ? img : `http://localhost:3000/${img}`;
+      if (!img) return '';
+      if (img.startsWith('http')) return img;
+      return `http://localhost:3000/${img}`;
     },
 
     // --- KHỞI TẠO DỮ LIỆU TỪ POST CŨ (LOGIC MỚI) ---
@@ -417,7 +419,14 @@ export default {
       this.editPrivacy = this.post.audience || 'public';
       
       // Xử lý Media
-      this.editMediaPreview = this.post.media ? `http://localhost:3000/${this.post.media}` : '';
+      if (this.post.media) {
+        // Cloudinary URL đã đầy đủ, local path cần prefix
+        this.editMediaPreview = this.post.media.startsWith('http')
+          ? this.post.media
+          : `http://localhost:3000/${this.post.media}`;
+      } else {
+        this.editMediaPreview = '';
+      }
       this.mediaPreviewUrl = this.editMediaPreview;
       this.selectedMedia = null;
       
@@ -510,6 +519,7 @@ export default {
     },
     getAvatarUrl(author) {
       if (!author || !author.avatar) return 'http://localhost:3000/uploads/user.png';
+      if (author.avatar.startsWith('http')) return author.avatar;
       return `http://localhost:3000/${author.avatar}`;
     },
     adjustTextareaHeight(textarea) {

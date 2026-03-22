@@ -13,6 +13,7 @@ const userSchema = new mongoose.Schema(
 
     // Mối quan hệ
     friends: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    blockedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     likedPosts: [{ type: mongoose.Schema.Types.ObjectId, ref: "Post" }],
 
     // Avatar và ảnh bìa

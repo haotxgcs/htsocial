@@ -1,24 +1,29 @@
-# front-end
+# 🍳 HTSocial
 
-## Project setup
-```
-npm install
-```
+A social platform where food lovers share recipes, discover new dishes, and buy & sell cooking products — all in one place.
 
-### Compiles and hot-reloads for development
-```
-npm run serve
-```
+## Tech Stack
+**Frontend:** Vue.js 3, Axios, Vue Router, Pinia  
+**Backend:** Node.js, Express.js, MongoDB, Socket.io  
+**Services:** JWT Auth, Cloudinary, Nodemailer
 
-### Compiles and minifies for production
-```
-npm run build
-```
+## Features
+- 🔐 Register / Login with JWT & email verification
+- 📖 Post, search & discover recipes by tag
+- ❤️ Like, comment & follow other users
+- 🖼️ Image upload via Cloudinary
+- 🛒 Product marketplace (buy & sell)
+- 💬 Real-time chat between buyers & sellers
 
-### Lints and fixes files
-```
-npm run lint
-```
+## Getting Started
+```bash
+# Backend
+cd backend && npm install && npm start
 
-### Customize configuration
-See [Configuration Reference](https://cli.vuejs.org/config/).
+# Frontend
+cd frontend && npm install && npm run serve
+```
+> Copy `.env.example` to `.env` and fill in your credentials before running.
+
+## Author
+**Tran Xuan Hao** · [github.com/haotxgcs](https://github.com/haotxgcs) · txh122004@gmail.com

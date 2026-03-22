@@ -135,7 +135,10 @@
                 <span v-if="isOnline(activePartner._id)" class="dot-online"></span>
               </div>
               <div>
-                <div class="partner-name">{{ activePartner.firstname }} {{ activePartner.lastname }}</div>
+                <div class="partner-name-row">
+                  <span class="partner-name">{{ activePartner.firstname }} {{ activePartner.lastname }}</span>
+                  <span v-if="!isPartnerFriend" class="stranger-label">Stranger</span>
+                </div>
                 <div class="partner-status" :class="{ online: isOnline(activePartner._id) }">
                   {{ isOnline(activePartner._id) ? 'Active now' : 'Offline' }}
                 </div>
@@ -158,7 +161,11 @@
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                       Xem trang cá nhân
                     </button>
-                    <button class="pp-btn pp-btn-danger" @click="blockUser(activePartner)">
+                    <button v-if="blockStatus === 'you_blocked'" class="pp-btn pp-btn-warn" @click="unblockUser(activePartner)">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></svg>
+                      Bỏ chặn
+                    </button>
+                    <button v-else-if="blockStatus !== 'blocked_by'" class="pp-btn pp-btn-danger" @click="blockUser(activePartner)">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
                       Chặn người dùng
                     </button>
@@ -327,35 +334,61 @@
           </div>
         </div>
 
-        <!-- Reply bar -->
-        <div v-if="replyingTo" class="reply-bar">
-          <div class="reply-bar-inner">
-            <span class="reply-bar-accent"></span>
-            <div class="reply-bar-body">
-              <span class="reply-bar-who">Replying to {{ getReplyName(replyingTo) }}</span>
-              <span class="reply-bar-txt">{{ replyingTo.content }}</span>
-            </div>
-          </div>
-          <button class="reply-close" @click="replyingTo = null">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
+        <!-- Block banners -->
+        <div v-if="blockStatus === 'you_blocked'" class="block-banner block-banner-you">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+          <span>Bạn đã chặn <strong>{{ activePartner.firstname }}</strong>. Hãy bỏ chặn để nhắn tin.</span>
+          <button class="block-banner-btn" @click="unblockUser(activePartner)">Bỏ chặn</button>
+        </div>
+        <div v-else-if="blockStatus === 'blocked_by'" class="block-banner block-banner-by">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+          <span>Không thể gửi tin nhắn cho người dùng này.</span>
         </div>
 
-        <!-- Input bar -->
-        <div class="input-bar">
-          <input
-            v-model="draft"
-            ref="inputRef"
-            class="input-field"
-            type="text"
-            placeholder="Type a message..."
-            @keydown.enter.prevent="send"
-            @input="onTyping"
-          />
-          <button class="send-btn" @click="send" :disabled="!draft.trim()">
-            <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
-          </button>
-        </div>
+        <template v-else>
+          <!-- Reply bar -->
+          <div v-if="replyingTo" class="reply-bar">
+            <div class="reply-bar-inner">
+              <span class="reply-bar-accent"></span>
+              <div class="reply-bar-body">
+                <span class="reply-bar-who">Replying to {{ getReplyName(replyingTo) }}</span>
+                <span class="reply-bar-txt">{{ replyingTo.content }}</span>
+              </div>
+            </div>
+            <button class="reply-close" @click="replyingTo = null">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+
+          <!-- Input bar -->
+          <div class="input-bar">
+            <!-- Emoji picker -->
+            <div class="emoji-trigger-wrap" @click.stop>
+              <button class="emoji-trigger-btn" @click.stop="showEmojiPicker = !showEmojiPicker" title="Emoji">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+              </button>
+              <div v-if="showEmojiPicker" class="emoji-picker-wrap">
+                <EmojiPicker
+                  :native="true"
+                  @select="onEmojiSelect"
+                />
+              </div>
+            </div>
+
+            <input
+              v-model="draft"
+              ref="inputRef"
+              class="input-field"
+              type="text"
+              placeholder="Type a message..."
+              @keydown.enter.prevent="send"
+              @input="onTyping"
+            />
+            <button class="send-btn" @click="send" :disabled="!draft.trim()">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+            </button>
+          </div>
+        </template>
 
       </template>
 
@@ -374,12 +407,15 @@
 
 <script>
 import { io } from "socket.io-client";
+import EmojiPicker from "vue3-emoji-picker";
+import "vue3-emoji-picker/css";
 
 const EMOJIS = ["❤️","😂","😮","😢","😡","👍","🔥","👏"];
 const API    = process.env.VUE_APP_API_URL || "http://localhost:3000";
 
 export default {
   name: "MessagePage",
+  components: { EmojiPicker },
 
   data() {
     return {
@@ -416,6 +452,11 @@ export default {
 
       unreadCount: 0,
       showPartnerMenu: false,
+
+      blockStatus: null,      // null | 'you_blocked' | 'blocked_by'
+      checkingBlock: false,
+      showEmojiPicker: false,
+      isPartnerFriend: false,
     };
   },
 
@@ -452,11 +493,13 @@ export default {
     if (targetId) await this.openChatWith(targetId);
 
     document.addEventListener("click", this.closeEmoji);
+    document.addEventListener("click", this.closeEmojiPicker);
   },
 
   beforeUnmount() {
     this.socket?.disconnect();
     document.removeEventListener("click", this.closeEmoji);
+    document.removeEventListener("click", this.closeEmojiPicker);
     clearTimeout(this.typingTimer);
   },
 
@@ -614,28 +657,81 @@ export default {
       this.$router.push(`/profile/${partner._id}`);
     },
 
+    onEmojiSelect(emoji) {
+      this.draft += emoji.i;
+      // Không đóng picker — user có thể chọn tiếp
+      // Chỉ đóng khi click ra ngoài
+    },
+
+    closeEmojiPicker(e) {
+      if (!e.target.closest('.emoji-trigger-wrap')) {
+        this.showEmojiPicker = false;
+      }
+    },
+
+    async checkIsFriend() {
+      if (!this.activePartner?._id) return;
+      try {
+        const myId = this.myId;
+        const res = await fetch(
+          `${API}/users/${myId}/friends?limit=999`,
+          { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+        );
+        if (res.ok) {
+          const data = await res.json();
+          const list = data.items || [];
+          this.isPartnerFriend = list.some(f => String(f._id) === String(this.activePartner._id));
+        }
+      } catch (e) { console.error("checkIsFriend:", e); }
+    },
+
+    async checkBlockStatus() {
+      if (!this.activePartner?._id) return;
+      try {
+        const res = await fetch(`${API}/block/check/${this.activePartner._id}`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          this.blockStatus = data.isBlocked ? data.reason : null;
+        }
+      } catch (e) { console.error("checkBlockStatus:", e); }
+    },
+
     async blockUser(partner) {
       this.showPartnerMenu = false;
-      if (!confirm(`Chặn ${partner.firstname} ${partner.lastname}?\nHọ sẽ không thể nhắn tin cho bạn.`)) return;
+      if (!confirm(`Chặn ${partner.firstname} ${partner.lastname}?`)) return;
       try {
-        const res = await fetch(`${API}/users/block`, {
+        const res = await fetch(`${API}/block`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${localStorage.getItem("token")}`
-          },
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem("token")}` },
           body: JSON.stringify({ targetId: partner._id })
         });
         if (res.ok) {
-          alert(`Đã chặn ${partner.firstname} ${partner.lastname}`);
-          this.activePartner = null;
-          await this.fetchContacts();
+          this.blockStatus = 'you_blocked';
         } else {
-          alert('Không thể chặn người dùng này.');
+          const data = await res.json().catch(() => ({}));
+          alert(data.msg || 'Không thể chặn người dùng này.');
         }
-      } catch (e) {
-        console.error("blockUser:", e);
-      }
+      } catch (e) { console.error("blockUser:", e); }
+    },
+
+    async unblockUser(partner) {
+      this.showPartnerMenu = false;
+      if (!confirm(`Bỏ chặn ${partner.firstname} ${partner.lastname}?`)) return;
+      try {
+        const res = await fetch(`${API}/block/unblock`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem("token")}` },
+          body: JSON.stringify({ targetId: partner._id })
+        });
+        if (res.ok) {
+          this.blockStatus = null;
+        } else {
+          const data = await res.json().catch(() => ({}));
+          alert(data.msg || 'Không thể bỏ chặn.');
+        }
+      } catch (e) { console.error("unblockUser:", e); }
     },
 
     switchToFriends() {
@@ -668,10 +764,11 @@ export default {
       this.draft = "";
       this.emojiFor = null;
 
-      await this.fetchMessages(1);
+      this.blockStatus = null;
+      this.isPartnerFriend = false;
+      await Promise.all([this.fetchMessages(1), this.checkBlockStatus(), this.checkIsFriend()]);
       this.$nextTick(() => { this.scrollBottom(); this.$refs.inputRef?.focus(); });
       this.markSeen();
-      // cập nhật lại unread count sau khi mở chat
       setTimeout(() => this.fetchUnreadCount(), 800);
     },
 
@@ -779,7 +876,7 @@ export default {
       msg.recalled = true; msg.content = "";
     },
     canRecall(msg) {
-      return msg.createdAt && (Date.now() - new Date(msg.createdAt).getTime()) < 600000;
+      return msg.createdAt && (Date.now() - new Date(msg.createdAt).getTime()) < 86400000;
     },
 
     // ── Delete ────────────────────────────────────────────────
@@ -1123,9 +1220,46 @@ export default {
 .pp-btn:hover { background: #f3f4f6; }
 .pp-btn-danger { color: #ef4444; }
 .pp-btn-danger:hover { background: #fee2e2; }
+.pp-btn-warn { color: #d97706; }
+.pp-btn-warn:hover { background: #fef3c7; }
+
+/* Block banner */
+.block-banner {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 20px; font-size: 13px; flex-shrink: 0; border-top: 1px solid transparent;
+}
+.block-banner svg { flex-shrink: 0; }
+.block-banner span { flex: 1; }
+.block-banner-you { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+.block-banner-by  { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+.block-banner-btn {
+  background: transparent; border: 1.5px solid currentColor; border-radius: 8px;
+  padding: 4px 12px; font-size: 12px; font-weight: 600;
+  cursor: pointer; color: inherit; transition: opacity 0.15s; flex-shrink: 0;
+}
+.block-banner-btn:hover { opacity: 0.7; }
+.partner-name-row { display: flex; align-items: center; gap: 8px; }
 .partner-name   { font-size: 16px; font-weight: 700; color: #111827; }
 .partner-status { font-size: 12px; color: #9ca3af; }
 .partner-status.online { color: #22c55e; font-weight: 500; }
+.stranger-label {
+  font-size: 11px; font-weight: 600; color: #6b7280;
+  background: #f3f4f6; border: 1px solid #e5e7eb;
+  border-radius: 6px; padding: 2px 7px; letter-spacing: 0.3px;
+}
+
+/* Emoji picker */
+.emoji-trigger-wrap { position: relative; flex-shrink: 0; }
+.emoji-trigger-btn {
+  width: 36px; height: 36px; border-radius: 50%; border: none;
+  background: none; cursor: pointer; display: flex; align-items: center;
+  justify-content: center; color: #6b7280; transition: background 0.12s, color 0.12s;
+}
+.emoji-trigger-btn:hover { background: #f3f4f6; color: #374151; }
+.emoji-picker-wrap {
+  position: absolute; bottom: calc(100% + 10px); left: 0;
+  z-index: 100; box-shadow: 0 8px 32px rgba(0,0,0,0.15); border-radius: 12px; overflow: hidden;
+}
 
 .chat-header-right { display: flex; align-items: center; gap: 8px; }
 .header-del-btn {

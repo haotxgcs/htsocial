@@ -66,17 +66,20 @@
             <span class="recipe-category">{{ item.category }}</span>
 
             <div class="recipe-body">
-              <div v-if="!expandedPosts[item._id]">
+                   <template v-if="!expandedPosts[item._id]">
                 <p class="recipe-section-header">Ingredients:</p>
-                <p class="post-text">{{ getTruncatedText(item.ingredients) }}</p>
-              </div>
-              <div v-else>
+                <p class="post-text">{{ getCollapsedContent(item).ingredients }}</p>
+                <template v-if="getCollapsedContent(item).showInstructions">
+                  <p class="recipe-section-header">Instructions:</p>
+                  <p class="post-text">{{ getCollapsedContent(item).instructions }}</p>
+                </template>
+              </template>
+              <template v-else>
                 <p class="recipe-section-header">Ingredients:</p>
                 <p class="post-text">{{ item.ingredients }}</p>
-                
                 <p class="recipe-section-header">Instructions:</p>
                 <p class="post-text">{{ item.instructions }}</p>
-              </div>
+              </template>
             </div>
 
             <button 
@@ -146,16 +149,20 @@
                   <span class="recipe-category small">{{ item.post.category }}</span>
                   
                   <div class="recipe-body">
-                    <div v-if="!expandedPosts[item._id + '_shared']">
+                    <template v-if="!expandedPosts[item._id + '_shared']">
                       <p class="recipe-section-header">Ingredients:</p>
-                      <p class="post-text">{{ getTruncatedText(item.post.ingredients) }}</p>
-                    </div>
-                    <div v-else>
+                      <p class="post-text">{{ getCollapsedContent(item.post).ingredients }}</p>
+                      <template v-if="getCollapsedContent(item.post).showInstructions">
+                        <p class="recipe-section-header">Instructions:</p>
+                        <p class="post-text">{{ getCollapsedContent(item.post).instructions }}</p>
+                      </template>
+                    </template>
+                    <template v-else>
                       <p class="recipe-section-header">Ingredients:</p>
                       <p class="post-text">{{ item.post.ingredients }}</p>
                       <p class="recipe-section-header">Instructions:</p>
                       <p class="post-text">{{ item.post.instructions }}</p>
-                    </div>
+                    </template>
                   </div>
 
                   <button 
@@ -166,7 +173,7 @@
                     {{ expandedPosts[item._id + '_shared'] ? 'Show Less' : 'Show More' }}
                   </button>
                   <div v-if="item.post.media" class="post-media-container small">
-                  <img v-if="item.post.mediaType === 'image'" :src="getMediaUrl(item.post.media)" class="post-media" />
+                  <img v-if="item.post.mediaType === 'image'" :src="getMediaUrl(item.post.media)" class="post-image" />
                   <video v-else-if="item.post.mediaType === 'video'" controls class="post-media">
                     <source :src="getMediaUrl(item.post.media)" type="video/mp4" />
                   </video>
@@ -335,9 +342,12 @@ export default {
     },
     getAvatarUrl(user) {
       if (!user || !user.avatar) return "http://localhost:3000/uploads/user.png";
+      if (user.avatar.startsWith('http')) return user.avatar;
       return `http://localhost:3000/${user.avatar}`;
     },
     getMediaUrl(path) {
+      if (!path) return '';
+      if (path.startsWith('http')) return path;
       return `http://localhost:3000/${path}`;
     },
     formatTime(dateStr) {
@@ -367,18 +377,34 @@ export default {
     getTruncatedText(text) {
       if (!text) return '';
       const lines = text.split('\n');
-      
-      // Lấy 3 dòng đầu
-      if (lines.length > 3) {
-        return lines.slice(0, 3).join('\n') + '...';
-      }
-      
-      // Hoặc lấy 150 ký tự đầu
-      if (text.length > 150) {
-        return text.substring(0, 150) + '...';
-      }
-      
+      if (lines.length > 3) return lines.slice(0, 3).join('\n') + '...';
+      if (text.length > 150) return text.substring(0, 150) + '...';
       return text;
+    },
+
+    getCollapsedContent(post) {
+      if (!post) return { ingredients: '', instructions: '', showInstructions: false };
+      const MAX_LINES = 3;
+      const MAX_CHARS = 150;
+      const ingLines = (post.ingredients || '').split('\n');
+      let ingredients = post.ingredients || '';
+      let truncated = false;
+      if (ingLines.length > MAX_LINES) {
+        ingredients = ingLines.slice(0, MAX_LINES).join('\n') + '...';
+        truncated = true;
+      } else if (ingredients.length > MAX_CHARS) {
+        ingredients = ingredients.substring(0, MAX_CHARS) + '...';
+        truncated = true;
+      }
+      const hasInstructions = !!(post.instructions?.trim());
+      let instructions = post.instructions || '';
+      if (hasInstructions && truncated) {
+        const instLines = instructions.split('\n');
+        instructions = instLines.slice(0, 2).join('\n');
+        if (instLines.length > 2 || instructions.length > 100)
+          instructions = instructions.substring(0, 100) + '...';
+      }
+      return { ingredients, instructions, showInstructions: hasInstructions };
     },
 
     // 2. Kiểm tra xem có cần hiện nút "Show More" không
@@ -623,12 +649,15 @@ export default {
 }
 
 /* --- 6. MEDIA --- */
-.post-media-container { 
-  width: 100%; aspect-ratio: 1 / 1; 
-  display: flex; align-items: center; justify-content: center; 
-  overflow: hidden; margin-bottom: 16px; 
+.post-media-container, .post-image { 
+  width: 100%;
+  max-height: 500px;
+  object-fit: cover;
+  border-radius: 12px;
+  margin-top: 10px;
+  display: block;
 }
-.post-media { width: 100%; height: 100%; object-fit: cover; border-radius:10px; margin-top:20px;}
+.post-media {width: 100%; max-height: 300px; object-fit: contain; border-radius: 8px; background-color:black;}
 .action-icon { width: 18px; height: 18px; }
 
 /* --- 7. SHARED POST SPECIFICS (NEW) --- */

@@ -50,11 +50,12 @@ router.post("/change-email/verify", AuthController.verifyAndChangeEmail);
 router.post("/change-password/request", AuthController.requestPasswordChange);
 router.post("/change-password/verify", AuthController.verifyAndChangePassword);
 
-// 1. Upload Avatar
-router.post('/:id/avatar', upload.single('avatar'), AuthController.uploadAvatar);
+// 1. Upload Avatar → Cloudinary
+const { uploadAvatar, uploadCover } = require("../middleware/uploadCloudinary");
+router.post('/:id/avatar', uploadAvatar.single('avatar'), AuthController.uploadAvatar);
 
-// 2. Upload Cover Photo
-router.post('/:id/cover', upload.single('coverPhoto'), AuthController.uploadCover);
+// 2. Upload Cover Photo → Cloudinary
+router.post('/:id/cover', uploadCover.single('coverPhoto'), AuthController.uploadCover);
 
 // GET: Lấy danh sách lịch sử
 // URL: /users/:id/search-history

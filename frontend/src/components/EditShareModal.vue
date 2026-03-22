@@ -61,15 +61,20 @@
              <span class="shared-category">{{ share.post.category }}</span>
 
               <div class="shared-details">
-                <p class="shared-label">Ingredients:</p>
-                <p class="shared-text">
-                  {{ getDisplayedText(share.post.ingredients) }}
-                </p>
-
-                <p class="shared-label">Instructions:</p>
-                <p class="shared-text">
-                  {{ getDisplayedText(share.post.instructions) }}
-                </p>
+                <template v-if="!isOriginExpanded">
+                  <p class="shared-label">Ingredients:</p>
+                  <p class="shared-text">{{ getCollapsedContent(share.post).ingredients }}</p>
+                  <template v-if="getCollapsedContent(share.post).showInstructions">
+                    <p class="shared-label">Instructions:</p>
+                    <p class="shared-text">{{ getCollapsedContent(share.post).instructions }}</p>
+                  </template>
+                </template>
+                <template v-else>
+                  <p class="shared-label">Ingredients:</p>
+                  <p class="shared-text">{{ share.post.ingredients }}</p>
+                  <p class="shared-label">Instructions:</p>
+                  <p class="shared-text">{{ share.post.instructions }}</p>
+                </template>
 
                 <button
                   v-if="shouldShowReadMore(share.post)"
@@ -81,8 +86,8 @@
               </div>
 
              <div v-if="share.post.media" class="media-preview">
-            <img v-if="share.post.mediaType === 'image'" :src="`http://localhost:3000/${share.post.media}`" />
-            <video v-else controls :src="`http://localhost:3000/${share.post.media}`"></video>
+            <img v-if="share.post.mediaType === 'image'" :src="resolveMediaUrl(share.post.media)" class="share-media-img" />
+            <video v-else controls :src="resolveMediaUrl(share.post.media)" class="share-media-vid"></video>
           </div>
           </div>
 
@@ -186,6 +191,24 @@ export default {
   },
   methods: {
     // Helper cắt chữ cho bài gốc trong modal (giới hạn 100 ký tự cho gọn)
+    getCollapsedContent(post) {
+      if (!post) return { ingredients: '', instructions: '', showInstructions: false };
+      const MAX_LINES = 3, MAX_CHARS = 150;
+      const ingLines = (post.ingredients || '').split('\n');
+      let ingredients = post.ingredients || '';
+      let truncated = false;
+      if (ingLines.length > MAX_LINES) { ingredients = ingLines.slice(0, MAX_LINES).join('\n') + '...'; truncated = true; }
+      else if (ingredients.length > MAX_CHARS) { ingredients = ingredients.substring(0, MAX_CHARS) + '...'; truncated = true; }
+      const hasInstructions = !!(post.instructions?.trim());
+      let instructions = post.instructions || '';
+      if (hasInstructions && truncated) {
+        const il = instructions.split('\n');
+        instructions = il.slice(0, 2).join('\n');
+        if (il.length > 2 || instructions.length > 100) instructions = instructions.substring(0, 100) + '...';
+      }
+      return { ingredients, instructions, showInstructions: hasInstructions };
+    },
+
     getTruncatedText(text) {
       if (!text) return '';
       if (text.length > 100) return text.substring(0, 100) + '...';
@@ -276,7 +299,15 @@ export default {
     },
     formatTime(date) { return new Date(date).toLocaleString(); },
     getAvatarUrl(user) {
-      return user?.avatar ? `http://localhost:3000/${user.avatar}` : require("@/assets/user.png");
+      if (!user?.avatar) return require("@/assets/user.png");
+      if (user.avatar.startsWith('http')) return user.avatar;
+      return `http://localhost:3000/${user.avatar}`;
+    },
+
+    resolveMediaUrl(media) {
+      if (!media) return '';
+      if (media.startsWith('http')) return media;
+      return `http://localhost:3000/${media}`;
     },
 
     requestClose() {
@@ -410,7 +441,8 @@ toggleOriginContent() {
   color: #333;  }
 .shared-text { font-size: 15px; line-height: 1.5; color: #333; margin: 0; white-space: pre-line; }
 
-.media-preview img, .media-preview video { width: 100%; max-height: 300px;aspect-ratio: 16/9; object-fit: cover;  display: block; }
+.share-media-img { width: 100%; max-height: 300px; object-fit: cover; border-radius: 10px; display: block; }
+.share-media-vid { width: 100%; max-height: 300px; border-radius: 10px; display: block; background: #000; }
 .restricted-post-warning { border: 1px solid #ddd; border-radius: 8px; padding: 20px; text-align: center; color: #c00; font-style: italic;  }
 
 /* Footer Actions */

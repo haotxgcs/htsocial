@@ -59,14 +59,29 @@ const normalizeLinkedItems = (items = []) => {
 
     return {
       ...item,
-
-      // ✅ BẮT BUỘC tool phải có condition
       condition:
         item.type === "tool"
           ? item.condition || item.tool?.condition || null
           : null
     };
   });
+};
+
+// Lấy danh sách ID bị block 2 chiều:
+// - user đang chặn ai (blockedUsers)
+// - ai đang chặn user (users có userId trong blockedUsers của họ)
+const getBlockedIds = async (userId) => {
+  const me = await User.findById(userId).select("blockedUsers").lean();
+  const blockedByMe = (me?.blockedUsers || []).map(id => id.toString());
+
+  const usersWhoBlockedMe = await User.find(
+    { blockedUsers: userId },
+    "_id"
+  ).lean();
+  const blockedByThem = usersWhoBlockedMe.map(u => u._id.toString());
+
+  const all = new Set([...blockedByMe, ...blockedByThem]);
+  return Array.from(all);
 };
 
 
@@ -77,6 +92,9 @@ exports.getUnifiedFeed = async (req, res) => {
 
     const user = await User.findById(viewerId).populate("friends");
     if (!user) return res.status(404).json({ msg: "User not found" });
+
+    // Lấy danh sách bị block 2 chiều
+    const blockedIds = await getBlockedIds(viewerId);
 
     // 1. GET POSTS
     const posts = await Post.find()
@@ -91,12 +109,13 @@ exports.getUnifiedFeed = async (req, res) => {
       .sort({ createdAt: -1 });
 
     const visiblePosts = posts.filter(post => {
-      const authorId = post.author._id.toString(); // Chuyển về String
+      const authorId = post.author._id.toString();
       const isAuthor = authorId === viewerId;
-      
-      // So sánh mảng friends an toàn
+
+      // Ẩn post của người bị block / chặn mình (trừ post của chính mình)
+      if (!isAuthor && blockedIds.includes(authorId)) return false;
+
       const isFriend = post.author.friends.some(f => f._id.toString() === viewerId);
-      
       const isHidden = post.hiddenBy.some(id => id.toString() === viewerId);
       if (isHidden) return false;
 
@@ -132,12 +151,17 @@ exports.getUnifiedFeed = async (req, res) => {
       const visibleShares = shares.filter(share => {
         if (!share.username) return false;
 
+        const sharerId = share.username._id.toString();
+        const isSharer = sharerId === viewerId;
+
+        // Ẩn share của người bị block / chặn mình
+        if (!isSharer && blockedIds.includes(sharerId)) return false;
+
         const isHidden = user.hiddenShares.some(
           id => id.toString() === share._id.toString()
         );
         if (isHidden) return false;
 
-        // ✅ CHỈ check share
         return canViewShare(share, viewerId);
       });
 
@@ -202,10 +226,19 @@ exports.getUserFeed = async (req, res) => {
     // 1. LOAD VIEWER (NGƯỜI ĐANG XEM)
     // =========================
     let viewer = null;
+    let blockedIds = [];
     if (viewerId) {
       viewer = await User.findById(viewerId)
         .select("hiddenPosts hiddenShares friends")
         .lean();
+      // Lấy danh sách block 2 chiều của viewer
+      blockedIds = await getBlockedIds(viewerId);
+    }
+
+    // Nếu userId (chủ trang) đang bị block bởi viewer hoặc ngược lại
+    // thì chặn toàn bộ feed (trừ khi xem trang của chính mình)
+    if (viewerId && viewerId !== userId && blockedIds.includes(userId)) {
+      return res.status(200).json([]);
     }
 
     // =========================

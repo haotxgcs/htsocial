@@ -6,7 +6,7 @@
       <input type="file" ref="avatarInput" accept="image/*" style="display: none" @change="handleAvatarChange" />
 
       <div class="cover-container" @click.stop="toggleCoverMenu">
-        <img :src="user.coverPhoto ? `http://localhost:3000/${user.coverPhoto}` : defaultCover" class="cover-image clickable"/>
+        <img :src="resolveCoverUrl(user.coverPhoto)" class="cover-image clickable"/>
         <div class="cover-overlay"></div>
         
         <div
@@ -16,7 +16,7 @@
           @click.stop
         >
           <!-- VIEW: ai cũng thấy -->
-          <div class="menu-item" @click="openImageViewer(user.coverPhoto || defaultCover)">
+          <div class="menu-item" @click="openImageViewer(resolveCoverUrl(user.coverPhoto))">
             <img src="../assets/view-image.png" class="menu-icon" /> View Cover
           </div>
 
@@ -50,7 +50,7 @@
   v-click-outside="closeMenus"
 >
   <!-- VIEW: ai cũng thấy -->
-  <div class="menu-item" @click="openImageViewer(user.avatar || getDefaultAvatarPath(user))">
+  <div class="menu-item" @click="openImageViewer(getAvatarUrl(user))">
     <img src="../assets/view-image.png" class="menu-icon" /> View Avatar
   </div>
 
@@ -90,16 +90,31 @@
           </div>
 
           <div class="action-buttons">
-            <button v-if="isMyProfile" class="btn-primary-gradient" @click="openEditProfileModal">Edit Profile</button>
-            <button v-if="!isMyProfile && friendStatus !== 'self'"
-              class="btn-primary-gradient"
-              :class="friendStatus"
-              @click="handleFriendAction"
-              :disabled="loadingFriend"
-            >
-              {{ friendButtonText }}
+            <!-- Chủ profile -->
+            <button v-if="isMyProfile" class="btn-primary-gradient" @click="openEditProfileModal">
+              ✏️ Edit Profile
             </button>
 
+            <!-- Other users viewing -->
+            <template v-if="!isMyProfile && friendStatus !== 'self'">
+              <!-- Message — hidden when blocked -->
+              <button v-if="!blockStatus" class="btn-action btn-chat" @click="goToChat">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                Message
+              </button>
+              <!-- Add/Unfriend — hidden when blocked -->
+              <button v-if="!blockStatus"
+                class="btn-primary-gradient"
+                :class="friendStatus"
+                @click="handleFriendAction"
+                :disabled="loadingFriend"
+              >{{ friendButtonText }}</button>
+              <!-- Block — only shown when not blocking anyone -->
+              <button v-if="!blockStatus" class="btn-action btn-block" @click="handleBlock" :disabled="loadingBlock">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+                Block
+              </button>
+            </template>
           </div>
 
           
@@ -108,6 +123,26 @@
       </div>
     </div>
 
+    <!-- Block wall: hide all content when blocked -->
+    <div v-if="!isMyProfile && blockStatus" class="block-wall">
+      <div class="block-wall-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+      </div>
+      <h3 v-if="blockStatus === 'you_blocked'">You've blocked this user</h3>
+      <h3 v-else>Content not available</h3>
+      <p v-if="blockStatus === 'you_blocked'">
+        Unblock <strong>{{ user?.firstname }} {{ user?.lastname }}</strong> to view their profile and interact with them.
+      </p>
+      <p v-else>
+        You can't view this user's content.
+      </p>
+      <button v-if="blockStatus === 'you_blocked'" class="btn-action btn-unblock" @click="handleUnblock" :disabled="loadingBlock">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></svg>
+        Unblock
+      </button>
+    </div>
+
+    <template v-if="isMyProfile || !blockStatus">
     <div class="nav-wrapper">
       <div class="glass-nav">
         <button v-for="tab in tabs" :key="tab.id" :class="['nav-pill', { active: activeTab === tab.id }]" @click="activeTab = tab.id">{{ tab.label }}</button>
@@ -173,8 +208,8 @@
                 </div>
 
                 <div v-if="post.media" class="post-media">
-                  <img v-if="post.mediaType === 'image'" :src="`http://localhost:3000/${post.media}`" class="post-image" />
-                  <video v-else controls class="post-video"><source :src="`http://localhost:3000/${post.media}`" /></video>
+                  <img v-if="post.mediaType === 'image'" :src="resolveMediaUrl(post.media)" class="post-image" />
+                  <video v-else controls class="post-video"><source :src="resolveMediaUrl(post.media)" /></video>
                 </div>
 
                             <!-- 🔗 LINKED ITEMS -->
@@ -391,8 +426,8 @@
                             {{ expandedPosts[post._id + '_shared'] ? 'Show Less' : 'Show More' }}
                           </button>
                           <div v-if="post.post && post.post.media" class="post-media">
-                          <img v-if="post.post.mediaType === 'image'" :src="`http://localhost:3000/${post.post.media}`" class="post-image" />
-                          <video v-else controls class="post-video"><source :src="`http://localhost:3000/${post.post.media}`" /></video>
+                          <img v-if="post.post.mediaType === 'image'" :src="resolveMediaUrl(post.post.media)" class="post-image" />
+                          <video v-else controls class="post-video"><source :src="resolveMediaUrl(post.post.media)" /></video>
                       </div>
 
                       </div>
@@ -511,7 +546,7 @@
             >
               <img
                 v-if="item.mediaType === 'image'"
-                :src="`http://localhost:3000/${item.media}`"
+                :src="resolveMediaUrl(item.media)"
                 class="photo-large"
               />
 
@@ -521,7 +556,7 @@
                 class="photo-large"
                 @click="item.mediaType === 'video' && openMediaPost(item)"
               >
-                <source :src="`http://localhost:3000/${item.media}`" />
+                <source :src="resolveMediaUrl(item.media)" />
               </video>
             </div>
           </div>
@@ -560,7 +595,21 @@
               <div class="card-body">
                 <h4>{{ friend.firstname }} {{ friend.lastname }}</h4>
                 <p class="username">@{{ friend.username }}</p>
-                <button class="btn-secondary full-width">Message</button>
+                <!-- Nếu là chính mình → View Profile, ngược lại → Message -->
+                <button
+                  v-if="isCurrentViewer(friend._id)"
+                  class="btn-secondary full-width"
+                  @click="goToOwnProfile()"
+                >
+                  View Profile
+                </button>
+                <button
+                  v-else
+                  class="btn-secondary full-width"
+                  @click="goToMessageWith(friend._id)"
+                >
+                  Message
+                </button>
               </div>
             </div>
           </div>
@@ -579,6 +628,8 @@
 
       </template> 
     </div>
+
+    </template><!-- end v-if="isMyProfile || !blockStatus" -->
 
     <CreatePostModal :is-visible="createPostModalVisible" :user="user" @close="closeCreatePostModal" @posted="handlePostCreated" />
     <ConfirmDialog v-if="confirmVisible" :message="confirmMessage" @confirm="handleConfirmedDelete" @cancel="confirmVisible = false" />
@@ -706,6 +757,9 @@ export default {
       friendStatus: 'none', // 'none' | 'sent' | 'received' | 'friends'
       loadingFriend: false,
 
+      blockStatus: null,    // null | 'you_blocked' | 'blocked_by'
+      loadingBlock: false,
+
       confirmFriendVisible: false,
       confirmFriendMessage: '',
       pendingFriendAction: null, // 'cancel' | 'unfriend'
@@ -763,26 +817,17 @@ export default {
     },
 
     isDefaultAvatar() {
-      // Nếu chưa có user hoặc avatar rỗng -> Là mặc định -> Ẩn nút xóa
       if (!this.user || !this.user.avatar) return true;
-
-      // Danh sách các tên file ĐƯỢC COI LÀ MẶC ĐỊNH
-      // QUAN TRỌNG: Phải có 'user.png' vì database cũ của bạn đang lưu cái này
-      const defaultFiles = [           
-        'male_avatar.png',
-        'female_avatar.png',
-        'generic_avatar.png',
-        'admin_avatar.png', 
-        
-      ];
-
-      // Nếu link avatar có chứa bất kỳ từ nào trong list trên -> Trả về TRUE
+      // Ảnh Cloudinary (do user tự upload) → không phải mặc định
+      if (this.user.avatar.includes('cloudinary.com')) return false;
+      const defaultFiles = ['male_avatar.png', 'female_avatar.png', 'generic_avatar.png', 'admin_avatar.png'];
       return defaultFiles.some(def => this.user.avatar.includes(def));
     },
 
     // 2. Logic kiểm tra Cover mặc định
     isDefaultCover() {
       if (!this.user || !this.user.coverPhoto) return true;
+      if (this.user.coverPhoto.includes('cloudinary.com')) return false;
       return this.user.coverPhoto.includes('cover.png');
     },
 
@@ -847,15 +892,28 @@ friendButtonText() {
       return "uploads/generic_avatar.png";
     },
 
-    // 2. Sửa hàm getAvatarUrl để dùng logic động
+    resolveMediaUrl(media) {
+      if (!media) return '';
+      if (media.startsWith('http')) return media;
+      return `http://localhost:3000/${media}`;
+    },
+
+    // 2. getAvatarUrl: Cloudinary URL đã đầy đủ, local path cần prefix
     getAvatarUrl(user) {
-      // Nếu user có avatar riêng -> dùng nó
       if (user && user.avatar) {
+        // Cloudinary URL đã có https:// → dùng thẳng
+        if (user.avatar.startsWith('http')) return user.avatar;
         return `http://localhost:3000/${user.avatar}`;
       }
-      // Nếu không -> Tính toán ảnh mặc định dựa trên giới tính/role
       const defaultPath = this.getDefaultAvatarPath(user);
       return `http://localhost:3000/${defaultPath}`;
+    },
+
+    // Helper resolve cover URL
+    resolveCoverUrl(coverPhoto) {
+      if (!coverPhoto) return `http://localhost:3000/${this.defaultCover}`;
+      if (coverPhoto.startsWith('http')) return coverPhoto;
+      return `http://localhost:3000/${coverPhoto}`;
     },
 
     formatTime(dateStr) {
@@ -1004,15 +1062,16 @@ async fetchFriends(page = 1) {
     },
 
     // --- Xem ảnh ---
-    openImageViewer(imagePath) {
+    openImageViewer(imageUrl) {
       this.closeMenus();
-      if (!imagePath) {
-        alert("Chưa có ảnh để xem!");
+      if (!imageUrl) {
+        alert("No image to preview!");
         return;
       }
-      
-      // Gán link ảnh và bật Modal
-      this.previewImageUrl = `http://localhost:3000/${imagePath}`;
+      // URL đã được resolve trước khi truyền vào
+      this.previewImageUrl = imageUrl.startsWith('http')
+        ? imageUrl
+        : `http://localhost:3000/${imageUrl}`;
       this.imagePreviewVisible = true;
     },
 
@@ -1052,14 +1111,11 @@ async fetchFriends(page = 1) {
         
         if (res.ok) {
           const updatedUser = await res.json();
-          
-          // === [SỬA ĐOẠN NÀY] ===
-          // Gọi hàm đồng bộ để cập nhật avatar ở mọi nơi
-          this.updateLocalAvatar(updatedUser.avatar); 
-          
-          this.showNotify("success", "Thành công!", "Ảnh đại diện đã được cập nhật.");
+          // avatar giờ là Cloudinary URL đầy đủ
+          this.updateLocalAvatar(updatedUser.avatar);
+          this.showNotify("success", "Success!", "Profile picture updated.");
         } else {
-           this.showNotify("error", "Thất bại", "Không thể tải ảnh lên. Vui lòng thử lại.");
+          this.showNotify("error", "Failed", "Unable to upload image. Please try again.");
         }
       } catch (err) {
         console.error(err);
@@ -1084,10 +1140,11 @@ async fetchFriends(page = 1) {
 
         if (res.ok) {
           const updatedUser = await res.json();
+          // coverPhoto giờ là Cloudinary URL đầy đủ
           this.user.coverPhoto = updatedUser.coverPhoto;
-          this.showNotify("success", "Thành công!", "Ảnh bìa đã được cập nhật.");
+          this.showNotify("success", "Success!", "Cover photo updated.");
         } else {
-           this.showNotify("error", "Thất bại", "Lỗi khi tải ảnh bìa.");
+          this.showNotify("error", "Failed", "Unable to upload cover photo.");
         }
       } catch (err) {
         console.error(err);
@@ -1150,38 +1207,47 @@ async fetchFriends(page = 1) {
       const currentUserId = this.user._id || this.user.id;
 
       // 1. Cập nhật Avatar chính trên Profile
-      this.user.avatar = newAvatarUrl;
+      this.user = { ...this.user, avatar: newAvatarUrl };
 
-      // 2. Cập nhật LocalStorage (để Header nhận diện)
+      // 2. Cập nhật LocalStorage
       const savedUser = JSON.parse(localStorage.getItem("user"));
       if (savedUser) {
         savedUser.avatar = newAvatarUrl;
         localStorage.setItem("user", JSON.stringify(savedUser));
       }
 
-      // 3. Quét và cập nhật Avatar trong danh sách bài viết (userPosts)
-      this.userPosts.forEach(post => {
-        // Trường hợp A: Bài viết thường (Type: post/original)
+      // 3. Replace từng post bằng object mới để Vue detect reactivity
+      // Mutation trực tiếp vào nested object (post.post.author.avatar) không trigger re-render
+      this.userPosts = this.userPosts.map(post => {
+        let updated = { ...post };
+
+        // Bài viết thường: cập nhật author
         if (post.author && (post.author._id === currentUserId || post.author.id === currentUserId)) {
-          post.author.avatar = newAvatarUrl;
+          updated = { ...updated, author: { ...post.author, avatar: newAvatarUrl } };
         }
 
-        // Trường hợp B: Bài viết chia sẻ (Type: share)
-        // Cập nhật avatar người chia sẻ (là mình)
-        if (post.type === 'share' && post.username && (post.username._id === currentUserId || post.username.id === currentUserId)) {
-          post.username.avatar = newAvatarUrl;
+        // Bài share: cập nhật người chia sẻ (username)
+        if (post.type === 'share' && post.username &&
+            (post.username._id === currentUserId || post.username.id === currentUserId)) {
+          updated = { ...updated, username: { ...post.username, avatar: newAvatarUrl } };
         }
-        
-        // Cập nhật avatar trong bài gốc (nếu bài gốc cũng là của mình)
-        if (post.post && post.post.author && (post.post.author._id === currentUserId || post.post.author.id === currentUserId)) {
-          post.post.author.avatar = newAvatarUrl;
+
+        // Bài share: cập nhật author của bài gốc bên trong
+        if (post.post && post.post.author &&
+            (post.post.author._id === currentUserId || post.post.author.id === currentUserId)) {
+          updated = {
+            ...updated,
+            post: {
+              ...post.post,
+              author: { ...post.post.author, avatar: newAvatarUrl }
+            }
+          };
         }
+
+        return updated;
       });
 
       window.dispatchEvent(new Event('user-profile-updated'));
-      
-      // (Tùy chọn) Force update nếu Vue không tự nhận diện thay đổi sâu trong object
-      // this.$forceUpdate(); 
     },
 
     // ... (Các method còn lại của Post, Like, Share giữ nguyên bên dưới) ...
@@ -1759,13 +1825,97 @@ async confirmFriendAction() {
 }
 ,
  
+    // ===== BLOCK =====
+    async fetchBlockStatus() {
+      if (this.isMyProfile) return;
+      const viewer = JSON.parse(localStorage.getItem("user"));
+      const viewerId = viewer?._id || viewer?.id;
+      const profileId = this.getProfileUserId();
+      if (!viewerId || !profileId || viewerId === profileId) return;
+      try {
+        const res = await fetch(`http://localhost:3000/block/check/${profileId}`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          this.blockStatus = data.isBlocked ? data.reason : null;
+        }
+      } catch (err) { console.error("fetchBlockStatus:", err); }
+    },
+
+    async handleBlock() {
+      if (!confirm(`Block ${this.profileUser?.firstname} ${this.profileUser?.lastname}?`)) return;
+      this.loadingBlock = true;
+      try {
+        const res = await fetch("http://localhost:3000/block", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token")}` },
+          body: JSON.stringify({ targetId: this.profileUser._id })
+        });
+        if (res.ok) {
+          this.blockStatus = 'you_blocked';
+          this.showNotify("success", "Blocked", `${this.profileUser?.firstname} ${this.profileUser?.lastname} has been blocked.`);
+        } else {
+          const d = await res.json().catch(() => ({}));
+          this.showNotify("error", "Error", d.msg || "Unable to block this user.");
+        }
+      } catch (err) {
+        console.error("handleBlock:", err);
+        this.showNotify("error", "Network error", "Unable to connect to server.");
+      } finally { this.loadingBlock = false; }
+    },
+
+    async handleUnblock() {
+      if (!confirm(`Unblock ${this.profileUser?.firstname} ${this.profileUser?.lastname}?`)) return;
+      this.loadingBlock = true;
+      try {
+        const res = await fetch("http://localhost:3000/block/unblock", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token")}` },
+          body: JSON.stringify({ targetId: this.profileUser._id })
+        });
+        if (res.ok) {
+          this.blockStatus = null;
+          this.showNotify("success", "Unblocked", `${this.profileUser?.firstname} ${this.profileUser?.lastname} has been unblocked.`);
+        } else {
+          const d = await res.json().catch(() => ({}));
+          this.showNotify("error", "Error", d.msg || "Unable to unblock this user.");
+        }
+      } catch (err) {
+        console.error("handleUnblock:", err);
+        this.showNotify("error", "Network error", "Unable to connect to server.");
+      } finally { this.loadingBlock = false; }
+    },
+
+    goToChat() {
+      if (!this.profileUser?._id) return;
+      this.$router.push(`/messages?userId=${this.profileUser._id}`);
+    },
+
+    isCurrentViewer(userId) {
+      const viewer = JSON.parse(localStorage.getItem('user'));
+      const viewerId = viewer?._id || viewer?.id;
+      return viewerId && String(viewerId) === String(userId);
+    },
+
+    goToOwnProfile() {
+      const viewer = JSON.parse(localStorage.getItem('user'));
+      const id = viewer?._id || viewer?.id;
+      if (id) this.$router.push(`/profile/${id}`);
+    },
+
+    goToMessageWith(userId) {
+      this.$router.push(`/messages?userId=${userId}`);
+    },
+
     async initProfile() {
         await this.fetchUserProfile();
-        await this.fetchUserPosts(1);
-        await this.fetchFriends(1);
-        await this.fetchUserMedia(1);
-
-
+        await Promise.all([
+          this.fetchUserPosts(1),
+          this.fetchFriends(1),
+          this.fetchUserMedia(1),
+          this.fetchBlockStatus(),
+        ]);
     },
 
 // Thay thế hàm fetchUserMedia cũ
@@ -1887,6 +2037,16 @@ onPostPageChange(page) {
     window.removeEventListener('scroll', this.handleScroll, true);
   },
 watch: {
+  '$route.params.id'(newId, oldId) {
+    if (newId !== oldId) {
+      this.activeTab = 'posts';
+      this.userPosts = [];
+      this.friendsList = [];
+      this.blockStatus = null;
+      this.initProfile();
+    }
+  },
+
   // 1. Giữ nguyên activeTab
   activeTab(tab) {
     if (tab === 'posts') {
@@ -1990,7 +2150,36 @@ watch: {
 .stat-val { font-weight: 800; font-size: 20px; color: #111827; }
 .stat-label { font-size: 12px; color: #FF642F; text-transform: uppercase; font-weight: 600; }
 .stat-divider { width: 1px; height: 30px;  }
-.action-buttons { display: flex; gap: 12px; justify-content: center; }
+.action-buttons { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; align-items: center; }
+
+.btn-action {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 10px 20px; border-radius: 24px; border: none;
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  transition: all 0.15s; white-space: nowrap;
+}
+.btn-chat    { background: #eff6ff; color: #2563eb; border: 1.5px solid #bfdbfe; }
+.btn-chat:hover { background: #2563eb; color: #fff; }
+.btn-block   { background: #fff1f2; color: #e11d48; border: 1.5px solid #fecdd3; }
+.btn-block:hover { background: #e11d48; color: #fff; }
+.btn-unblock { background: #fef3c7; color: #d97706; border: 1.5px solid #fde68a; }
+.btn-unblock:hover { background: #d97706; color: #fff; }
+.btn-action:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* Block wall */
+.block-wall {
+  max-width: 480px; margin: 40px auto; text-align: center;
+  background: #fff; border-radius: 20px; padding: 48px 32px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.06); border: 1px solid #f3f4f6;
+}
+.block-wall-icon {
+  width: 80px; height: 80px; border-radius: 50%;
+  background: #fff1f2; color: #e11d48;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 20px;
+}
+.block-wall h3 { font-size: 20px; font-weight: 800; color: #111827; margin: 0 0 10px; }
+.block-wall p  { font-size: 14px; color: #6b7280; margin: 0 0 24px; line-height: 1.6; }
 
 .edit-profile-btn {
   background: #FF642F; color: white; border: none; 
@@ -2211,28 +2400,15 @@ watch: {
 .post-media,
 .post-image {
   width: 100%;
-  border-radius: 10px;
+  max-height: 500px;
+  object-fit: cover;
+  border-radius: 12px;
   margin-top: 10px;
+  display: block;
 }
 
-/* CSS MỚI RIÊNG CHO VIDEO ĐỂ TẠO KHUNG VUÔNG GỌN GÀNG */
 .post-video {
-  width: 100%;
-  height:100%;
-  /* aspect-ratio: 1 / 1; giúp tạo khung hình vuông */
-  aspect-ratio: 1 / 1; 
-  
-  /* object-fit: contain; đảm bảo video hiển thị đầy đủ không bị cắt, 
-     nếu tỷ lệ video khác vuông sẽ có viền đen trên dưới hoặc 2 bên */
-  object-fit: cover;
-  
-  background-color: black; /* Nền đen cho phần viền thừa (nếu có) */
-  border-radius: 10px;
-  margin-top: 10px;
-  
-  /* Đảm bảo chiều cao không vượt quá khung vuông */
-  height: auto; 
-  max-height: 500px; /* Giới hạn chiều cao tối đa nếu màn hình quá rộng */
+  width: 100%; max-height: 300px; object-fit: contain; border-radius: 8px; background-color:black;
 }
 
 /* Rating */

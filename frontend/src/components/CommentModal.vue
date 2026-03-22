@@ -50,9 +50,9 @@
           </button>
         </div>
         <div v-if="post?.media" class="post-media-modal">
-          <img v-if="post?.mediaType === 'image'" :src="`http://localhost:3000/${post.media}`" class="post-image-modal" />
+          <img v-if="post?.mediaType === 'image'" :src="resolveMediaUrl(post.media)" class="post-image-modal" />
           <video v-else-if="post?.mediaType === 'video'" controls class="post-video-modal">
-            <source :src="`http://localhost:3000/${post.media}`" type="video/mp4" />
+            <source :src="resolveMediaUrl(post.media)" type="video/mp4" />
           </video>
         </div>
 
@@ -356,7 +356,7 @@
                       </div>
 
                       <div v-if="replyInputsReply[reply._id] !== undefined" class="reply-to-reply-input-wrapper">
-                        <img :src="`http://localhost:3000/${user?.avatar || 'user.png'}`" class="user-avatar-small" />
+                        <img :src="getAvatarUrl(user)" class="user-avatar-small" />
                         
                         <div class="input-with-emoji-container">
                           <input
@@ -746,7 +746,15 @@ closeEmojiPickerOnClickOutside(event) {
 
     getAvatarUrl(author) {
       if (!author || !author.avatar) return 'http://localhost:3000/uploads/user.png';
+      // Cloudinary URL đã có https:// → dùng thẳng, không prefix
+      if (author.avatar.startsWith('http')) return author.avatar;
       return `http://localhost:3000/${author.avatar}`;
+    },
+
+    resolveMediaUrl(media) {
+      if (!media) return '';
+      if (media.startsWith('http')) return media;
+      return `http://localhost:3000/${media}`;
     },
 
     formatTime(dateStr) {
@@ -1472,7 +1480,8 @@ closeEmojiPickerOnClickOutside(event) {
 .recipe-text { font-size: 14px; line-height: 1.5; color: #1c1e21; margin: 0; white-space: pre-line; background: white; padding: 8px 12px; border-radius: 8px; border: 1px solid #e3e6ea; }
 
 .post-media-modal { margin: 16px 0; text-align: center; }
-.post-image-modal, .post-video-modal { width: 100%; object-fit: contain; border-radius: 8px; }
+.post-image-modal { width: 100%; max-height: 480px; object-fit: cover; border-radius: 12px; display: block; }
+.post-video-modal { width: 100%; max-height: 300px; object-fit: contain; border-radius: 8px; background-color:black;}
 .post-stats { display: flex; gap: 16px; margin: 16px 0 12px 0; font-size: 14px; color: #65676b; }
 
 .post-actions-modal { display: flex; justify-content: space-around; padding: 8px 0; border-top: 1px solid #e4e6eb; margin-top: 10px; }

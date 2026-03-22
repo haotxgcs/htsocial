@@ -1,7 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const multer = require("multer");
-const upload = multer({ dest: "uploads/" });
+const { uploadPostMedia } = require("../middleware/uploadCloudinary");
 
 const {
   createPost,
@@ -18,13 +17,13 @@ const {
   
 } = require("../controllers/PostController");
 
-router.post("/", upload.single("image") , createPost);
+router.post("/", uploadPostMedia.single("image"), createPost);
 router.get("/", getAllPosts);
 router.get('/visible/:viewerId', getVisiblePosts);
 
 router.get("/:id", getPostById);
 router.get("/user/:userId", getPostsByUser);
-router.put("/:id",upload.single("image"), updatePost);
+router.put("/:id", uploadPostMedia.single("image"), updatePost);
 router.delete("/:id", deletePost);
 
 router.post("/hide-post/:postId", hidePost);

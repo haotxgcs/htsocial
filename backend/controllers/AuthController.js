@@ -1295,38 +1295,56 @@ const deleteOldImage = (filePath) => {
   });
 };
 
+
+// Helper: extract Cloudinary public_id từ URL để xóa ảnh cũ
+const extractCloudinaryPublicId = (url) => {
+  if (!url || !url.includes("cloudinary.com")) return null;
+  try {
+    // Lấy phần sau "/upload/", bỏ version (vXXX/) nếu có, bỏ extension
+    const parts = url.split("/upload/");
+    if (parts.length < 2) return null;
+    let path = parts[1];
+    // Bỏ version prefix như v1234567890/
+    path = path.replace(/^v\d+\//, "");
+    // Bỏ extension
+    path = path.replace(/\.[^.]+$/, "");
+    return path;
+  } catch {
+    return null;
+  }
+};
+
 // ==========================================
 // [MỚI] 20. Upload Avatar
 // ==========================================
 exports.uploadAvatar = async (req, res) => {
   try {
     const userId = req.params.id;
-    
-    // Multer sẽ xử lý file và gán vào req.file
+
     if (!req.file) {
-      return res.status(400).json({ msg: 'Vui lòng chọn file ảnh' });
+      return res.status(400).json({ msg: 'Please select an image file' });
     }
 
-    // Chuẩn hóa đường dẫn (thay \ thành / để tránh lỗi trên Windows/URL)
-    const newAvatarPath = req.file.path.replace(/\\/g, "/");
+    // multer-storage-cloudinary trả về URL qua req.file.path
+    const newAvatarUrl = req.file.path;
 
     const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ msg: 'User không tồn tại' });
+    if (!user) return res.status(404).json({ msg: 'User not found' });
 
-    // Xóa avatar cũ
-    if (user.avatar) {
-      deleteOldImage(user.avatar);
+    // Xóa avatar cũ trên Cloudinary — parse public_id từ URL cũ
+    const oldPublicId = extractCloudinaryPublicId(user.avatar);
+    if (oldPublicId) {
+      const cloudinary = require("../services/cloudinary");
+      await cloudinary.uploader.destroy(oldPublicId).catch(() => {});
     }
 
-    // Cập nhật DB
-    user.avatar = newAvatarPath;
+    user.avatar = newAvatarUrl;
     await user.save();
 
-    // Trả về user đã update (để frontend cập nhật UI ngay)
     res.status(200).json(user);
   } catch (err) {
     console.error("Upload avatar error:", err);
-    res.status(500).json({ msg: 'Lỗi server khi upload ảnh' });
+    res.status(500).json({ msg: 'Server error during avatar upload' });
   }
 };
 
@@ -1338,26 +1356,28 @@ exports.uploadCover = async (req, res) => {
     const userId = req.params.id;
 
     if (!req.file) {
-      return res.status(400).json({ msg: 'Vui lòng chọn file ảnh' });
+      return res.status(400).json({ msg: 'Please select an image file' });
     }
 
-    const newCoverPath = req.file.path.replace(/\\/g, "/");
+    const newCoverUrl = req.file.path;
 
     const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ msg: 'User không tồn tại' });
+    if (!user) return res.status(404).json({ msg: 'User not found' });
 
-    // Xóa cover cũ
-    if (user.coverPhoto) {
-      deleteOldImage(user.coverPhoto);
+    // Xóa cover cũ trên Cloudinary — parse public_id từ URL cũ
+    const oldPublicId = extractCloudinaryPublicId(user.coverPhoto);
+    if (oldPublicId) {
+      const cloudinary = require("../services/cloudinary");
+      await cloudinary.uploader.destroy(oldPublicId).catch(() => {});
     }
 
-    user.coverPhoto = newCoverPath;
+    user.coverPhoto = newCoverUrl;
     await user.save();
 
     res.status(200).json(user);
   } catch (err) {
     console.error("Upload cover error:", err);
-    res.status(500).json({ msg: 'Lỗi server khi upload ảnh' });
+    res.status(500).json({ msg: 'Server error during cover upload' });
   }
 };
 
@@ -1466,5 +1486,3 @@ exports.clearSearchHistory = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
-
-

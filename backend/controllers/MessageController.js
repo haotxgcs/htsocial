@@ -216,10 +216,9 @@ exports.recallMessage = async (req, res) => {
       return res.status(404).json({ msg: "Message not found or not authorized" });
     }
 
-    // Chỉ thu hồi trong vòng 10 phút
-    const minutesSince = (Date.now() - new Date(message.createdAt).getTime()) / 60000;
-    if (minutesSince > 10) {
-      return res.status(400).json({ msg: "Cannot recall messages older than 10 minutes" });
+    const hoursSince = (Date.now() - new Date(message.createdAt).getTime()) / 3600000;
+    if (hoursSince > 24) {
+      return res.status(400).json({ msg: "Cannot recall messages older than 24 hours" });
     }
 
     message.content  = "";

@@ -62,16 +62,17 @@
 
             <div class="shared-details">
               <p class="shared-section-label">Ingredients:</p>
-              <p class="shared-text">{{ getTruncatedText(post.ingredients, 100) }}</p>
-              
-              <p class="shared-section-label">Instructions:</p>
-              <p class="shared-text">{{ getTruncatedText(post.instructions, 100) }}</p>
+              <p class="shared-text">{{ getCollapsedContent(post).ingredients }}</p>
+              <template v-if="getCollapsedContent(post).showInstructions">
+                <p class="shared-section-label">Instructions:</p>
+                <p class="shared-text">{{ getCollapsedContent(post).instructions }}</p>
+              </template>
             </div>
           </div>
 
           <div v-if="post.media" class="media-preview">
-            <img v-if="post.mediaType === 'image'" :src="`http://localhost:3000/${post.media}`" />
-            <video v-else controls :src="`http://localhost:3000/${post.media}`"></video>
+            <img v-if="post.mediaType === 'image'" :src="resolveMediaUrl(post.media)" class="share-preview-img" />
+            <video v-else controls :src="resolveMediaUrl(post.media)" class="share-preview-vid"></video>
           </div>
         </div>
       </div>
@@ -163,6 +164,24 @@ export default {
   },
   methods: {
     // Helper cắt chữ cho bài gốc
+    getCollapsedContent(post) {
+      if (!post) return { ingredients: '', instructions: '', showInstructions: false };
+      const MAX_LINES = 3, MAX_CHARS = 150;
+      const ingLines = (post.ingredients || '').split('\n');
+      let ingredients = post.ingredients || '';
+      let truncated = false;
+      if (ingLines.length > MAX_LINES) { ingredients = ingLines.slice(0, MAX_LINES).join('\n') + '...'; truncated = true; }
+      else if (ingredients.length > MAX_CHARS) { ingredients = ingredients.substring(0, MAX_CHARS) + '...'; truncated = true; }
+      const hasInstructions = !!(post.instructions?.trim());
+      let instructions = post.instructions || '';
+      if (hasInstructions && truncated) {
+        const il = instructions.split('\n');
+        instructions = il.slice(0, 2).join('\n');
+        if (il.length > 2 || instructions.length > 100) instructions = instructions.substring(0, 100) + '...';
+      }
+      return { ingredients, instructions, showInstructions: hasInstructions };
+    },
+
     getTruncatedText(text, limit = 100) {
       if (!text) return '';
       if (text.length <= limit) return text;
@@ -273,7 +292,16 @@ export default {
     },
     formatTime(date) { return new Date(date).toLocaleString(); },
     getAvatarUrl(user) {
-      return user?.avatar ? `http://localhost:3000/${user.avatar}` : require("@/assets/user.png");
+      if (!user?.avatar) return require("@/assets/user.png");
+      // Cloudinary URL đã có https:// → dùng thẳng
+      if (user.avatar.startsWith('http')) return user.avatar;
+      return `http://localhost:3000/${user.avatar}`;
+    },
+
+    resolveMediaUrl(media) {
+      if (!media) return '';
+      if (media.startsWith('http')) return media;
+      return `http://localhost:3000/${media}`;
     },
   },
 };
@@ -390,5 +418,9 @@ export default {
   margin-bottom: 0;
 }
 
+
+
 @media (max-width: 768px) { .modal-box { max-width: 100%; margin: 0 10px; } .share-content { padding: 16px; } .modal-actions { padding: 12px 16px; } }
+.share-preview-img { width: 100%; max-height: 300px; object-fit: cover; border-radius: 10px; display: block; }
+.share-preview-vid { width: 100%; max-height: 300px; border-radius: 10px; display: block; background: #000; }
 </style>

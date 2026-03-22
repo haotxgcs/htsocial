@@ -122,20 +122,25 @@
             <div class="post-content-wrapper">
               <h3 class="recipe-title">{{ post.title }}</h3>
               <span class="recipe-category">{{ post.category }}</span>
-              <div class="recipe-body"> 
-                
-                <div v-if="!expandedPosts[post._id]">
-                  <p class="recipe-section-header">Ingredients:</p>
-                  <p class="post-text">{{ getTruncatedText(post.ingredients) }}</p>
-                </div>
+              <div class="recipe-body">
 
-                <div v-else>
-                   <p class="recipe-section-header">Ingredients:</p>
-                   <p class="post-text">{{ post.ingredients }}</p>
-                   
-                   <p class="recipe-section-header">Instructions:</p>
-                   <p class="post-text">{{ post.instructions }}</p>
-                </div>
+                <!-- Collapsed: hiện cả 2 phần nhưng cắt ngắn -->
+                <template v-if="!expandedPosts[post._id]">
+                  <p class="recipe-section-header">Ingredients:</p>
+                  <p class="post-text">{{ getCollapsedContent(post).ingredients }}</p>
+                  <template v-if="getCollapsedContent(post).showInstructions">
+                    <p class="recipe-section-header">Instructions:</p>
+                    <p class="post-text">{{ getCollapsedContent(post).instructions }}</p>
+                  </template>
+                </template>
+
+                <!-- Expanded: hiện đầy đủ -->
+                <template v-else>
+                  <p class="recipe-section-header">Ingredients:</p>
+                  <p class="post-text">{{ post.ingredients }}</p>
+                  <p class="recipe-section-header">Instructions:</p>
+                  <p class="post-text">{{ post.instructions }}</p>
+                </template>
 
               </div>
               
@@ -147,8 +152,8 @@
                 {{ expandedPosts[post._id] ? 'Show Less' : 'Show More' }}
               </button>
               <div v-if="post.media" class="post-media">
-              <img v-if="post.mediaType === 'image'" :src="`http://localhost:3000/${post.media}`" class="post-image" />
-              <video v-else controls class="post-video"><source :src="`http://localhost:3000/${post.media}`" /></video>
+              <img v-if="post.mediaType === 'image'" :src="resolveMediaUrl(post.media)" class="post-image" />
+              <video v-else controls class="post-video"><source :src="resolveMediaUrl(post.media)" /></video>
             </div>
 
             <!-- 🔗 LINKED ITEMS -->
@@ -365,16 +370,20 @@
                           <span class="recipe-category small">{{ post.post.category }}</span>
 
                           <div class="recipe-body">
-                             <div v-if="!expandedPosts[post._id + '_shared']">
-                                <p class="recipe-section-header">Ingredients:</p>
-                                <p class="post-text">{{ getTruncatedText(post.post.ingredients) }}</p>
-                             </div>
-                             <div v-else>
-                                <p class="recipe-section-header">Ingredients:</p>
-                                <p class="post-text">{{ post.post.ingredients }}</p>
-                                <p class="recipe-section-header">Instructions:</p>
-                                <p class="post-text">{{ post.post.instructions }}</p>
-                             </div>
+                             <template v-if="!expandedPosts[post._id + '_shared']">
+                               <p class="recipe-section-header">Ingredients:</p>
+                               <p class="post-text">{{ getCollapsedContent(post.post).ingredients }}</p>
+                               <template v-if="getCollapsedContent(post.post).showInstructions">
+                                 <p class="recipe-section-header">Instructions:</p>
+                                 <p class="post-text">{{ getCollapsedContent(post.post).instructions }}</p>
+                               </template>
+                             </template>
+                             <template v-else>
+                               <p class="recipe-section-header">Ingredients:</p>
+                               <p class="post-text">{{ post.post.ingredients }}</p>
+                               <p class="recipe-section-header">Instructions:</p>
+                               <p class="post-text">{{ post.post.instructions }}</p>
+                             </template>
                           </div>
 
                           <button 
@@ -385,8 +394,8 @@
                             {{ expandedPosts[post._id + '_shared'] ? 'Show Less' : 'Show More' }}
                           </button>
                           <div v-if="post.post && post.post.media" class="post-media">
-                          <img v-if="post.post.mediaType === 'image'" :src="`http://localhost:3000/${post.post.media}`" class="post-image" />
-                          <video v-else controls class="post-video"><source :src="`http://localhost:3000/${post.post.media}`" /></video>
+                          <img v-if="post.post.mediaType === 'image'" :src="resolveMediaUrl(post.post.media)" class="post-image" />
+                          <video v-else controls class="post-video"><source :src="resolveMediaUrl(post.post.media)" /></video>
                       </div>
                       </div>
 
@@ -671,11 +680,21 @@ export default {
 
     getAvatarUrl(author) {
       if (!author || !author.avatar) return 'http://localhost:3000/uploads/user.png';
+      // Cloudinary URL đã có https:// → dùng thẳng, không prefix
+      if (author.avatar.startsWith('http')) return author.avatar;
       return `http://localhost:3000/${author.avatar}`;
     },
     
     getImageUrl(path) {
+      if (!path) return '';
+      if (path.startsWith('http')) return path;
       return `http://localhost:3000/${path}`;
+    },
+
+    resolveMediaUrl(media) {
+      if (!media) return '';
+      if (media.startsWith('http')) return media;
+      return `http://localhost:3000/${media}`;
     },
 
     formatTime(dateStr) {
@@ -856,23 +875,50 @@ async loadSearchHistory() {
       return lines.length > 5 || text.length > 200;
     },
 
-    // Thêm hàm này vào methods
     getTruncatedText(text) {
       if (!text) return '';
-      
       const lines = text.split('\n');
-      
-      // Lấy tối đa 3 dòng đầu tiên
-      if (lines.length > 3) {
-        return lines.slice(0, 3).join('\n') + '...';
-      }
-      
-      // Hoặc lấy tối đa 150 ký tự
-      if (text.length > 150) {
-        return text.substring(0, 150) + '...';
-      }
-      
+      if (lines.length > 3) return lines.slice(0, 3).join('\n') + '...';
+      if (text.length > 150) return text.substring(0, 150) + '...';
       return text;
+    },
+
+    // Trả về nội dung collapsed cho cả ingredients + instructions
+    // Hiện tối đa 3 dòng ingredients, 2 dòng instructions khi chưa expand
+    getCollapsedContent(post) {
+      if (!post) return { ingredients: '', instructions: '', showInstructions: false };
+
+      const MAX_LINES = 3;
+      const MAX_CHARS = 150;
+
+      const ingLines = (post.ingredients || '').split('\n');
+      let ingredients = post.ingredients || '';
+      let truncated = false;
+
+      if (ingLines.length > MAX_LINES) {
+        ingredients = ingLines.slice(0, MAX_LINES).join('\n') + '...';
+        truncated = true;
+      } else if (ingredients.length > MAX_CHARS) {
+        ingredients = ingredients.substring(0, MAX_CHARS) + '...';
+        truncated = true;
+      }
+
+      // Luôn hiện Instructions nếu có, nhưng cắt ngắn khi đã truncate ingredients
+      const hasInstructions = !!(post.instructions?.trim());
+      let instructions = post.instructions || '';
+      if (hasInstructions && truncated) {
+        const instLines = instructions.split('\n');
+        instructions = instLines.slice(0, 2).join('\n');
+        if (instLines.length > 2 || instructions.length > 100) {
+          instructions = instructions.substring(0, 100) + '...';
+        }
+      }
+
+      return {
+        ingredients,
+        instructions,
+        showInstructions: hasInstructions
+      };
     },
 
     getDisplayedContent(post) {
@@ -1792,22 +1838,7 @@ prevItem(postId) {
 
 /* CSS MỚI RIÊNG CHO VIDEO ĐỂ TẠO KHUNG VUÔNG GỌN GÀNG */
 .post-video {
-  width: 100%;
-  height:100%;
-  /* aspect-ratio: 1 / 1; giúp tạo khung hình vuông */
-  aspect-ratio: 1 / 1; 
-  
-  /* object-fit: contain; đảm bảo video hiển thị đầy đủ không bị cắt, 
-     nếu tỷ lệ video khác vuông sẽ có viền đen trên dưới hoặc 2 bên */
-  object-fit: cover;
-  
-  background-color: black; /* Nền đen cho phần viền thừa (nếu có) */
-  border-radius: 10px;
-  margin-top: 10px;
-  
-  /* Đảm bảo chiều cao không vượt quá khung vuông */
-  height: auto; 
-  max-height: 500px; /* Giới hạn chiều cao tối đa nếu màn hình quá rộng */
+  width: 100%; max-height: 300px; object-fit: contain; border-radius: 8px; background-color:black;
 }
 
 /* Rating */

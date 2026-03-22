@@ -12,6 +12,7 @@ const shareRoutes       = require("./routes/ShareRoute");
 const messageRoutes     = require("./routes/MessageRoute");
 const groupRoutes       = require("./routes/GroupRoutes");
 const feedRoutes        = require("./routes/FeedRoute");
+const blockRoutes        = require("./routes/BlockRoute");
 const marketplaceRoutes = require("./routes/MarketplaceRoute");
 const cartRoutes        = require("./routes/CartRoute");
 const orderRoutes       = require("./routes/OrderRoute");
@@ -137,11 +138,11 @@ io.on("connection", (socket) => {
       const message = await Message.findOne({ _id: messageId, sender: socket.userId });
       if (!message) return;
 
-      const minutesSince = (Date.now() - new Date(message.createdAt).getTime()) / 60000;
-      if (minutesSince > 10) {
-        socket.emit("message:error", { messageId, msg: "Cannot recall after 10 minutes" });
-        return;
-      }
+      const hoursSince = (Date.now() - new Date(message.createdAt).getTime()) / 3600000;
+        if (hoursSince > 24) {
+          socket.emit("message:error", { messageId, msg: "Cannot recall after 24 hours" });
+          return;
+        }
 
       message.content  = "";
       message.recalled = true;
@@ -234,6 +235,7 @@ app.use("/shares",       shareRoutes);
 app.use("/messages",     messageRoutes);
 app.use("/groups",       groupRoutes);
 app.use("/feeds",        feedRoutes);
+app.use("/block",        blockRoutes);  // ← thêm dòng này
 app.use("/marketplace",  marketplaceRoutes);
 app.use("/cart",         cartRoutes);
 app.use("/orders",       orderRoutes);
