@@ -62,8 +62,8 @@
               <div class="action-group">
                 <button class="btn-primary" @click="$router.push(`/profile/${friend._id}`)">View Profile</button>
                 <div style="display: flex; gap: 8px;">
-                   <button class="btn-secondary" style="flex:1" title="Message" @click="$router.push({ path: '/messages', query: { userId: friend._id } })">Message</button>
-                   <button class="btn-secondary" style="flex:1; color:#ef4444;" @click="unfriend(friend._id)" title="Unfriend">Unfriend</button>
+                   <button class="btn-chat"  title="Message" @click="$router.push({ path: '/messages', query: { userId: friend._id } })">Message</button>
+                   <button class="btn-unfriend" @click="unfriend(friend._id)" title="Unfriend">Unfriend</button>
                 </div>
               </div>
             </div>
@@ -230,12 +230,12 @@
         <div v-if="!loadingSent && paginatedSent.length > 0" class="modern-grid">
           <div v-for="request in paginatedSent" :key="request._id" class="modern-card">
             <div class="card-image-wrapper">
-              <img :src="getImageUrl(request.avatar)" class="card-img" />
+              <img :src="getImageUrl(request.avatar)" class="card-img" @click="$router.push(`/profile/${request._id}`)"/>
             </div>
             <div class="card-body">
               <h4>{{ request.firstname }} {{ request.lastname }}</h4>
               <p class="username">@{{ request.username }}</p>
-              <button class="btn-secondary full-width" @click="cancelFriendRequest(request._id)">
+              <button class="btn-cancel full-width" @click="cancelFriendRequest(request._id)">
                 Cancel Request
               </button>
             </div>
@@ -1001,7 +1001,7 @@ changePage(tab, page) {
 .modern-card:hover, .friend-row-card:hover { transform: translateY(-4px); box-shadow: 0 8px 16px rgba(0,0,0,0.08); }
 
 .card-image-wrapper { position: relative; width: 100%; aspect-ratio: 1/1; }
-.card-img { width: 100%; height: 100%; object-fit: cover; background-color: #f3f4f6; }
+.card-img { width: 100%; height: 100%; object-fit: cover; background-color: #f3f4f6; cursor: pointer;}
 .status-badge {
   position: absolute; bottom: 8px; right: 8px;
   background: #10b981; color: white; font-size: 10px; font-weight: 700;
@@ -1022,18 +1022,24 @@ changePage(tab, page) {
 .btn-primary:hover:not(:disabled) { background: #e04f1d; }
 .btn-primary:disabled { background: #e5e7eb; color: #9ca3af; cursor: not-allowed; }
 
-.btn-secondary {
-  background: #f3f4f6; color: #374151; border: none; padding: 8px;
+.btn-chat {
+  background: #eff6ff; color: #2563eb; border: 1.5px solid #bfdbfe; padding: 8px;
   border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; width: 100%; transition: background 0.2s;
 }
-.btn-secondary:hover { background: #e5e7eb; }
+.btn-chat:hover { background: #2563eb; color: #fff; }
+
+.btn-unfriend, .btn-cancel {
+  background: #fff1f2; color: #e11d48; border: 1.5px solid #fecdd3; padding: 8px;
+  border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; width: 100%; transition: background 0.2s;
+}
+.btn-unfriend:hover, .btn-cancel:hover { background: #e11d48; color: #fff; }
 
 .btn-icon {
   background: #f3f4f6; border: none; width: 32px; height: 32px;
   border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;
 }
 .btn-icon:hover { background: #e5e7eb; transform: scale(1.1); }
-.text-red { color: #ef4444; } .text-red:hover { background: #fee2e2; }
+/* .text-red { color: #ef4444; } .text-red:hover { background: #fee2e2; } */
 .full-width { width: 100%; }
 
 /* FRIEND ROW STYLE (Chuyển sang dạng Card lưới) */

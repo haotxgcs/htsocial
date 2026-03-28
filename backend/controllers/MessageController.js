@@ -317,3 +317,85 @@ exports.getUnreadCount = async (req, res) => {
     res.status(500).json({ msg: "Server error" });
   }
 };
+
+// =============================================
+// POST /messages/media
+// Gửi tin nhắn kèm media (ảnh/video) lên Cloudinary
+// Accepts: multipart/form-data, field "media" (max 10 files)
+// Body: { receiverId, content?, replyTo? }
+// =============================================
+exports.sendMediaMessage = async (req, res) => {
+  try {
+    const senderId   = req.user.id;
+    const { receiverId, content, replyTo } = req.body;
+
+    if (!receiverId) {
+      return res.status(400).json({ msg: "receiverId is required" });
+    }
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ msg: "At least one media file is required" });
+    }
+    if (req.files.length > 10) {
+      return res.status(400).json({ msg: "Maximum 10 files per message" });
+    }
+
+    // Build mediaUrls array from uploaded Cloudinary files
+    const mediaUrls = req.files.map(file => ({
+      url:  file.path,          // Cloudinary URL from multer-storage-cloudinary
+      type: file.mimetype.startsWith("video") ? "video" : "image"
+    }));
+
+    const msgData = {
+      sender:    senderId,
+      receiver:  receiverId,
+      content:   content?.trim() || "",
+      mediaUrls,
+      status:    "sent"
+    };
+    if (replyTo) msgData.replyTo = replyTo;
+
+    const message = await Message.create(msgData);
+
+    const populated = await Message.findById(message._id)
+      .populate("sender",   POPULATE_SENDER)
+      .populate("receiver", POPULATE_RECEIVER)
+      .populate({
+        path: "replyTo",
+        select: "content sender recalled",
+        populate: { path: "sender", select: "firstname lastname" }
+      });
+
+    res.status(201).json({ success: true, message: populated });
+  } catch (err) {
+    console.error("sendMediaMessage error:", err);
+    res.status(500).json({ msg: "Failed to send media message" });
+  }
+};
+
+// =============================================
+// DELETE /messages/conversation/:partnerId
+// Xóa mềm toàn bộ cuộc trò chuyện với partner
+// =============================================
+exports.deleteConversation = async (req, res) => {
+  try {
+    const userId    = req.user.id;
+    const partnerId = req.params.partnerId;
+    const { Types } = require("mongoose");
+
+    await Message.updateMany(
+      {
+        $or: [
+          { sender: userId,    receiver: partnerId },
+          { sender: partnerId, receiver: userId    }
+        ],
+        deletedFor: { $nin: [new Types.ObjectId(userId)] }
+      },
+      { $push: { deletedFor: userId } }
+    );
+
+    res.json({ success: true, msg: "Conversation deleted" });
+  } catch (err) {
+    console.error("deleteConversation error:", err);
+    res.status(500).json({ msg: "Failed to delete conversation" });
+  }
+};

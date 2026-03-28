@@ -1,8 +1,8 @@
 <template>
   <div>
     <div class="mobile-toggle" :class="{ 'active': isOpen, 'show-on-chat': isMessagesPage }" @click="isOpen = !isOpen">
-      <img v-if="!isOpen" src="../assets/menu.png" alt="Menu" />
-      <img v-else src="../assets/hide.png" alt="Close" style="filter: invert(1);" /> 
+      <div v-if="!isOpen"  alt="Menu" style="color: #666;"><PanelLeftOpen/></div>
+      <div v-else alt="Close" style="filter: invert(1); "><PanelLeftClose/></div> 
     </div>
 
     <aside class="vertical-sidebar" :class="{ 'open': isOpen, 'collapsed-for-chat': isMessagesPage }">
@@ -11,6 +11,7 @@
         <router-link to="/home" class="logo-link">
           <img src="../assets/htsocial.png" alt="HTSocial" class="logo" />
         </router-link>
+        <strong class="logo-title" @click="$router.push('/home')">HT Social</strong>
       </div>
 
       
@@ -75,6 +76,7 @@
               <h3>Messages</h3>
               <span v-if="unreadMessages > 0" class="hdr-badge">{{ unreadMessages }}</span>
             </div>
+            <div class="msg-list-scroll">
             <div class="msg-list">
               <div v-if="loadingContacts" class="msg-empty">Loading...</div>
               <template v-else-if="contacts.length">
@@ -104,6 +106,7 @@
               </template>
               <div v-else class="msg-empty">No messages yet</div>
             </div>
+            </div>
             <div class="popover-footer">
               <router-link to="/messages" @click.stop="closeDropdowns">See all messages</router-link>
             </div>
@@ -132,13 +135,16 @@
 
         <div v-if="showUserDropdown" class="user-menu-popover">
           <div class="menu-item" @click="goToProfile">
-            <CircleUserRound/> View Profile
+            <CircleUserRound/> 
+            <span class="menu-title">View Profile</span>
           </div>
           <div class="menu-item" @click="goToSettings">
-            <Settings/> Settings
+            <Settings/>
+            <span class="menu-title">Settings</span>
           </div>
           <div class="menu-item logout" @click="logout">
-            <LogOut/> Logout
+            <LogOut/> 
+            <span class="menu-title">Logout</span>
           </div>
         </div>
       </div>
@@ -155,7 +161,7 @@ import { useDark, useToggle } from '@vueuse/core';
 import { io } from 'socket.io-client';
 
 const API = process.env.VUE_APP_API_URL || 'http://localhost:3000';
-import { House, Users, Store, Bookmark, EyeOff, ShoppingBag, Moon, Sun, MessageCircle, Bell, CircleUserRound, Settings, LogOut, ShoppingCart  } from 'lucide-vue-next';
+import { House, Users, Store, Bookmark, EyeOff, ShoppingBag, Moon, Sun, MessageCircle, Bell, CircleUserRound, Settings, LogOut, ShoppingCart, PanelLeftClose, PanelLeftOpen  } from 'lucide-vue-next';
 
 export default {
   name: 'VerticalHeader',
@@ -173,7 +179,9 @@ export default {
     CircleUserRound,
     Settings,
     LogOut,
-    ShoppingCart 
+    ShoppingCart,
+    PanelLeftClose,
+    PanelLeftOpen
   },
   setup() {
     const isDark = useDark();
@@ -480,9 +488,19 @@ export default {
   flex-shrink: 0; /* Không cho logo bị co lại */
 }
 .logo {
+  margin-top:15px;
   height: 40px;
   width: auto;
   object-fit: contain;
+  border-radius:20%;
+}
+.logo-title{
+  padding: 15px 0 0 15px;
+  font-size: 28px;
+  font-weight: 700;
+  font-family:'Berkshire Swash';
+  color: #FF624F;
+  cursor:pointer;
 }
 
 /* --- 2. SEARCH BOX --- */
@@ -645,6 +663,15 @@ export default {
 }
 
 /* Contact list inside popup */
+.msg-list-scroll{
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.msg-list-scroll::-webkit-scrollbar { width: 5px; }
+.msg-list-scroll::-webkit-scrollbar-thumb { background: #e0e0e0; border-radius: 10px; }
+
+
 .msg-list { max-height: 360px; overflow-y: auto; }
 .msg-list::-webkit-scrollbar { width: 4px; }
 .msg-list::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 4px; }
@@ -709,6 +736,11 @@ export default {
 .menu-item { padding: 12px 16px; display: flex; align-items: center; cursor: pointer; color: #555; font-size: 14px; transition: 0.2s; }
 .menu-item:hover { background: #f9f9f9; color: #FF642F; }
 .menu-item img { width: 18px; margin-right: 12px; opacity: 0.6; }
+
+.menu-title {
+  margin-left:5px;
+  font-weight:500;
+}
 
 /* --- RESPONSIVE MOBILE --- */
 .mobile-toggle {

@@ -114,8 +114,39 @@ const uploadPostMedia = multer({
   }
 });
 
+/* ===============================
+   Message media storage (up to 10 files)
+================================ */
+const messageMediaStorage = new CloudinaryStorage({
+  cloudinary,
+  params: (req, file) => {
+    const isVideo = file.mimetype.startsWith("video");
+    return {
+      folder: "htsocial_messages",
+      resource_type: isVideo ? "video" : "image",
+      allowed_formats: isVideo
+        ? ["mp4", "mov", "avi", "webm"]
+        : ["jpg", "png", "jpeg", "webp", "gif"],
+      transformation: isVideo
+        ? []
+        : [{ quality: "auto", fetch_format: "auto" }],
+      public_id: `msg_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
+    };
+  }
+});
+
+const uploadMessageMedia = multer({
+  storage: messageMediaStorage,
+  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB per file
+  fileFilter: (req, file, cb) => {
+    const ok = file.mimetype.startsWith("image") || file.mimetype.startsWith("video");
+    ok ? cb(null, true) : cb(new Error("Only images and videos are allowed"), false);
+  }
+});
+
 module.exports = uploadCloud;
-module.exports.uploadEvidence  = uploadEvidence;
-module.exports.uploadAvatar    = uploadAvatar;
-module.exports.uploadCover     = uploadCover;
-module.exports.uploadPostMedia = uploadPostMedia;
+module.exports.uploadEvidence    = uploadEvidence;
+module.exports.uploadAvatar      = uploadAvatar;
+module.exports.uploadCover       = uploadCover;
+module.exports.uploadPostMedia   = uploadPostMedia;
+module.exports.uploadMessageMedia = uploadMessageMedia;

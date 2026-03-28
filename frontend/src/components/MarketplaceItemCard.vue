@@ -24,9 +24,6 @@
     <div class="content" @click="$emit('open', item)">
       <div class="price">{{ formatPrice(item.price) }}</div>
       <div class="title" :title="item.title">{{ item.title }}</div>
-      <!-- <div v-if="item.rating.count > 0" class="review">{{ item.rating.average }}★
-      ({{ item.rating.count }} {{item.rating.count === 1 ? 'review' : 'reviews'  }})
-    </div> -->
     <div class="rating-summary" v-if="item.rating.count > 0">
         <span class="avg-stars">
           <span v-for="s in 5" :key="s" class="avg-star" :class="{ full: s <= item.rating.average }">&#9733;</span>
@@ -101,10 +98,10 @@ export default {
 },
 
     avatarUrl() {
-      if (this.item.seller?.avatar) {
-        return `http://localhost:3000/${this.item.seller.avatar}`;
-      }
-      return "https://via.placeholder.com/40";
+      if (!this.item.seller.avatar) return 'http://localhost:3000/uploads/user.png';
+      // Cloudinary URL đã có https:// → dùng thẳng, không prefix
+      if (this.item.seller.avatar.startsWith('http')) return this.item.seller.avatar;
+      return `http://localhost:3000/${this.item.seller.avatar}`;
     },
 
     typeLabel() {

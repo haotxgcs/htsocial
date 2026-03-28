@@ -5,7 +5,7 @@
     <div v-if="mobileOpen" class="mobile-overlay" @click="mobileOpen = false"></div>
     <div class="sidebar" :class="{ 'mobile-open': mobileOpen }">
       <div class="sidebar-top">
-        <h2 class="sidebar-title">{{ sidebarTab === 'chats' ? 'Chats' : 'Bạn bè' }}</h2>
+        <h2 class="sidebar-title">{{ sidebarTab === 'chats' ? 'Chats' : 'Friends' }}</h2>
       </div>
 
       <!-- Tabs -->
@@ -17,14 +17,14 @@
         </button>
         <button class="tab-btn" :class="{ active: sidebarTab === 'friends' }" @click="switchToFriends">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-          Bạn bè
+          Friends
           <span v-if="friends.length" class="tab-badge">{{ friends.length }}</span>
         </button>
       </div>
 
       <div class="search-wrap">
         <svg class="search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-        <input v-model="searchQuery" class="search-input" :placeholder="sidebarTab === 'chats' ? 'Tìm cuộc trò chuyện...' : 'Tìm bạn bè...'" />
+        <input v-model="searchQuery" class="search-input" :placeholder="sidebarTab === 'chats' ? 'Search conversations...' : 'Search friends...'" />
       </div>
 
       <!-- ── Tab Chats ── -->
@@ -58,19 +58,27 @@
                 <span class="contact-preview" :class="{ bold: isUnread(c) }">
                   <span v-if="isMine(c)" class="you-label">You: </span>
                   <span v-if="c.recalled" class="recalled-prev">recalled a message</span>
-                  <span v-else>{{ c.content || '—' }}</span>
+                  <span v-else-if="c._reactedBy" class="reacted-prev">
+                    {{ c._reactedBy }} reacted {{ c._reactEmoji }}
+                  </span>
+                  <span v-else-if="c.mediaUrls && c.mediaUrls.length && !c.content">
+                    <span v-if="c.mediaUrls[0].type === 'video'">🎥 [video]</span>
+                    <span v-else>🖼️ [image]</span>
+                    <span v-if="c.mediaUrls.length > 1"> ×{{ c.mediaUrls.length }}</span>
+                  </span>
+                  <span v-else>{{ c.content || (c.mediaUrls && c.mediaUrls.length ? (c.mediaUrls[0].type === 'video' ? '[video]' : '[image]') : '—') }}</span>
                 </span>
                 <span v-if="isUnread(c)" class="unread-badge"></span>
               </div>
             </div>
           </div>
           <div v-if="filteredContacts.length === 0" class="empty-sidebar">
-            <p>Chưa có cuộc trò chuyện</p>
+            <p>No conversations yet</p>
           </div>
         </div>
       </template>
 
-      <!-- ── Tab Bạn bè ── -->
+      <!-- ── Friends Tab ── -->
       <template v-else>
         <div v-if="loadingFriends" class="skel-list">
           <div v-for="i in 4" :key="i" class="skel-row">
@@ -98,7 +106,7 @@
                 <span v-if="isOnline(f._id)" class="online-label">Online</span>
               </div>
               <div class="contact-bottom-row">
-                <span class="contact-preview">{{ f.email || 'Nhấn để nhắn tin' }}</span>
+                <span class="contact-preview">{{ f.email || 'Click to message' }}</span>
                 <button class="chat-now-btn" @click.stop="startChatWithFriend(f)">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="13" height="13"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                 </button>
@@ -107,7 +115,7 @@
           </div>
           <div v-if="filteredFriends.length === 0 && !loadingFriends" class="empty-sidebar">
             <svg viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="1.5" width="36" height="36" style="margin-bottom:8px"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-            <p>Không có bạn bè nào</p>
+            <p>No friends found</p>
           </div>
         </div>
       </template>
@@ -159,15 +167,15 @@
                   <div class="partner-popup-actions">
                     <button class="pp-btn" @click="viewProfile(activePartner)">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                      Xem trang cá nhân
+                      View Profile
                     </button>
                     <button v-if="blockStatus === 'you_blocked'" class="pp-btn pp-btn-warn" @click="unblockUser(activePartner)">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></svg>
-                      Bỏ chặn
+                      Unblock
                     </button>
                     <button v-else-if="blockStatus !== 'blocked_by'" class="pp-btn pp-btn-danger" @click="blockUser(activePartner)">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
-                      Chặn người dùng
+                      Block
                     </button>
                   </div>
                 </div>
@@ -176,9 +184,9 @@
           </div>
 
           <div class="chat-header-right">
-            <button class="header-del-btn" @click="deleteConversation" title="Xóa toàn bộ tin nhắn">
+            <button class="header-del-btn" @click="deleteConversation" title="Delete all messages">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="17" height="17"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-              <span>Xóa lịch sử</span>
+              <span>Delete History</span>
             </button>
           </div>
         </div>
@@ -209,6 +217,7 @@
             <div
               class="msg-row"
               :class="isMine(msg) ? 'mine' : 'theirs'"
+              :data-msg-id="msg._id"
             >
               <!-- Avatar (received only, show on last of group) -->
               <div class="msg-av-wrap" v-if="!isMine(msg)">
@@ -228,7 +237,9 @@
                   @mouseenter="hoveredMsg = msg._id || msg.tempId"
                   @mouseleave="hoveredMsg = null"
                 >
+                  <!-- Only show bubble if: recalled, failed, has text, has replyTo, or sending -->
                   <div
+                    v-if="msg.recalled || msg.failed || msg.content || msg.replyTo || msg.sending || (!msg.mediaUrls || !msg.mediaUrls.length)"
                     class="bubble"
                     :class="{
                       'b-mine':    isMine(msg),
@@ -239,8 +250,8 @@
                       'b-reply':    !!msg.replyTo && !msg.recalled
                     }"
                   >
-                    <!-- Reply preview INSIDE bubble -->
-                    <div v-if="msg.replyTo && !msg.recalled" class="reply-snip" :class="isMine(msg) ? 'reply-snip-mine' : 'reply-snip-theirs'">
+                    <!-- Reply preview INSIDE bubble — click to scroll to original -->
+                    <div v-if="msg.replyTo && !msg.recalled" class="reply-snip" :class="isMine(msg) ? 'reply-snip-mine' : 'reply-snip-theirs'" @click.stop="scrollToMsg(msg.replyTo._id || msg.replyTo)">
                       <span class="reply-accent"></span>
                       <div class="reply-snip-body">
                         <span class="reply-snip-who">{{ getReplyName(msg.replyTo) }}</span>
@@ -253,7 +264,17 @@
                       Message recalled
                     </span>
                     <span v-else-if="msg.failed" class="failed-txt">Failed to send ⚠️</span>
-                    <span v-else class="bubble-text">{{ msg.content }}</span>
+                    <template v-else>
+                      <span v-if="msg.content" class="bubble-text">{{ msg.content }}</span>
+                    </template>
+                  </div>
+
+                  <!-- Media grid — inside bubble-wrap so hover works -->
+                  <div v-if="!msg.recalled && msg.mediaUrls && msg.mediaUrls.length" class="msg-media-grid" :class="['grid-' + Math.min(msg.mediaUrls.length, 4), isMine(msg) ? 'grid-mine' : 'grid-theirs']">
+                    <div v-for="(m, mi) in msg.mediaUrls" :key="mi" class="msg-media-cell">
+                      <img v-if="m.type === 'image'" :src="m.url" class="msg-media-img" @click.stop="openLightbox(m.url, msg)" />
+                      <video v-else :src="m.url" class="msg-media-vid" controls playsinline @click.stop="openLightbox(m.url, msg)"></video>
+                    </div>
                   </div>
 
                   <!-- Hover actions — anchored next to bubble -->
@@ -281,7 +302,7 @@
                         <span class="act-label">Reply</span>
                       </button>
 
-                      <!-- Recall (mine, within 10 min) -->
+                      <!-- Recall -->
                       <button v-if="isMine(msg) && canRecall(msg)" class="act-btn" @click.stop="recallMsg(msg)" title="Recall">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
                         <span class="act-label">Recall</span>
@@ -297,7 +318,7 @@
                 </div>
 
                 <!-- Reactions -->
-                <div v-if="msg.reactions?.length" class="react-bar" :class="isMine(msg) ? 'react-right' : 'react-left'">
+                <div v-if="msg.reactions?.length && !msg.recalled" class="react-bar" :class="isMine(msg) ? 'react-right' : 'react-left'">
                   <span
                     v-for="r in groupReactions(msg.reactions)"
                     :key="r.emoji"
@@ -337,12 +358,12 @@
         <!-- Block banners -->
         <div v-if="blockStatus === 'you_blocked'" class="block-banner block-banner-you">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
-          <span>Bạn đã chặn <strong>{{ activePartner.firstname }}</strong>. Hãy bỏ chặn để nhắn tin.</span>
-          <button class="block-banner-btn" @click="unblockUser(activePartner)">Bỏ chặn</button>
+          <span>You blocked <strong>{{ activePartner.firstname }}</strong>. Unblock to send messages.</span>
+          <button class="block-banner-btn" @click="unblockUser(activePartner)">Unblock</button>
         </div>
         <div v-else-if="blockStatus === 'blocked_by'" class="block-banner block-banner-by">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
-          <span>Không thể gửi tin nhắn cho người dùng này.</span>
+          <span>You cannot send messages to this user.</span>
         </div>
 
         <template v-else>
@@ -360,31 +381,59 @@
             </button>
           </div>
 
+          <!-- Media preview strip -->
+          <div v-if="mediaFiles.length" class="media-strip">
+            <div v-for="(f, i) in mediaFiles" :key="i" class="media-strip-item">
+              <img v-if="f.type.startsWith('image')" :src="f.preview" class="strip-thumb" />
+              <video v-else :src="f.preview" class="strip-thumb strip-video"></video>
+              <button class="strip-remove" @click="removeMediaFile(i)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="10" height="10"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <button v-if="mediaFiles.length < 10" class="strip-add" @click="$refs.fileInput.click()" title="Add more">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+          </div>
+
           <!-- Input bar -->
           <div class="input-bar">
+            <!-- Hidden file input (multiple) -->
+            <input
+              ref="fileInput"
+              type="file"
+              accept="image/*,video/*"
+              multiple
+              style="display:none"
+              @change="onFilesSelected"
+            />
+
             <!-- Emoji picker -->
             <div class="emoji-trigger-wrap" @click.stop>
               <button class="emoji-trigger-btn" @click.stop="showEmojiPicker = !showEmojiPicker" title="Emoji">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
               </button>
               <div v-if="showEmojiPicker" class="emoji-picker-wrap">
-                <EmojiPicker
-                  :native="true"
-                  @select="onEmojiSelect"
-                />
+                <EmojiPicker :native="true" @select="onEmojiSelect" />
               </div>
             </div>
 
-            <input
+            <!-- Media button -->
+            <button class="media-btn" @click="$refs.fileInput.click()" title="Send photo/video" :disabled="mediaFiles.length >= 10">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              <span v-if="mediaFiles.length" class="media-count-badge">{{ mediaFiles.length }}</span>
+            </button>
+
+            <textarea
               v-model="draft"
               ref="inputRef"
               class="input-field"
-              type="text"
               placeholder="Type a message..."
-              @keydown.enter.prevent="send"
-              @input="onTyping"
-            />
-            <button class="send-btn" @click="send" :disabled="!draft.trim()">
+              rows="1"
+              @keydown.enter.exact.prevent="send"
+              @keydown.shift.enter.exact="insertNewline"
+              @input="autoResize"
+            ></textarea>
+            <button class="send-btn" @click="send" :disabled="!draft.trim() && !mediaFiles.length">
               <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
             </button>
           </div>
@@ -402,6 +451,41 @@
       </div>
     </div>
 
+  </div>
+  <!-- Lightbox -->
+  <div v-if="lightboxImages.length" class="lightbox" @click.self="closeLightbox">
+    <!-- Sender info top-left -->
+    <div class="lightbox-sender">
+      <img :src="resolveAvatar(lightboxImages[lightboxIndex].sender)" class="lb-av" @error="onImgError" />
+      <div>
+        <div class="lb-name">{{ lightboxImages[lightboxIndex].sender?.firstname }} {{ lightboxImages[lightboxIndex].sender?.lastname }}</div>
+        <div class="lb-time">{{ fmtMsgTime(lightboxImages[lightboxIndex].createdAt) }}</div>
+      </div>
+    </div>
+
+    <!-- Media: image or video -->
+    <img v-if="lightboxImages[lightboxIndex].type === 'image'" :src="lightboxImages[lightboxIndex].url" class="lightbox-img" />
+    <video v-else :src="lightboxImages[lightboxIndex].url" class="lightbox-vid" controls autoplay playsinline></video>
+
+    <!-- Close -->
+    <button class="lightbox-close" @click="closeLightbox">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="22" height="22"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+
+    <!-- Prev -->
+    <button v-if="lightboxImages.length > 1" class="lightbox-nav lightbox-prev" @click.stop="prevLightbox">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="24" height="24"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+
+    <!-- Next -->
+    <button v-if="lightboxImages.length > 1" class="lightbox-nav lightbox-next" @click.stop="nextLightbox">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="24" height="24"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
+
+    <!-- Counter -->
+    <div v-if="lightboxImages.length > 1" class="lightbox-counter">
+      {{ lightboxIndex + 1 }} / {{ lightboxImages.length }}
+    </div>
   </div>
 </template>
 
@@ -453,8 +537,11 @@ export default {
       unreadCount: 0,
       showPartnerMenu: false,
 
-      blockStatus: null,      // null | 'you_blocked' | 'blocked_by'
+      blockStatus: null,
       checkingBlock: false,
+      mediaFiles: [],       // [{file, preview, type}]
+      lightboxImages: [],
+      lightboxIndex: 0,
       showEmojiPicker: false,
       isPartnerFriend: false,
     };
@@ -496,9 +583,18 @@ export default {
     document.addEventListener("click", this.closeEmojiPicker);
   },
 
+  watch: {
+    '$route.query.userId'(newId, oldId) {
+      if (newId && newId !== oldId) {
+        this.openChatWith(newId);
+      }
+    }
+  },
+
   beforeUnmount() {
     this.socket?.disconnect();
     document.removeEventListener("click", this.closeEmoji);
+    this.clearMediaFiles();
     document.removeEventListener("click", this.closeEmojiPicker);
     clearTimeout(this.typingTimer);
   },
@@ -568,6 +664,19 @@ export default {
       this.socket.on("message:reacted", ({ messageId, reactions }) => {
         const m = this.messages.find(m => m._id === messageId);
         if (m) m.reactions = reactions;
+        // Nếu partner react vào tin nhắn của mình → hiện trong sidebar
+        if (!m) return;
+        const partnerReaction = reactions.find(r =>
+          String(r.user?._id || r.user) !== String(this.myId)
+        );
+        const contact = this.contacts.find(c => {
+          const p = this.getPartner(c);
+          return p && String(p._id) === String(this.activePartner?._id);
+        });
+        if (contact && partnerReaction) {
+          contact._reactedBy = this.activePartner?.firstname || 'Someone';
+          contact._reactEmoji = partnerReaction.emoji;
+        }
       });
 
       this.socket.on("message:deleted", ({ messageId }) => {
@@ -657,6 +766,107 @@ export default {
       this.$router.push(`/profile/${partner._id}`);
     },
 
+    onFilesSelected(e) {
+      const picked = Array.from(e.target.files);
+      const MAX_SIZE = 100 * 1024 * 1024; // 100MB per file
+      const remaining = 10 - this.mediaFiles.length;
+      const toAdd = picked.slice(0, remaining);
+
+      for (const file of toAdd) {
+        if (file.size > MAX_SIZE) {
+          alert(`${file.name} is too large (max 100MB).`);
+          continue;
+        }
+        this.mediaFiles.push({
+          file,
+          preview: URL.createObjectURL(file),
+          type: file.type
+        });
+      }
+      if (picked.length > remaining) {
+        alert(`Maximum 10 files. Only first ${remaining} file(s) added.`);
+      }
+      e.target.value = '';
+    },
+
+    removeMediaFile(index) {
+      const f = this.mediaFiles[index];
+      if (f?.preview) URL.revokeObjectURL(f.preview);
+      this.mediaFiles.splice(index, 1);
+    },
+
+    clearMediaFiles() {
+      this.mediaFiles.forEach(f => { if (f.preview) URL.revokeObjectURL(f.preview); });
+      this.mediaFiles = [];
+    },
+
+    openLightbox(url, sourceMsg) {
+      // Thu thập TẤT CẢ media (ảnh + video) trong đoạn chat
+      const allMedia = [];
+      for (const msg of this.messages) {
+        if (msg.recalled) continue;
+        if (msg.mediaUrls && msg.mediaUrls.length) {
+          for (const m of msg.mediaUrls) {
+            allMedia.push({
+              url: m.url,
+              type: m.type,
+              sender: msg.sender,
+              createdAt: msg.createdAt
+            });
+          }
+        }
+      }
+      if (!allMedia.length) {
+        allMedia.push({
+          url,
+          type: sourceMsg?.mediaUrls?.find(m => m.url === url)?.type || 'image',
+          sender: sourceMsg?.sender,
+          createdAt: sourceMsg?.createdAt
+        });
+      }
+      this.lightboxImages = allMedia;
+      this.lightboxIndex  = allMedia.findIndex(m => m.url === url);
+      if (this.lightboxIndex < 0) this.lightboxIndex = 0;
+      this.$nextTick(() => document.addEventListener('keydown', this.onLightboxKey));
+    },
+    closeLightbox() {
+      this.lightboxImages = [];
+      this.lightboxIndex  = 0;
+      document.removeEventListener('keydown', this.onLightboxKey);
+    },
+    prevLightbox() {
+      this.lightboxIndex = (this.lightboxIndex - 1 + this.lightboxImages.length) % this.lightboxImages.length;
+    },
+    nextLightbox() {
+      this.lightboxIndex = (this.lightboxIndex + 1) % this.lightboxImages.length;
+    },
+    onLightboxKey(e) {
+      if (e.key === 'Escape') this.closeLightbox();
+      if (e.key === 'ArrowLeft')  this.prevLightbox();
+      if (e.key === 'ArrowRight') this.nextLightbox();
+    },
+
+    autoResize(e) {
+      const el = e.target;
+      el.style.height = 'auto';
+      el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+      this.onTyping();
+    },
+
+    insertNewline() {
+      // Shift+Enter = xuống dòng thủ công
+      const el = this.$refs.inputRef;
+      if (!el) return;
+      const start = el.selectionStart;
+      const end   = el.selectionEnd;
+      this.draft = this.draft.slice(0, start) + '\n' + this.draft.slice(end);
+      this.$nextTick(() => {
+        el.selectionStart = el.selectionEnd = start + 1;
+        el.style.height = 'auto';
+        el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+      });
+    },
+
     onEmojiSelect(emoji) {
       this.draft += emoji.i;
       // Không đóng picker — user có thể chọn tiếp
@@ -700,7 +910,7 @@ export default {
 
     async blockUser(partner) {
       this.showPartnerMenu = false;
-      if (!confirm(`Chặn ${partner.firstname} ${partner.lastname}?`)) return;
+      if (!confirm(`Block ${partner.firstname} ${partner.lastname}?`)) return;
       try {
         const res = await fetch(`${API}/block`, {
           method: 'POST',
@@ -711,14 +921,14 @@ export default {
           this.blockStatus = 'you_blocked';
         } else {
           const data = await res.json().catch(() => ({}));
-          alert(data.msg || 'Không thể chặn người dùng này.');
+          alert(data.msg || 'Unable to block this user.');
         }
       } catch (e) { console.error("blockUser:", e); }
     },
 
     async unblockUser(partner) {
       this.showPartnerMenu = false;
-      if (!confirm(`Bỏ chặn ${partner.firstname} ${partner.lastname}?`)) return;
+      if (!confirm(`Unblock ${partner.firstname} ${partner.lastname}?`)) return;
       try {
         const res = await fetch(`${API}/block/unblock`, {
           method: 'POST',
@@ -729,7 +939,7 @@ export default {
           this.blockStatus = null;
         } else {
           const data = await res.json().catch(() => ({}));
-          alert(data.msg || 'Không thể bỏ chặn.');
+          alert(data.msg || 'Unable to unblock.');
         }
       } catch (e) { console.error("unblockUser:", e); }
     },
@@ -803,10 +1013,16 @@ export default {
     // ── Send ──────────────────────────────────────────────────
     send() {
       const text = this.draft.trim();
-      if (!text || !this.activePartner) return;
+      if (!text && !this.mediaFiles.length) return;
+      if (!this.activePartner) return;
+
+      if (this.mediaFiles.length) {
+        this.sendWithMedia(text);
+        return;
+      }
+
       this.draft = "";
       this.sendStopTyping();
-
       const tempId = `tmp_${Date.now()}`;
       const replySnapshot = this.replyingTo ? { ...this.replyingTo } : null;
       this.messages.push({
@@ -816,16 +1032,84 @@ export default {
       });
       this.replyingTo = null;
       this.$nextTick(this.scrollBottom);
-
       if (this.socket?.connected) {
         this.socket.emit("message:send", {
-          receiverId: this.activePartner._id,
-          content: text,
-          replyTo: replySnapshot?._id || null,
-          tempId
+          receiverId: this.activePartner._id, content: text,
+          replyTo: replySnapshot?._id || null, tempId
         });
       } else {
         this.restSend(text, tempId);
+      }
+    },
+
+    async sendWithMedia(text) {
+      const files = [...this.mediaFiles];
+      const replySnapshot = this.replyingTo ? { ...this.replyingTo } : null;
+      this.draft = "";
+      this.replyingTo = null;
+      this.clearMediaFiles();
+
+      // ── Gửi TEXT trước (nếu có) ──────────────────────────────
+      if (text.trim()) {
+        const textTempId = `tmp_txt_${Date.now()}`;
+        this.messages.push({
+          tempId: textTempId, content: text.trim(), sending: true,
+          reactions: [], replyTo: replySnapshot,
+          sender: { _id: this.myId }, receiver: { _id: this.activePartner._id },
+          status: 'sent', createdAt: new Date().toISOString()
+        });
+        this.$nextTick(this.scrollBottom);
+        if (this.socket?.connected) {
+          this.socket.emit("message:send", {
+            receiverId: this.activePartner._id,
+            content: text.trim(),
+            replyTo: replySnapshot?._id || null,
+            tempId: textTempId
+          });
+        } else {
+          this.restSend(text.trim(), textTempId);
+        }
+      }
+
+      // ── Gửi MEDIA riêng (không kèm text) ────────────────────
+      const mediaTempId = `tmp_media_${Date.now()}`;
+      const optimisticMedia = files.map(f => ({
+        url: f.preview,
+        type: f.type.startsWith('image') ? 'image' : 'video'
+      }));
+      this.messages.push({
+        tempId: mediaTempId, content: '', sending: true, reactions: [],
+        replyTo: null,
+        sender: { _id: this.myId }, receiver: { _id: this.activePartner._id },
+        status: 'sent', createdAt: new Date().toISOString(),
+        mediaUrls: optimisticMedia
+      });
+      this.$nextTick(this.scrollBottom);
+
+      try {
+        const fd = new FormData();
+        fd.append('senderId', this.myId);
+        fd.append('receiverId', this.activePartner._id);
+        files.forEach(f => fd.append('media', f.file));
+
+        const res = await fetch(`${API}/messages/media`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+          body: fd
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const msg = data.message || data;
+          const idx = this.messages.findIndex(m => m.tempId === mediaTempId);
+          if (idx !== -1) this.messages.splice(idx, 1, { ...msg, status: 'sent' });
+          this.bumpContact(msg);
+        } else {
+          const m = this.messages.find(m => m.tempId === mediaTempId);
+          if (m) { m.sending = false; m.failed = true; m.mediaUrls = []; }
+        }
+      } catch (e) {
+        const m = this.messages.find(m => m.tempId === mediaTempId);
+        if (m) { m.sending = false; m.failed = true; m.mediaUrls = []; }
       }
     },
 
@@ -873,7 +1157,13 @@ export default {
     recallMsg(msg) {
       if (!confirm("Recall this message?")) return;
       this.socket?.emit("message:recall", { messageId: msg._id, receiverId: this.activePartner._id });
-      msg.recalled = true; msg.content = "";
+      msg.recalled = true; msg.content = ""; msg.mediaUrls = [];
+      // Cập nhật contact sidebar ngay lập tức
+      const contact = this.contacts.find(c => {
+        const p = this.getPartner(c);
+        return p && String(p._id) === String(this.activePartner._id);
+      });
+      if (contact) { contact.recalled = true; contact.content = ""; }
     },
     canRecall(msg) {
       return msg.createdAt && (Date.now() - new Date(msg.createdAt).getTime()) < 86400000;
@@ -887,7 +1177,7 @@ export default {
     },
 
      async deleteConversation() {
-      if (!confirm(`Xóa toàn bộ lịch sử chat với ${this.activePartner.firstname}?\nHành động này không thể hoàn tác.`)) return;
+      if (!confirm(`Delete all chat history with ${this.activePartner.firstname}?\nThis cannot be undone.`)) return;
       try {
         const res = await fetch(`${API}/messages/conversation/${this.activePartner._id}`, {
           method: "DELETE",
@@ -896,7 +1186,7 @@ export default {
         if (res.ok) {
           this.messages = [];
         } else {
-          // Fallback: xóa từng tin nhắn local nếu API chưa có endpoint này
+          // Fallback: delete messages locally if endpoint unavailable
           this.messages.forEach(m => {
             if (m._id) this.socket?.emit("message:delete", { messageId: m._id });
           });
@@ -915,11 +1205,27 @@ export default {
       if (!msg._id) return;
       this.emojiFor = null;
       const current = this.myReaction(msg);
+      const newEmoji = current === emoji ? "" : emoji;
       this.socket?.emit("message:react", {
         messageId: msg._id,
-        emoji: current === emoji ? "" : emoji,
+        emoji: newEmoji,
         partnerId: this.activePartner._id
       });
+      // Cập nhật contact sidebar ngay — người react luôn là mình ("You")
+      const contact = this.contacts.find(c => {
+        const p = this.getPartner(c);
+        return p && String(p._id) === String(this.activePartner._id);
+      });
+      if (contact) {
+        if (newEmoji) {
+          contact._reactedBy = 'You';
+          contact._reactEmoji = newEmoji;
+        } else {
+          // Bỏ react → xóa trạng thái
+          contact._reactedBy = null;
+          contact._reactEmoji = null;
+        }
+      }
     },
     myReaction(msg) {
       return msg.reactions?.find(r => String(r.user?._id || r.user) === String(this.myId))?.emoji;
@@ -1022,17 +1328,32 @@ export default {
         return String(p?._id || p) === partnerId;
       });
       if (idx !== -1) {
-        const c = { ...this.contacts[idx], ...msg };
+        // Reset react state khi có tin nhắn mới
+        const c = {
+          ...this.contacts[idx], ...msg,
+          _reactedBy: null, _reactEmoji: null
+        };
         this.contacts.splice(idx, 1);
         this.contacts.unshift(c);
       } else {
-        this.contacts.unshift(msg);
+        this.contacts.unshift({ ...msg, _reactedBy: null, _reactEmoji: null });
       }
     },
 
     scrollBottom() {
       const el = this.$refs.msgsArea;
       if (el) el.scrollTop = el.scrollHeight;
+    },
+
+    scrollToMsg(msgId) {
+      if (!msgId) return;
+      const el = document.querySelector(`[data-msg-id="${msgId}"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Flash highlight
+        el.classList.add('msg-highlight');
+        setTimeout(() => el.classList.remove('msg-highlight'), 1500);
+      }
     },
 
     fmtTime(d) {
@@ -1140,6 +1461,7 @@ export default {
 .contact-preview.bold { font-weight: 700; color: #111827; }
 .you-label { color: #9ca3af; }
 .recalled-prev { font-style: italic; color: #9ca3af; }
+.reacted-prev { color: #6b7280; }
 .unread-badge { width: 8px; height: 8px; border-radius: 50%; background: #3b82f6; flex-shrink: 0; }
 
 /* Empty sidebar */
@@ -1309,7 +1631,7 @@ export default {
 .msg-row.theirs .bubble-col { align-items: flex-start; }
 
 /* Bubble wrapper — anchor for hover menu */
-.bubble-wrap { position: relative; display: inline-flex; }
+.bubble-wrap { position: relative; display: inline-flex; flex-direction: column; align-items: flex-start; }
 
 /* Reply snip — embedded INSIDE bubble */
 .reply-snip {
@@ -1317,6 +1639,8 @@ export default {
   border-radius: 8px; padding: 6px 10px; margin-bottom: 6px;
   max-width: 100%; overflow: hidden;
 }
+.reply-snip { cursor: pointer; }
+.reply-snip:hover { opacity: 0.85; }
 .reply-snip-mine   { background: rgba(0,0,0,0.18); }
 .reply-snip-theirs { background: rgba(59,130,246,0.10); border: 1px solid rgba(59,130,246,0.15); }
 .reply-accent { width: 3px; border-radius: 2px; flex-shrink: 0; align-self: stretch; }
@@ -1330,7 +1654,7 @@ export default {
 .reply-snip-mine .reply-snip-txt   { color: rgba(255,255,255,0.7); }
 .reply-snip-theirs .reply-snip-txt { color: #6b7280; }
 /* bubble text sits below the quote */
-.bubble-text { display: block; }
+.bubble-text { display: block; white-space: pre-wrap; word-break: break-word; }
 /* bubble with reply: reduce top border-radius to connect visually */
 .b-reply.b-mine   { border-radius: 18px 4px 4px 18px; }
 .b-reply.b-theirs { border-radius: 4px 18px 18px 4px; }
@@ -1344,6 +1668,8 @@ export default {
 .b-mine    { background: #3b82f6; color: #fff; border-radius: 18px 18px 4px 18px; }
 .b-theirs  { background: #fff; color: #111827; border-radius: 18px 18px 18px 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
 .b-recalled{ background: #f3f4f6 !important; color: #9ca3af !important; font-style: italic; border-radius: 18px !important; }
+@keyframes msg-flash { 0%,100% { background: transparent; } 50% { background: rgba(59,130,246,0.15); } }
+.msg-highlight { animation: msg-flash 1.5s ease; border-radius: 12px; }
 .b-sending { opacity: 0.55; }
 .b-failed  { background: #fee2e2 !important; color: #991b1b !important; border-radius: 18px !important; }
 
@@ -1457,6 +1783,119 @@ export default {
 }
 .reply-close:hover { background: #f3f4f6; color: #374151; }
 
+/* ── Media strip (preview above input) ── */
+.media-strip {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 10px 16px; background: #f8fafc; border-top: 1px solid #e5e7eb;
+}
+.media-strip-item { position: relative; flex-shrink: 0; }
+.strip-thumb {
+  width: 72px; height: 72px; object-fit: cover;
+  border-radius: 8px; border: 1px solid #ddd; display: block;
+}
+.strip-video { background: #000; }
+.strip-remove {
+  position: absolute; top: -6px; right: -6px;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: #ef4444; border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; color: #fff;
+}
+.strip-add {
+  width: 72px; height: 72px; border-radius: 8px;
+  border: 2px dashed #d1d5db; background: #f9fafb;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: #9ca3af; flex-shrink: 0;
+}
+.strip-add:hover { border-color: #3b82f6; color: #3b82f6; background: #eff6ff; }
+
+/* Media button in input bar */
+.media-btn {
+  position: relative; width: 36px; height: 36px; border-radius: 50%;
+  border: none; background: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: #6b7280; flex-shrink: 0; transition: background 0.12s;
+}
+.media-btn:hover { background: #f3f4f6; color: #374151; }
+.media-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.media-count-badge {
+  position: absolute; top: -2px; right: -2px;
+  background: #3b82f6; color: #fff; font-size: 10px; font-weight: 700;
+  width: 16px; height: 16px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* Media grid — separate from bubble */
+.msg-media-grid {
+  display: grid; gap: 3px; border-radius: 12px; overflow: hidden;
+  max-width: 300px; margin-top: 4px;
+  background: #fff;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.10);
+}
+.grid-mine  { align-self: flex-end; }
+.grid-theirs { align-self: flex-start; }
+
+.grid-1 { grid-template-columns: 1fr; }
+.grid-2 { grid-template-columns: 1fr 1fr; }
+.grid-3 { grid-template-columns: 1fr 1fr; }
+.grid-4 { grid-template-columns: 1fr 1fr; }
+.grid-3 .msg-media-cell:first-child,
+.grid-4 .msg-media-cell:first-child { grid-column: 1 / -1; }
+
+.msg-media-cell { overflow: hidden; background: #f3f4f6; }
+.msg-media-img {
+  width: 100%; height: 160px; object-fit: cover;
+  display: block; cursor: zoom-in; transition: opacity 0.15s;
+}
+.msg-media-img:hover { opacity: 0.88; }
+.grid-1 .msg-media-img { height: 220px; }
+.msg-media-vid {
+  width: 100%; max-height: 220px; display: block;
+  background: #111;
+}
+
+/* Lightbox */
+.lightbox {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.88);
+  z-index: 9999; display: flex; align-items: center; justify-content: center;
+}
+.lightbox-img { max-width: 92vw; max-height: 90vh; border-radius: 10px; object-fit: contain;}
+.lightbox-sender {
+  position: absolute; top: 18px; left: 20px;
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(0,0,0,0.45); border-radius: 12px; padding: 8px 14px;
+  backdrop-filter: blur(4px);
+}
+.lb-av { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.3); }
+.lb-name { font-size: 13px; font-weight: 700; color: #fff; }
+.lb-time { font-size: 11px; color: rgba(255,255,255,0.65); margin-top: 1px; }
+.lightbox-vid {
+  max-width: 92vw; max-height: 88vh; border-radius: 10px;
+  background: #000; outline: none;
+}
+.msg-media-vid { cursor: pointer; }
+
+.lightbox-close {
+  position: absolute; top: 20px; right: 20px;
+  background: rgba(255,255,255,0.15); border: none; border-radius: 50%;
+  width: 44px; height: 44px; display: flex; align-items: center;
+  justify-content: center; cursor: pointer; color: #fff;
+}
+.lightbox-close:hover { background: rgba(255,255,255,0.3); }
+.lightbox-nav {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  background: rgba(255,255,255,0.15); border: none; border-radius: 50%;
+  width: 48px; height: 48px; display: flex; align-items: center;
+  justify-content: center; cursor: pointer; color: #fff; transition: background 0.15s;
+}
+.lightbox-nav:hover { background: rgba(255,255,255,0.35); }
+.lightbox-prev { left: 20px; }
+.lightbox-next { right: 20px; }
+.lightbox-counter {
+  position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: rgba(0,0,0,0.5); color: #fff; font-size: 13px;
+  padding: 4px 14px; border-radius: 20px;
+}
+
 /* Input bar */
 .input-bar {
   display: flex; align-items: center; gap: 10px;
@@ -1464,10 +1903,12 @@ export default {
   flex-shrink: 0;
 }
 .input-field {
-  flex: 1; border: 1.5px solid #e5e7eb; border-radius: 24px;
+  flex: 1; border: 1.5px solid #e5e7eb; border-radius: 18px;
   padding: 10px 18px; outline: none; font-size: 14px; color: #111827;
   background: #f9fafb; transition: border-color 0.2s, background 0.2s;
-  box-sizing: border-box;
+  box-sizing: border-box; resize: none; overflow-y: hidden;
+  min-height: 42px; max-height: 120px; line-height: 1.5;
+  font-family: inherit;
 }
 .input-field:focus { border-color: #3b82f6; background: #fff; }
 .input-field::placeholder { color: #9ca3af; }

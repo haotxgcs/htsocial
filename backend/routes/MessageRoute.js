@@ -2,6 +2,7 @@ const express = require('express');
 const router  = express.Router();
 const auth    = require('../middleware/authMiddleware');
 const C       = require('../controllers/MessageController');
+const { uploadMessageMedia } = require('../middleware/uploadCloudinary');
 
 // Inbox summary (conversations list)
 router.get('/contacts',                  auth, C.getContacts);
@@ -29,5 +30,11 @@ router.delete('/:id',                    auth, C.deleteMessage);
 
 // React to message
 router.post('/:id/react',               auth, C.reactToMessage);
+
+// Send message with media (up to 10 files, Cloudinary)
+router.post('/media',                   auth, uploadMessageMedia.array('media', 10), C.sendMediaMessage);
+
+// Delete entire conversation with a partner (soft delete)
+router.delete('/conversation/:partnerId', auth, C.deleteConversation);
 
 module.exports = router;

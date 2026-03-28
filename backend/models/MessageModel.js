@@ -46,6 +46,14 @@ const messageSchema = new mongoose.Schema(
       default: false
     },
 
+    // ── Media attachments (Cloudinary URLs) ─────────────────────
+    mediaUrls: [
+      {
+        url:  { type: String },
+        type: { type: String, enum: ['image', 'video'] }
+      }
+    ],
+
     // ── Soft delete — chỉ ẩn với user đã xóa ────────────────────
     deletedFor: [
       { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
