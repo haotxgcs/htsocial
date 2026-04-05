@@ -185,7 +185,7 @@
               </div>
             </div>
             <div class="rating-count">
-              <span>{{ post.totalRatings }} ratings</span>
+              <span>{{ post.totalRatings }} {{ post.totalRatings > 1 ? 'ratings' : 'rating' }}</span>
             </div>
           </div>
         </div>
@@ -685,372 +685,281 @@ export default {
 </script>
 
 <style scoped>
-  
-/* --- 1. PAGE LAYOUT & RESPONSIVE --- */
+
+/* ── PAGE LAYOUT ── */
 .saved-posts-page {
-  width: 100%;             /* Chiếm hết chiều rộng */
+  width: 100%;
   min-height: 100vh;
-  
-  
-  /* Sidebar spacing */
-  padding-left: 320px; 
-  padding-top: 30px; 
+  padding-left: 320px;
+  padding-top: 30px;
   padding-right: 20px;
-  
-  box-sizing: border-box; 
+  box-sizing: border-box;
   font-family: 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg-body);
+  transition: background-color 0.3s;
 }
 
-.content-body{
-  position: relative; /* Để làm mốc cho LoadingOverlay */
+.content-body {
+  position: relative;
   min-height: 200px;
 }
 
-/* 2. LỚP NỘI DUNG: Căn giữa, giới hạn chiều rộng */
 .saved-content-wrapper {
   width: 100%;
   max-width: 750px;
-  margin: 0 auto; 
-  /* Dùng Flexbox để tạo khoảng cách */
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
-  /* Khoảng cách giữa các bài viết */
-  gap: 24px; 
+  gap: 24px;
 }
 
-/* Tablet & Mobile Responsive */
-@media (max-width: 1024px) { 
+@media (max-width: 1024px) {
   .saved-posts-page {
-    padding-left: 16px;  
+    padding-left: 16px;
     padding-right: 16px;
-    padding-top: 80px; /* Tránh header fixed */
+    padding-top: 80px;
     max-width: 100%;
   }
 }
 
-/* --- 2. HEADER & EMPTY STATE --- */
+/* ── HEADER ── */
 .header-section {
   text-align: center; margin-bottom: 24px; padding: 24px;
-  background: white; border-radius: 12px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05); border: 1px solid #eee; font-weight: 600;
+  background: var(--bg-card); border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  border: 1px solid var(--border-color);
+  font-weight: 600;
+  transition: background-color 0.3s;
 }
-.header-section h2 { margin: 0 0 8px 0; font-size: 24px; font-weight: 800; color: #1c1e21; }
+.header-section h2 {
+  margin: 0 0 8px 0; font-size: 24px; font-weight: 800;
+  color: var(--text-main);
+}
 .saved-count { margin: 0; font-size: 14px; color: #FF642F; font-weight: 500; }
 
-/* search saved posts */
+/* ── SEARCH ── */
 .search-saved {
-  position: relative; /* Làm mốc tọa độ cho dropdown */
+  position: relative;
   flex: 1;
   display: flex;
   align-items: center;
+  background: var(--bg-card);
+  padding: 14px;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  border: 1px solid var(--border-color);
+  transition: background-color 0.3s;
 }
 
 .search-saved input {
   width: 100%;
   margin-right: 12px;
-  padding: 10px 36px 10px 16px; /* Chừa chỗ cho nút X */
-  border-radius: 20px; 
-  border: 1px solid #eee;
-  background: #f9f9f9; 
-  outline: none; 
-  transition: 0.2s; 
+  padding: 10px 36px 10px 16px;
+  border-radius: 20px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-input);
+  color: var(--text-main);
+  outline: none;
+  transition: 0.2s;
   font-size: 14px;
 }
-
-.search-saved input:focus { 
-  background: white; 
-  border-color: #FF642F; 
-  box-shadow: 0 0 0 2px rgba(255, 100, 47, 0.1); 
+.search-saved input:focus {
+  background: var(--bg-card);
+  border-color: #FF642F;
+  box-shadow: 0 0 0 2px rgba(255,100,47,0.1);
 }
+.search-saved input::placeholder { color: var(--text-sub); }
 
 .clear-icon {
-  position: absolute;
-  right: 130px;
-  color: #999;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: bold;
-  padding: 4px;
+  position: absolute; right: 130px;
+  color: var(--text-sub); cursor: pointer;
+  font-size: 14px; font-weight: bold; padding: 4px;
 }
 .clear-icon:hover { color: #FF642F; }
 
 .search-btn {
-  background: #FF642F; color: white; border: none; 
-  border-radius: 20px; padding: 10px 24px; font-weight: 600; cursor: pointer;
-  height: 40px; /* Cố định chiều cao cho bằng input */
+  background: #FF642F; color: white; border: none;
+  border-radius: 20px; padding: 10px 24px;
+  font-weight: 600; cursor: pointer; height: 40px;
+  transition: 0.2s;
 }
+.search-btn:hover { background: #e05522; }
 
-
-
-@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-.empty-state { text-align: center; padding: 80px 20px; background: white; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+/* ── EMPTY STATE ── */
+.empty-state {
+  text-align: center; padding: 80px 20px;
+  background: var(--bg-card); border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  border: 1px solid var(--border-color);
+}
 .empty-icon { width: 80px; height: 80px; opacity: 0.4; margin-bottom: 24px; }
-.browse-btn { background: #FF642F; color: white; border: none; padding: 12px 24px; border-radius: 20px; cursor: pointer; font-weight: 600; margin-top: 16px; transition: 0.2s; }
+.browse-btn {
+  background: #FF642F; color: white; border: none;
+  padding: 12px 24px; border-radius: 20px;
+  cursor: pointer; font-weight: 600; margin-top: 16px; transition: 0.2s;
+}
 .browse-btn:hover { background: #e04f1d; }
 
-/* --- 3. POST ITEM STYLES --- */
+/* ── POSTS ── */
 .posts-container { display: flex; flex-direction: column; gap: 20px; }
 
-.post-item { 
-  background: white; border-radius: 16px; padding: 0; 
-  box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #f0f0f0; 
-  overflow: visible; /* Để dropdown menu không bị che nếu có */
-  
+.post-item {
+  background: var(--bg-card); border-radius: 16px; padding: 0;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.04);
+  border: 1px solid var(--border-color);
+  overflow: visible;
+  transition: background-color 0.3s;
 }
 
 /* Post Header */
-.post-header { padding: 16px; display: flex; justify-content: space-between; align-items: center; }
-.post-author-info { display: flex; align-items: center; flex: 1; }
-.post-author-info img { width: 40px; height: 40px; border-radius: 50%; margin-right: 12px; object-fit: cover; border: 1px solid #eee; }
-.author-details strong { font-size: 15px; font-weight: 600; color: #1c1e21; display: block; }
-.author-details .time { font-size: 12px; color: #999; margin-top: 2px; }
-
-/* Unsave Button Style */
-.unsave-btn { 
-  display: flex; align-items: center; gap: 6px; padding: 6px 12px; 
-  border-radius: 8px; font-size: 13px; font-weight: 600; border: none; 
-  background: #fff5eb; color: #FF642F; cursor: pointer; transition: all 0.2s; 
+.post-header {
+  padding: 16px; display: flex;
+  justify-content: space-between; align-items: center;
 }
-.unsave-btn:hover { background: #ffe0d1; }
+.post-author-info { display: flex; align-items: center; flex: 1; }
+.post-author-info img {
+  width: 40px; height: 40px; border-radius: 50%;
+  margin-right: 12px; object-fit: cover;
+  border: 1px solid var(--border-color);
+}
+.author-details strong {
+  font-size: 15px; font-weight: 600;
+  color: var(--text-main); display: block;
+}
+.author-details .time { font-size: 12px; color: var(--text-sub); margin-top: 2px; }
 
-/* --- 4. RECIPE CONTENT STYLES (NEW) --- */
+.unsave-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 12px; border-radius: 8px;
+  font-size: 13px; font-weight: 600; border: none;
+  background: var(--hover-primary); color: #FF642F;
+  cursor: pointer; transition: all 0.2s;
+}
+.unsave-btn:hover { filter: brightness(0.95); }
+
+/* ── RECIPE CONTENT ── */
 .post-content-wrapper { padding: 0 16px 12px 16px; }
 
-.recipe-title { 
-  font-size: 18px; font-weight: 700; color: #333; margin: 0 0 6px 0; 
+.recipe-title { font-size: 18px; font-weight: 700; color: var(--text-main); margin: 0 0 6px 0; }
+.recipe-category {
+  display: inline-block; font-size: 12px; font-weight: 600;
+  color: #FF642F; background-color: var(--hover-primary);
+  padding: 4px 10px; border-radius: 20px; margin-bottom: 12px;
 }
-.recipe-category { 
-  display: inline-block; font-size: 12px; font-weight: 600; 
-  color: #FF642F; background-color: #FFF0E6; 
-  padding: 4px 10px; border-radius: 20px; margin-bottom: 12px; 
-}
-.recipe-section-header {
-  font-weight: 700;
-  margin: 20px 0 10px 0;
-  font-size: 13px;
-  color: #333;
-}
-.post-text { font-size: 15px; line-height: 1.5; color: #333; margin: 0; white-space: pre-line; }
-.read-more-btn { 
-  border: none; background: none; color: #FF642F; 
-  font-weight: 600; font-size: 13px; cursor: pointer; 
-  padding: 0; margin-top: 5px; 
-}
-.read-more-btn:hover { text-decoration: underline;}
+.recipe-section-header { font-weight: 700; margin: 20px 0 10px 0; font-size: 13px; color: var(--text-main); }
+.post-text { font-size: 15px; line-height: 1.5; color: var(--text-main); margin: 0; white-space: pre-line; }
 
-.post-media,
-.post-image {
-  width: 100%;
-  max-height: 500px;
-  object-fit: cover;
-  border-radius: 12px;
-  margin-top: 10px;
-  display: block;
+.read-more-btn {
+  border: none; background: none; color: #FF642F;
+  font-weight: 600; font-size: 13px; cursor: pointer;
+  padding: 0; margin-top: 5px;
 }
+.read-more-btn:hover { text-decoration: underline; }
 
+.post-media, .post-image {
+  width: 100%; max-height: 500px; object-fit: cover;
+  border-radius: 12px; margin-top: 10px; display: block;
+}
 .post-video {
-width: 100%; max-height: 300px; object-fit: contain; border-radius: 8px; background-color:black;
+  width: 100%; max-height: 300px; object-fit: contain;
+  border-radius: 8px; background-color: black;
 }
 
-/* ================= LINKED ITEMS IN POST ================= */
-
+/* ── LINKED ITEMS ── */
 .linked-items-in-post {
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px dashed #e5e7eb;
+  margin-top: 14px; padding-top: 12px;
+  border-top: 1px dashed var(--border-color);
 }
-
-.linked-items-title {
-  font-size: 13px;
-  font-weight: 700;
-  color: #333;
-  margin-bottom: 8px;
-}
-
-/* ===== CAROUSEL ITEM ===== */
+.linked-items-title { font-size: 13px; font-weight: 700; color: var(--text-main); margin-bottom: 8px; }
 
 .linked-item-card.carousel {
-  position: relative;
-  display: flex;
-  gap: 10px;
-  padding: 10px;
-  border: 1px solid #e4e6ea;
-  border-radius: 12px;
-  background: #fafafa;
+  position: relative; display: flex; gap: 10px;
+  padding: 10px; border: 1px solid var(--border-color);
+  border-radius: 12px; background: var(--bg-input);
 }
-
-/* GROUP ARROWS */
 .carousel-arrows {
-  position: absolute;
-  top: 50%;
-  right: 10px;
-  transform: translateY(-50%);
-  display: flex;
-  gap: 6px;
+  position: absolute; top: 50%; right: 10px;
+  transform: translateY(-50%); display: flex; gap: 6px;
 }
-
-/* SINGLE ARROW */
 .carousel-arrow {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  border: 1px solid #e5e7eb;
-  background: white;
-  cursor: pointer;
-  font-size: 16px;
-  font-weight: bold;
-  color: #374151;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 28px; height: 28px; border-radius: 50%;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card); cursor: pointer;
+  font-size: 16px; font-weight: bold; color: var(--text-main);
+  display: flex; align-items: center; justify-content: center;
+  transition: 0.2s;
 }
-
 .carousel-arrow:hover:not(:disabled) {
-  background: #fff7ed;
-  border-color: #fb923c;
-  color: #ea580c;
+  background: var(--hover-primary); border-color: #fb923c; color: #ea580c;
 }
-
-.carousel-arrow:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-}
+.carousel-arrow:disabled { opacity: 0.3; cursor: not-allowed; }
 
 .carousel-indicator {
-  margin-top: 6px;
-  align-self: flex-start;
-  font-size: 12px;
-  font-weight: 600;
-  color: #6b7280;
-  background: #f3f4f6;
-  padding: 3px 10px;
-  border-radius: 999px;
-  width: fit-content;
+  margin-top: 6px; align-self: flex-start;
+  font-size: 12px; font-weight: 600; color: var(--text-sub);
+  background: var(--bg-input); padding: 3px 10px;
+  border-radius: 999px; width: fit-content;
 }
 
-
-
-
-/* CHỪA CHỖ BÊN PHẢI CHO ARROW */
-.linked-item-info {
-  padding-right: 70px;
-}
-
-
+.linked-item-info { padding-right: 70px; flex: 1; min-width: 0; }
 .linked-item-card {
-  display: flex;
-  gap: 10px;
-  padding: 8px;
-  border: 1px solid #e4e6ea;
-  border-radius: 10px;
-  background: #fafafa;
+  display: flex; gap: 10px; padding: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px; background: var(--bg-input);
 }
-
 .linked-item-thumb {
-  width: 42px;
-  height: 42px;
-  object-fit: cover;
-  border-radius: 8px;
-  flex-shrink: 0;
+  width: 42px; height: 42px; object-fit: cover;
+  border-radius: 8px; flex-shrink: 0;
 }
-
-.linked-item-info {
-  flex: 1;
-  min-width: 0;
-}
-
 .linked-item-title {
-  font-size: 14px;
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 14px; font-weight: 600; color: var(--text-main);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-
-.linked-item-meta {
-  font-size: 12px;
-  color: #FF642F;
-  margin-top: 2px;
-}
+.linked-item-meta { font-size: 12px; color: #FF642F; margin-top: 2px; }
 
 .own-item-badge {
-  margin-left: 6px;
-  padding: 2px 6px;
-  font-size: 11px;
-  font-weight: 600;
-  border-radius: 999px;
-  background: #e6f9ee;
-  color: #15803d;
-  text-transform: uppercase;
+  margin-left: 6px; padding: 2px 6px; font-size: 11px;
+  font-weight: 600; border-radius: 999px;
+  background: #e6f9ee; color: #15803d; text-transform: uppercase;
 }
 
 .view-item-btn {
-  margin-left:10px;
-  padding: 4px 10px;
-  font-size: 12px;
-  border-radius: 999px;
-  border: 1px solid #e5e7eb;
-  background: white;
-  cursor: pointer;
+  margin-left: 10px; padding: 4px 10px; font-size: 12px;
+  border-radius: 999px; border: 1px solid var(--border-color);
+  background: var(--bg-card); color: var(--text-main); cursor: pointer;
+  transition: 0.2s;
 }
+.view-item-btn:hover { background: var(--hover-primary); border-color: #fb923c; color: #ea580c; }
 
-.view-item-btn:hover {
-  background: #fff7ed;
-  border-color: #fb923c;
-  color: #ea580c;
-}
-
-/* Rating */
-.rating-statistics { 
-  margin: 0 16px 12px 16px; background: #fff9e6; border: 1px solid #ffe9b8; 
-  padding: 8px 12px; border-radius: 10px; 
+/* ── RATING ── */
+.rating-statistics {
+  margin: 0 16px 12px 16px;
+  background: var(--hover-primary);
+  border: 1px solid var(--border-color);
+  padding: 8px 12px; border-radius: 10px;
 }
 .rating-summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .average-rating { display: flex; align-items: center; gap: 8px; }
 .rating-number { font-size: 18px; font-weight: bold; color: #f57c00; }
 .stars-display { display: flex; gap: 2px; }
-.star-icon { font-size: 16px; color: #ddd; }
+.star-icon { font-size: 16px; color: var(--border-color); }
 .star-icon.filled { color: #ffc107; }
-.rating-count { font-size: 13px; color: #856404; font-weight: 600; }
+.rating-count { font-size: 13px; color: var(--text-sub); font-weight: 600; }
 
-/* Stats & Actions */
-.post-stats { 
-  padding: 0 16px 12px; font-size: 13px; color: #65676b; 
-  display: flex; gap: 16px; border-bottom: 1px solid #f0f0f0; 
+/* ── STATS & ACTIONS ── */
+.post-stats {
+  padding: 0 16px 12px; font-size: 13px; color: var(--text-sub);
+  display: flex; gap: 16px; border-bottom: 1px solid var(--border-color);
 }
 .post-actions { display: flex; justify-content: space-around; padding: 8px 0; }
-.post-actions button { 
-  background: none; border: none; color: #65676b; cursor: pointer; 
-  font-weight: 500; font-size: 14px; display: flex; align-items: center; 
-  gap: 8px; padding: 8px 12px; border-radius: 8px; transition: all 0.2s; 
+.post-actions button {
+  background: none; border: none; color: var(--text-sub); cursor: pointer;
+  font-weight: 500; font-size: 14px; display: flex; align-items: center;
+  gap: 8px; padding: 8px 12px; border-radius: 8px; transition: all 0.2s;
   flex: 1; justify-content: center;
 }
-.post-actions button:hover { background-color: #f2f3f5; color: #FF642F; }
+.post-actions button:hover { background-color: var(--hover-bg); color: #FF642F; }
 .action-icon { width: 20px; height: 20px; opacity: 0.7; }
 
-.search-saved {
-  background: white;
-  padding: 14px;
-  border-radius: 12px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-}
-
-.search-saved input {
-  width: 100%;
-  padding: 10px 16px;
-  border-radius: 999px;
-  border: 1px solid #eee;
-}
-
-.search-saved input:focus {
-  outline: none;
-  border-color: #FF642F;
-}
-
-
-
-
-
-
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 </style>

@@ -10,7 +10,6 @@ const postRoutes        = require("./routes/PostRoute");
 const commentRoutes     = require("./routes/CommentRoute");
 const shareRoutes       = require("./routes/ShareRoute");
 const messageRoutes     = require("./routes/MessageRoute");
-const groupRoutes       = require("./routes/GroupRoutes");
 const feedRoutes        = require("./routes/FeedRoute");
 const blockRoutes        = require("./routes/BlockRoute");
 const marketplaceRoutes = require("./routes/MarketplaceRoute");
@@ -21,8 +20,11 @@ const reviewRoutes      = require("./routes/ReviewRoute");
 const refundRoutes      = require("./routes/RefundRoute");
 const stripeRoutes      = require("./routes/StripeRoute");
 const { stripeWebhook } = require("./controllers/StripeController");
+const notificationRoutes = require("./routes/NotificationRoute");
 
-const Message = require("./models/MessageModel");
+const Message  = require("./models/MessageModel");
+const Notification = require("./models/NotificationModel");
+const { createNotification } = require("./controllers/NotificationController");
 
 const app    = express();
 const server = http.createServer(app);
@@ -41,6 +43,12 @@ const io = new Server(server, {
 
 // userId → Set of socketIds (user có thể mở nhiều tab)
 const onlineUsers = new Map();
+
+// Inject io vào NotificationController để dùng trong REST endpoints
+const NotificationController = require("./controllers/NotificationController");
+NotificationController._setIO = function(ioInstance) {
+  NotificationController._io = ioInstance;
+};
 
 function addOnline(userId, socketId) {
   if (!onlineUsers.has(userId)) onlineUsers.set(userId, new Set());
@@ -66,6 +74,7 @@ io.on("connection", (socket) => {
   socket.on("user:online", (userId) => {
     socket.userId = userId.toString();
     addOnline(socket.userId, socket.id);
+    socket.join(`user:${socket.userId}`); // Dùng cho notification room
     socket.broadcast.emit("user:status", { userId: socket.userId, online: true });
     socket.emit("users:online", Array.from(onlineUsers.keys()));
   });
@@ -176,6 +185,16 @@ io.on("connection", (socket) => {
       const payload = { messageId, reactions: populated.reactions };
       socket.emit("message:reacted", payload);
       emitToUser(partnerId, "message:reacted", payload);
+
+      // Notification: nếu partner react vào tin của mình
+      if (emoji?.trim() && socket.userId !== message.sender.toString()) {
+        await createNotification(io, {
+          recipientId: message.sender,
+          senderId: socket.userId,
+          type: "like_post", // Dùng chung type, hoặc thêm "react_message" vào enum
+          meta: { messageId }
+        }).catch(() => {});
+      }
     } catch (err) {
       console.error("socket message:react error:", err);
     }
@@ -233,7 +252,6 @@ app.use("/posts",        postRoutes);
 app.use("/comments",     commentRoutes);
 app.use("/shares",       shareRoutes);
 app.use("/messages",     messageRoutes);
-app.use("/groups",       groupRoutes);
 app.use("/feeds",        feedRoutes);
 app.use("/block",        blockRoutes);  // ← thêm dòng này
 app.use("/marketplace",  marketplaceRoutes);
@@ -243,6 +261,10 @@ app.use("/user-address", userAddress);
 app.use("/reviews",      reviewRoutes);
 app.use("/refund",       refundRoutes);
 app.use("/stripe",       stripeRoutes);
+app.use("/notifications", notificationRoutes);
+
+// Inject io vào controller sau khi init
+if (NotificationController._setIO) NotificationController._setIO(io);
 
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log("MongoDB Connected"))

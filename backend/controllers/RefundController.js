@@ -1,4 +1,5 @@
 const Order = require("../models/OrderModel");
+const { notify } = require("./NotificationController");
 const MarketplaceItem = require("../models/MarketplaceItemModel");
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const nodemailer = require("nodemailer");
@@ -213,6 +214,16 @@ exports.requestRefund = async (req, res) => {
 
     await order.save();
 
+    // Notify seller: buyer gửi refund request
+    await notify({
+      recipientId: order.seller,
+      senderId:    userId,
+      type:        "refund_requested",
+      refId:       order._id,
+      refType:     "Order",
+      meta:        { orderId: order._id }
+    }).catch(() => {});
+
     return res.status(200).json({
       success: true,
       msg:
@@ -337,6 +348,16 @@ exports.approveRefund = async (req, res) => {
       try { await sendCODRefundEmail(order); } catch (e) { console.error("COD refund email error:", e); }
     }
 
+    // Notify buyer: refund được approve
+    await notify({
+      recipientId: order.user._id || order.user,
+      senderId:    sellerId,
+      type:        "refund_approved",
+      refId:       order._id,
+      refType:     "Order",
+      meta:        { orderId: order._id }
+    }).catch(() => {});
+
     return res.json({
       success: true,
       msg:
@@ -397,6 +418,16 @@ exports.rejectRefund = async (req, res) => {
     order.refund.rejectReason = rejectReason || "Refund rejected";
 
     await order.save();
+
+    // Notify buyer: refund bị reject
+    await notify({
+      recipientId: order.user,
+      senderId:    sellerId,
+      type:        "refund_rejected",
+      refId:       order._id,
+      refType:     "Order",
+      meta:        { orderId: order._id }
+    }).catch(() => {});
 
     res.json({
       success: true,

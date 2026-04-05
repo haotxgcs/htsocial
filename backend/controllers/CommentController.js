@@ -1,4 +1,5 @@
 const Comment = require("../models/CommentModel");
+const { notify } = require("./NotificationController");
 const Post = require("../models/PostModel");
 const User = require("../models/UserModel");
 
@@ -39,6 +40,7 @@ exports.createComment = async (req, res) => {
       likes: [],
       rating: rating || null
     });
+    
 
     await comment.save();
 
@@ -69,6 +71,18 @@ exports.createComment = async (req, res) => {
     }
 
     await Post.findByIdAndUpdate(postId, { $inc: { commentCount: 1 } });
+
+    // Notify post author
+    if (String(post.author) !== String(authorId)) {
+      await notify({
+        recipientId: post.author,
+        senderId:    authorId,
+        type:        "comment",
+        refId:       post._id,
+        refType:     "Post",
+        meta: { postId: post._id, commentId: comment._id }
+      }).catch(() => {});
+    }
 
     const populated = await Comment.findById(comment._id)
       .populate("author", "username firstname lastname avatar");
@@ -224,6 +238,18 @@ exports.toggleLikeComment = async (req, res) => {
 
     await comment.save();
 
+    // Notify comment author when liked (not when unliked)
+    if (index === -1 && String(comment.author) !== String(userId)) {
+      await notify({
+        recipientId: comment.author,
+        senderId:    userId,
+        type:        "like_comment",
+        refId:       comment._id,
+        refType:     "Comment",
+         meta:        { postId: comment.post, commentId: comment._id }
+      }).catch(() => {});
+    }
+
     const updatedComment = await Comment.findById(comment._id)
       .populate("author", "username firstname lastname avatar")
       .populate("replies.author", "username firstname lastname avatar");
@@ -263,6 +289,35 @@ exports.addReply = async (req, res) => {
     });
 
     await comment.save();
+
+    // Notify comment author about reply
+    if (String(comment.author) !== String(authorId)) {
+      await notify({
+        recipientId: comment.author,
+        senderId:    authorId,
+        type:        "reply",
+        refId:       comment._id,
+        refType:     "Comment",
+        meta:        { postId: comment.post, commentId: comment._id }
+      }).catch(() => {});
+    }
+
+    // Notify the person being replied to (reply-to-reply)
+    // replyToUserId là _id của người được reply, khác với comment.author
+    if (
+      replyToUserId &&
+      String(replyToUserId) !== String(authorId) &&
+      String(replyToUserId) !== String(comment.author) // đã notify ở trên rồi
+    ) {
+      await notify({
+        recipientId: replyToUserId,
+        senderId:    authorId,
+        type:        "reply",
+        refId:       comment._id,
+        refType:     "Comment",
+        meta:        { postId: comment.post, commentId: comment._id }
+      }).catch(() => {});
+    }
 
     // Tăng replyCommentCount
     await Post.findByIdAndUpdate(comment.post, { $inc: { replyCommentCount: 1 } });
@@ -358,6 +413,18 @@ exports.toggleLikeReply = async (req, res) => {
     }
 
     await comment.save();
+
+    // Notify reply author when liked
+    if (index === -1 && String(reply.author) !== String(userId)) {
+      await notify({
+        recipientId: reply.author,
+        senderId:    userId,
+        type:        "like_reply",
+        refId:       comment._id,
+        refType:     "Comment",
+        meta:        { postId: comment.post, commentId: comment._id }
+      }).catch(() => {});
+    }
 
     const updated = await Comment.findById(commentId)
       .populate("replies.author", "firstname lastname avatar")

@@ -116,6 +116,7 @@ export default {
         this.modalType = "success";
         this.modalMessage = "Login successful! Redirecting...";
         this.showModal = true;
+        
 
         // Redirect after 1.8s
         setTimeout(() => {

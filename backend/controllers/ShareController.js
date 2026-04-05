@@ -1,6 +1,7 @@
 const Share = require("../models/ShareModel");
 const Post = require("../models/PostModel");
 const User = require("../models/UserModel");
+const { notify } = require("./NotificationController");
 
 // Tạo chia sẻ bài viết
 exports.sharePost = async (req, res) => {
@@ -20,6 +21,18 @@ exports.sharePost = async (req, res) => {
       content,
       audience: audience || 'public',
     });
+
+    if (String(post.author) !== String(user._id)) {
+      await notify({
+        recipientId: post.author,
+        senderId:    user._id,
+        type:        "share",
+        refId:       newShare._id,
+        refType:     "Share",
+        meta:        { postId: newShare._id } // link → /home?postId=shareId để trỏ đến bài share
+      }).catch(() => {});
+    }
+      
 
     await newShare.save();
 

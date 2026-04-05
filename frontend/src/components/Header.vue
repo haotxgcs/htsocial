@@ -1,8 +1,8 @@
 <template>
   <div>
     <div class="mobile-toggle" :class="{ 'active': isOpen, 'show-on-chat': isMessagesPage }" @click="isOpen = !isOpen">
-      <div v-if="!isOpen"  alt="Menu" style="color: #666;"><PanelLeftOpen/></div>
-      <div v-else alt="Close" style="filter: invert(1); "><PanelLeftClose/></div> 
+      <div v-if="!isOpen"  alt="Menu"  title="Open"><PanelLeftOpen/></div>
+      <div v-else alt="Close"  title="Close"><PanelLeftClose/></div> 
     </div>
 
     <aside class="vertical-sidebar" :class="{ 'open': isOpen, 'collapsed-for-chat': isMessagesPage }">
@@ -96,9 +96,18 @@
                       <span class="mc-time">{{ fmtTime(c.createdAt) }}</span>
                     </div>
                     <div class="mc-prev" :class="{ 'mc-bold': isUnread(c) }">
-                      <span v-if="isMine(c)" class="mc-you">You: </span>
-                      <span v-if="c.recalled" class="mc-recalled">recalled a message</span>
-                      <span v-else>{{ c.content || '—' }}</span>
+                      <span v-if="c._reactedBy" class="mc-reacted">
+                        {{ c._reactedBy }} reacted {{ c._reactEmoji }}
+                      </span>
+                      <template v-else>
+                        <span v-if="isMine(c)" class="mc-you">You: </span>
+                        <span v-if="c.recalled" class="mc-recalled">recalled a message</span>
+                        <span v-else-if="c.mediaUrls && c.mediaUrls.length && !c.content">
+                          <span v-if="c.mediaUrls[0].type === 'video'">🎥 [video]</span>
+                          <span v-else>🖼️ [image]</span>
+                        </span>
+                        <span v-else>{{ c.content || '—' }}</span>
+                      </template>
                     </div>
                   </div>
                   <span v-if="isUnread(c)" class="mc-badge"></span>
@@ -117,9 +126,38 @@
           <Bell/>
           <span v-if="unreadNotifications > 0" class="badge">{{ unreadNotifications }}</span>
 
-          <div v-if="showNotificationDropdown" class="popover-panel">
-            <div class="popover-header"><h3>Thông báo</h3></div>
-            <div class="popover-body"><p class="empty-text">Chưa có thông báo</p></div>
+          <div v-if="showNotificationDropdown" class="popover-panel notif-popover">
+            <div class="popover-header">
+              <h3>Notifications <span v-if="unreadNotifications > 0" class="hdr-badge">{{ unreadNotifications }}</span> </h3>
+              
+              <a href="#" v-if="unreadNotifications > 0" @click.prevent="markAllNotifsRead" class="popover-footer a">Mark all as read</a>
+            </div>
+            <div class="notif-list">
+              <div v-if="!notifications.length" class="msg-empty">No notifications yet</div>
+              <div
+                v-for="n in notifications"
+                :key="n.id"
+                class="notif-row"
+                :class="{ 'notif-unread': !n.read }"
+                @click="onNotifClick(n)"
+              >
+                <div class="notif-icon-wrap">
+                  <img v-if="n.avatar" :src="n.avatar" class="notif-av" @error="onNotifAvErr" />
+                  <div v-else class="notif-icon-default">
+                    <span>{{ n.icon }}</span>
+                  </div>
+                </div>
+                <div class="notif-content">
+                  <p class="notif-text" v-html="n.text"></p>
+                  <span class="notif-time">{{ fmtTime(n.createdAt) }}</span>
+                </div>
+                <span v-if="!n.read" class="notif-dot"></span>
+              </div>
+            </div>
+            <div class="popover-footer">
+              
+              <router-link to="/notification" @click.stop="closeDropdowns">See all notifications</router-link>
+            </div>
           </div>
         </div>
       </div>
@@ -157,7 +195,6 @@
 </template>
 
 <script>
-import { useDark, useToggle } from '@vueuse/core';
 import { io } from 'socket.io-client';
 
 const API = process.env.VUE_APP_API_URL || 'http://localhost:3000';
@@ -183,11 +220,7 @@ export default {
     PanelLeftClose,
     PanelLeftOpen
   },
-  setup() {
-    const isDark = useDark();
-    const toggleDark = useToggle(isDark);
-    return { isDark, toggleDark };
-  },
+  
   data() {
     return {
       isOpen: false,
@@ -198,8 +231,9 @@ export default {
       showUserDropdown: false,
 
       unreadMessages: 0,
-      unreadNotifications: 5,
+      unreadNotifications: 0,
 
+      notifications: [],   // [{ id, type, text, icon, avatar, link, read, createdAt }]
       contacts: [],
       loadingContacts: false,
       onlineUserIds: new Set(),
@@ -211,7 +245,9 @@ export default {
         avatarUrl: '',
         id: null
       },
-      defaultAssetAvatar: require('../assets/user.png')
+      defaultAssetAvatar: require('../assets/user.png'),
+
+      isDark: false,
     };
   },
   computed: {
@@ -229,8 +265,8 @@ export default {
       this.showNotificationDropdown = false;
       this.showUserDropdown = false;
       if (this.showMessageDropdown) {
-        this.fetchContacts();
-        // Reset unread khi mở
+        // Chỉ fetch lần đầu, không ghi đè contacts đang có
+        if (!this.contacts.length) this.fetchContacts();
         this.unreadMessages = 0;
       }
     },
@@ -238,6 +274,10 @@ export default {
       this.showNotificationDropdown = !this.showNotificationDropdown;
       this.showMessageDropdown = false;
       this.showUserDropdown = false;
+      if (this.showNotificationDropdown) {
+        // Mark all as read khi mở
+        this.$nextTick(() => this.markAllNotifsRead());
+      }
     },
     toggleUserDropdown() {
       this.showUserDropdown = !this.showUserDropdown;
@@ -259,6 +299,8 @@ export default {
     },
     
     async logout() {
+      this.isDark = false;
+      this.applyTheme(false);
       localStorage.removeItem("user");
       localStorage.removeItem("token");
       this.$router.push("/login");
@@ -272,6 +314,8 @@ export default {
           this.currentUser.id = user._id || user.id;
           this.currentUser.name = `${user.firstname || ''} ${user.lastname || ''}`.trim() || 'User';
           this.currentUser.username = user.username ? `@${user.username}` : (user.email || '@user');
+          this.isDark = user.darkTheme || false;
+          this.applyTheme(this.isDark);
 
           // Fix avatar: Cloudinary URL đã có https://, local path cần prefix
           if (user.avatar && user.avatar !== 'uploads/user.png') {
@@ -283,6 +327,44 @@ export default {
           }
         } catch (e) { console.error(e); }
       }
+    },
+
+    applyTheme(dark) {
+      if (dark) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      } else {
+        document.documentElement.removeAttribute('data-theme');
+      }
+    },
+
+    async toggleDark() {
+      this.isDark = !this.isDark;
+      this.applyTheme(this.isDark);
+
+      // Cập nhật localStorage ngay lập tức
+      try {
+        const userStr = localStorage.getItem('user');
+        if (userStr) {
+          const user = JSON.parse(userStr);
+          user.darkTheme = this.isDark;
+          localStorage.setItem('user', JSON.stringify(user));
+        }
+      } catch (e) {
+        console.error('toggleDark localStorage error:', e);
+      }
+
+      // Lưu lên server
+      try {
+        const token = localStorage.getItem('token');
+        await fetch(`${API}/users/preference`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({ darkTheme: this.isDark })
+        });
+      } catch (e) { console.error('toggleDark save error:', e); }
     },
 
     // ── Socket ───────────────────────────────────────────────────
@@ -314,11 +396,11 @@ export default {
           return p && String(p._id) === String(senderId);
         });
         if (idx !== -1) {
-          const updated = { ...this.contacts[idx], ...message };
+          const updated = { ...this.contacts[idx], ...message, _reactedBy: null, _reactEmoji: null };
           this.contacts.splice(idx, 1);
           this.contacts.unshift(updated);
         } else {
-          this.contacts.unshift(message);
+          this.contacts.unshift({ ...message, _reactedBy: null, _reactEmoji: null });
         }
       });
 
@@ -331,11 +413,209 @@ export default {
           return p && String(p._id) === String(rid);
         });
         if (idx !== -1) {
-          this.contacts.splice(idx, 1, { ...this.contacts[idx], ...message });
+          // Reset react khi có tin nhắn mới
+          this.contacts.splice(idx, 1, {
+            ...this.contacts[idx], ...message,
+            _reactedBy: null, _reactEmoji: null
+          });
         } else {
           this.contacts.unshift(message);
         }
       });
+
+      // React: cập nhật trạng thái trong sidebar popup
+      this.socket.on('message:reacted', ({ messageId, reactions }) => {
+        const myId = String(this.currentUser.id);
+
+        // Xác định ai react — luôn là người đang đăng nhập (emit từ MessagePage)
+        // hoặc là partner (nhận từ server broadcast)
+        const myReaction = (reactions || []).find(r =>
+          String(r.user?._id || r.user) === myId
+        );
+        const otherReaction = (reactions || []).find(r =>
+          String(r.user?._id || r.user) !== myId
+        );
+
+        // Tìm contact chứa tin nhắn này — duyệt tất cả contacts
+        // Contact là "latest message" của cuộc trò chuyện, có thể trùng messageId
+        let foundIdx = -1;
+        for (let i = 0; i < this.contacts.length; i++) {
+          const ct = this.contacts[i];
+          // Cách 1: _id của contact chính là messageId
+          if (String(ct._id) === String(messageId)) { foundIdx = i; break; }
+        }
+
+        // Nếu không tìm thấy → dùng contact đang active (đầu list)
+        if (foundIdx === -1 && this.contacts.length > 0) {
+          // Không tìm được → không cập nhật (tránh sai)
+          return;
+        }
+        if (foundIdx === -1) return;
+
+        const contact = { ...this.contacts[foundIdx] };
+        if (otherReaction) {
+          const p = this.getPartner(contact);
+          contact._reactedBy = p?.firstname || 'Someone';
+          contact._reactEmoji = otherReaction.emoji;
+        } else if (myReaction) {
+          contact._reactedBy = 'You';
+          contact._reactEmoji = myReaction.emoji;
+        } else {
+          contact._reactedBy = null;
+          contact._reactEmoji = null;
+        }
+        this.contacts.splice(foundIdx, 1, contact);
+      });
+
+      // ── Notification socket events ────────────────────────────────
+      // THAY các listener post hiện tại:
+      this.socket.on('notification:like_post', (payload) => {
+        this.addNotif({
+          type: 'like_post', icon: '❤️',
+          avatar: payload.from?.avatar,
+          text: payload.text || `<b>${payload.from?.firstname} ${payload.from?.lastname}</b> liked your post`,
+          link: payload.link || null,
+          createdAt: payload.createdAt
+        });
+      });
+      this.socket.on('notification:like_comment', (payload) => {
+        this.addNotif({
+          type: 'like_comment', icon: '❤️',
+          avatar: payload.from?.avatar,
+          text: payload.text || `<b>${payload.from?.firstname} ${payload.from?.lastname}</b> liked your comment`,
+          link: payload.link || null,
+          createdAt: payload.createdAt
+        });
+      });
+      this.socket.on('notification:like_reply', (payload) => {
+        this.addNotif({
+          type: 'like_reply', icon: '❤️',
+          avatar: payload.from?.avatar,
+          text: payload.text || `<b>${payload.from?.firstname} ${payload.from?.lastname}</b> liked your reply`,
+          link: payload.link || null,
+          createdAt: payload.createdAt
+        });
+      });
+      this.socket.on('notification:comment', (payload) => {
+        this.addNotif({
+          type: 'comment', icon: '💬',
+          avatar: payload.from?.avatar,
+          text: payload.text || `<b>${payload.from?.firstname} ${payload.from?.lastname}</b> commented on your post`,
+          link: payload.link || null,
+          createdAt: payload.createdAt
+        });
+      });
+      this.socket.on('notification:reply', (payload) => {
+        this.addNotif({
+          type: 'reply', icon: '↩️',
+          avatar: payload.from?.avatar,
+          text: payload.text || `<b>${payload.from?.firstname} ${payload.from?.lastname}</b> replied to your comment`,
+          link: payload.link || null,
+          createdAt: payload.createdAt
+        });
+      });
+      this.socket.on('notification:share', (payload) => {
+        this.addNotif({
+          type: 'share', icon: '🔁',
+          avatar: payload.from?.avatar,
+          text: payload.text || `<b>${payload.from?.firstname} ${payload.from?.lastname}</b> shared your post`,
+          link: payload.link || null,
+          createdAt: payload.createdAt
+        });
+      });
+      
+      this.socket.on('notification:friend_request', ({ from }) => {
+        this.addNotif({ type: 'friend_request', icon: '👤', avatar: from?.avatar,
+          text: `<b>${from?.firstname} ${from?.lastname}</b> sent you a friend request`,
+          link: '/friend' });
+      });
+      this.socket.on('notification:friend_accepted', ({ from }) => {
+        this.addNotif({ type: 'friend_accepted', icon: '🤝', avatar: from?.avatar,
+          text: `<b>${from?.firstname} ${from?.lastname}</b> accepted your friend request`,
+          link: from?._id ? `/profile/${from._id}` : null });
+      });
+
+      this.socket.on('notification:order_placed', (payload) => {
+        this.addNotif({
+          type: 'order_placed', icon: '🛒',
+          text: payload.text,                                        // ✅ dùng text đã render sẵn
+          link: payload.meta?.orderId ? `/orders/${payload.meta.orderId}` : '/orders',
+          avatar: payload.avatar,
+          createdAt: payload.createdAt
+        });
+      });
+      this.socket.on('notification:order_status', (payload) => {
+        this.addNotif({
+          type: 'order_status', icon: '📦',
+          text: payload.text,                                        // ✅ không còn undefined
+          link: payload.meta?.orderId ? `/orders/${payload.meta.orderId}` : '/orders',
+          avatar: payload.avatar,
+          createdAt: payload.createdAt
+        });
+      });
+      this.socket.on('notification:new_order', (payload) => {
+        this.addNotif({
+          type: 'new_order', icon: '🛍️',
+          text: payload.text,
+          link: payload.meta?.orderId ? `/seller-orders/${payload.meta.orderId}` : '/seller-orders',
+          avatar: payload.avatar,
+          createdAt: payload.createdAt
+        });
+      });
+      this.socket.on('notification:order_cancelled', (payload) => {
+        this.addNotif({
+          type: 'order_cancelled', icon: '❌',
+          text: payload.text,
+          link: payload.meta?.orderId ? `/orders/${payload.meta.orderId}` : '/orders',
+          avatar: payload.avatar,
+          createdAt: payload.createdAt
+        });
+      });
+      this.socket.on('notification:review', (payload) => {
+        this.addNotif({
+          type: 'review', icon: '⭐',
+          avatar: payload.from?.avatar,
+          text: payload.text || `<b>${payload.from?.firstname} ${payload.from?.lastname}</b> reviewed <b>${payload.meta?.itemName || 'your item'}</b>`,
+          link: payload.link || '/marketplace',  // ✅ dùng link từ backend đã có itemId
+          createdAt: payload.createdAt
+        });
+      });
+
+      this.socket.on('notification:refund_requested', (payload) => {
+        const orderId = payload.meta?.orderId;
+        this.addNotif({
+          type: 'refund_requested', icon: '🔄',
+          avatar: payload.from?.avatar ? (payload.from.avatar.startsWith('http') ? payload.from.avatar : `http://localhost:3000/${payload.from.avatar}`) : null,
+          text: payload.text || `<b>${(`${payload.from?.firstname || ""} ${payload.from?.lastname || ""}`.trim() || "Someone")}</b> requested a refund`,
+          link: orderId
+            ? `/seller-orders?tab=refunds&orderId=${orderId}`
+            : '/seller-orders?tab=refunds',
+          createdAt: payload.createdAt
+        });
+      });
+ 
+      // Buyer nhận: refund được approve → vào /orders/:id
+      this.socket.on('notification:refund_approved', (payload) => {
+        const orderId = payload.meta?.orderId;
+        this.addNotif({
+          type: 'refund_approved', icon: '💰',
+          text: payload.text || `Your refund has been <b>approved</b> 💰`,
+          link: orderId ? `/orders/${orderId}` : '/orders',
+          createdAt: payload.createdAt
+        });
+      });
+ 
+      // Buyer nhận: refund bị reject → vào /orders/:id
+      this.socket.on('notification:refund_rejected', (payload) => {
+        const orderId = payload.meta?.orderId;
+        this.addNotif({
+          type: 'refund_rejected', icon: '❌',
+          text: payload.text || `Your refund has been <b>rejected</b>`,
+          link: orderId ? `/orders/${orderId}` : '/orders',
+          createdAt: payload.createdAt
+        });
+      });
+
     },
 
     // ── API ──────────────────────────────────────────────────────
@@ -364,7 +644,22 @@ export default {
         });
         if (res.ok) {
           const data = await res.json();
-          this.contacts = data.contacts || [];
+          const myId = String(this.currentUser.id || '');
+          // Giữ lại _reactedBy/_reactEmoji đã có trước khi fetch
+          const prevMap = {};
+          this.contacts.forEach(ct => {
+            if (ct._partnerId) prevMap[ct._partnerId] = {
+              _reactedBy: ct._reactedBy || null,
+              _reactEmoji: ct._reactEmoji || null
+            };
+          });
+          this.contacts = (data.contacts || []).map(ct => {
+            const sid = String(ct.sender?._id || ct.sender || '');
+            const rid = String(ct.receiver?._id || ct.receiver || '');
+            const _partnerId = sid === myId ? rid : sid;
+            const prev = prevMap[_partnerId] || {};
+            return { ...ct, _partnerId, ...prev };
+          });
         }
       } catch (e) { console.error('fetchContacts:', e); }
       finally { this.loadingContacts = false; }
@@ -424,6 +719,66 @@ export default {
       this.$router.push(`/messages?userId=${partner._id}`);
     },
     
+    onMsgReacted({ detail }) {
+      const { partnerId, reactedBy, emoji } = detail || {};
+      const idx = this.contacts.findIndex(c => {
+        const p = this.getPartner(c);
+        return p && String(p._id) === String(partnerId);
+      });
+      if (idx === -1) return;
+      const updated = { ...this.contacts[idx] };
+      updated._reactedBy = reactedBy || null;
+      updated._reactEmoji = emoji || null;
+      this.contacts.splice(idx, 1, updated);
+    },
+
+    // ── Notification helpers ─────────────────────────────────────
+    addNotif({ type, text, icon, avatar, link, createdAt }) {
+      this.notifications.unshift({
+        id: Date.now() + Math.random(),
+        type, text, icon,
+        avatar: avatar ? (avatar.startsWith('http') ? avatar : `http://localhost:3000/${avatar}`) : null,
+        link: link || null,
+        read: false,
+        createdAt: createdAt || new Date().toISOString()
+      });
+      // Giữ tối đa 50 notification
+      if (this.notifications.length > 50) this.notifications.pop();
+      this.unreadNotifications++;
+    },
+
+    async markAllNotifsRead() {
+      this.notifications.forEach(n => n.read = true);
+      this.unreadNotifications = 0;
+      try {
+        const token = localStorage.getItem('token');
+        await fetch(`${API}/notifications/read-all`, {
+          method: 'PATCH',
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      } catch (e) { console.error('markAllNotifsRead:', e); }
+    },
+
+    async onNotifClick(n) {
+      if (!n.read) {
+        n.read = true;
+        this.unreadNotifications = Math.max(0, this.notifications.filter(x => !x.read).length);
+        try {
+          const token = localStorage.getItem('token');
+          await fetch(`${API}/notifications/${n.id}/read`, {
+            method: 'PATCH',
+            headers: { Authorization: `Bearer ${token}` }
+          });
+        } catch (e) { console.error('markOneRead:', e); }
+      }
+      this.closeDropdowns();
+      if (n.link) this.$router.push(n.link);
+    },
+
+    onNotifAvErr(e) {
+      e.target.style.display = 'none';
+    },
+
     handleClickOutside(e) {
       if (!this.$el.contains(e.target)) {
         this.closeDropdowns();
@@ -433,381 +788,411 @@ export default {
   watch: {
     $route() {
       this.isOpen = false;
+      this.closeDropdowns();
     }
   },
   mounted() {
     this.loadUserFromStorage();
     document.addEventListener('click', this.handleClickOutside);
     window.addEventListener('user-profile-updated', this.loadUserFromStorage);
+    window.addEventListener('msg:reacted', this.onMsgReacted);
     this.fetchUnreadCount();
     this.initSocket();
   },
   beforeUnmount() {
     document.removeEventListener('click', this.handleClickOutside);
+    window.removeEventListener('msg:reacted', this.onMsgReacted);
     this.socket?.disconnect();
   }
 };
 </script>
 
 <style scoped>
-/* --- VARIABLES --- */
-:root {
-  --primary: #FF642F;
-  --bg-sidebar: #FFFFFF;
-  --text-main: #333;
-  --hover-bg: #FFF0E6;
-}
-
-/* --- LAYOUT CHÍNH --- */
+/* ── LAYOUT ── */
 .vertical-sidebar {
   position: fixed;
   top: 0; left: 0; bottom: 0;
   width: 280px;
-  background-color: var(--bg-sidebar, #fff);
-  border-right: 1px solid #EAEAEA;
+  background-color: var(--bg-sidebar);
+  border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   padding: 24px 16px;
   z-index: 1000;
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 4px 0 24px rgba(0,0,0,0.02);
-  
-  /* ⭐ QUAN TRỌNG: Cho phép cuộn cả thanh sidebar nếu màn hình quá ngắn */
-  overflow-y: visible; 
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s, border-color 0.3s;
+  box-shadow: 4px 0 24px rgba(0,0,0,0.05);
+  overflow-y: visible;
 }
-
-/* Ẩn thanh cuộn của sidebar cho đẹp */
 .vertical-sidebar::-webkit-scrollbar { width: 0; }
 
-/* --- 1. LOGO --- */
+/* ── LOGO ── */
 .sidebar-header {
   margin-bottom: 20px;
   padding-left: 8px;
   display: flex;
   align-items: center;
-  flex-shrink: 0; /* Không cho logo bị co lại */
-}
-.logo {
-  margin-top:15px;
-  height: 40px;
-  width: auto;
-  object-fit: contain;
-  border-radius:20%;
-}
-.logo-title{
-  padding: 15px 0 0 15px;
-  font-size: 28px;
-  font-weight: 700;
-  font-family:'Berkshire Swash';
-  color: #FF624F;
-  cursor:pointer;
-}
-
-/* --- 2. SEARCH BOX --- */
-.sidebar-search {
-  margin-bottom: 20px;
   flex-shrink: 0;
 }
-.search-box {
-  display: flex;
-  align-items: center;
-  background: #F8F9FA;
-  border: 1px solid #EEE;
-  border-radius: 12px;
-  padding: 10px 12px;
-  transition: all 0.2s;
+.logo {
+  margin-top: 15px;
+  height: 40px; width: auto;
+  object-fit: contain;
+  border-radius: 20%;
 }
-.search-box:focus-within {
-  border-color: #FF642F;
-  background: #FFF;
-  box-shadow: 0 0 0 2px rgba(255, 100, 47, 0.1);
-}
-.search-icon { width: 16px; opacity: 0.5; margin-right: 8px; }
-.search-box input {
-  border: none; outline: none; width: 100%; background: transparent;
-  font-size: 14px; color: #333;
+.logo-title {
+  padding: 15px 0 0 15px;
+  font-size: 28px; font-weight: 700;
+  font-family: 'Berkshire Swash';
+  color: #FF624F;
+  cursor: pointer;
 }
 
-/* --- 3. NAVIGATION --- */
+/* ── NAV ── */
 .sidebar-nav {
-  display: flex;
-  flex-direction: column;
-  gap: 6px; 
-  /* ⭐ FIX: Xóa overflow-y: auto ở đây để không hiện thanh cuộn con */
-  /* Menu sẽ hiển thị full, đẩy các phần dưới xuống */
-  flex-shrink: 0; 
+  display: flex; flex-direction: column;
+  gap: 6px; flex-shrink: 0;
   margin-bottom: 10px;
   overflow-y: auto;
 }
-
 .sidebar-footer {
-  flex-shrink: 0; /* Không bao giờ bị co lại */
-  background: #fff;
-  position: relative; /* Làm điểm neo cho popup */
+  flex-shrink: 0;
+  background: var(--bg-sidebar);
+  position: relative;
 }
-
 .nav-item {
-  display: flex;
-  align-items: center;
-  padding: 12px 16px;
-  border-radius: 12px;
+  display: flex; align-items: center;
+  padding: 12px 16px; border-radius: 12px;
   text-decoration: none;
-  color: #666;
+  color: var(--text-sub);
   font-weight: 500;
   transition: all 0.2s ease;
 }
-
 .nav-item:hover {
-  background-color: #F8F9FA;
+  background-color: var(--hover-primary);
   color: #FF642F;
 }
-
 .nav-item.active {
   background-color: #FF642F;
   color: white;
   font-weight: 600;
   box-shadow: 0 4px 12px rgba(255, 100, 47, 0.25);
 }
-
 .nav-item .icon-box {
-  width: 24px; margin-right: 12px; display: flex; justify-content: center;
-}
-.nav-item img {
-  width: 20px; height: 20px; object-fit: contain;
-  opacity: 0.6; transition: 0.2s;
-}
-.nav-item:hover img { opacity: 1; filter: invert(53%) sepia(35%) saturate(3000%) hue-rotate(345deg) brightness(100%) contrast(105%); } 
-.nav-item.active img {
-  filter: brightness(0) invert(1);
-  opacity: 1;
+  width: 24px; margin-right: 12px;
+  display: flex; justify-content: center;
 }
 
-/* Spacer: Đẩy các phần bên dưới xuống đáy */
 .spacer { flex-grow: 1; }
 
-/* --- 4. ACTIONS (ICONS) --- */
+/* ── ACTIONS ── */
 .sidebar-actions {
-  display: flex;
-  justify-content: space-evenly;
-  margin-bottom: 16px;
-  padding: 16px 0;
-  border-top: 1px solid #f0f0f0;
+  display: flex; justify-content: space-evenly;
+  margin-bottom: 16px; padding: 16px 0;
+  border-top: 1px solid var(--border-color);
   flex-shrink: 0;
 }
-
 .action-btn {
-  width: 42px; height: 42px;
-  border-radius: 50%;
-  background: #F8F9FA;
+  width: 42px; height: 42px; border-radius: 50%;
+  background: var(--bg-input);
+  color: var(--text-sub);
   display: flex; align-items: center; justify-content: center;
   cursor: pointer; position: relative;
   transition: all 0.2s;
 }
-.action-btn:hover { background: #FFF0E6; transform: translateY(-2px); }
-.action-btn img { width: 20px; opacity: 0.7; }
+.action-btn:hover {
+  background: var(--hover-primary);
+  color: #FF642F;
+  transform: translateY(-2px);
+}
 .badge {
   position: absolute; top: -2px; right: -2px;
   background: #FF4444; color: white;
   font-size: 10px; font-weight: bold;
   padding: 2px 5px; border-radius: 10px;
-  border: 2px solid #fff;
+  border: 2px solid var(--bg-sidebar);
 }
 
-/* --- 5. USER PROFILE --- */
+/* ── USER PROFILE ── */
 .user-profile-section {
   position: relative;
-  border-top: 1px solid #f0f0f0;
-  padding-top: 16px;
-  flex-shrink: 0; /* Giữ user profile luôn cố định kích thước */
+  border-top: 1px solid var(--border-color);
+  padding-top: 16px; flex-shrink: 0;
 }
 .profile-card {
   display: flex; align-items: center;
   padding: 8px 12px;
-  background: white;
-  border-radius: 12px;
-  cursor: pointer;
+  background: var(--bg-card);
+  border-radius: 12px; cursor: pointer;
   border: 1px solid transparent;
   transition: all 0.2s;
 }
-.profile-card:hover { 
-  background: #F8F9FA; 
-  border-color: #eee;
+.profile-card:hover {
+  background: var(--hover-bg);
+  border-color: var(--border-color);
 }
+.avatar {
+  width: 40px; height: 40px; border-radius: 50%;
+  object-fit: cover; margin-right: 12px;
+  border: 1px solid var(--border-color);
+}
+.user-info .name {
+  font-weight: 700; font-size: 14px; margin: 0;
+  color: var(--text-main);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px;
+}
+.user-info .username { font-size: 12px; color: var(--text-sub); margin: 0; }
 
-.avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; margin-right: 12px; border: 1px solid #eee; }
-.user-info .name { font-weight: 700; font-size: 14px; margin: 0; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
-.user-info .username { font-size: 12px; color: #999; margin: 0; }
-
-/* --- POPOVERS --- */
+/* ── POPOVERS ── */
 .popover-panel {
   position: absolute; left: 50px; bottom: 40px;
-  width: 280px; background: white; border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.13); z-index: 1100; border: 1px solid #eee;
+  width: 280px;
+  background: var(--bg-card);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+  z-index: 1100;
+  border: 1px solid var(--border-color);
   overflow: hidden;
 }
 .popover-header {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 16px; border-bottom: 1px solid #f3f4f6;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-card);
 }
-.popover-header h3 { margin: 0; font-size: 15px; font-weight: 700; color: #111827; }
-.popover-body { padding: 20px; text-align: center; color: #999; font-size: 13px; }
-.popover-footer { padding: 12px 16px; text-align: center; border-top: 1px solid #f3f4f6; }
-.popover-footer a { color: #FF642F; font-weight: 600; font-size: 13px; text-decoration: none; }
-.popover-footer a:hover { text-decoration: underline; }
+.popover-header h3 {
+  margin: 0; font-size: 15px; font-weight: 700;
+  color: var(--text-main);
+}
+.popover-body { padding: 20px; text-align: center; color: var(--text-sub); font-size: 13px; }
+.popover-footer {
+  padding: 12px 16px; text-align: center;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-card);
+}
+.popover-footer a, .popover-header a {
+  color: #FF642F; font-weight: 600; font-size: 13px; text-decoration: none;
+}
+.popover-footer a:hover, .popover-header a:hover { text-decoration: underline; }
 
-/* Message popup */
+/* ── MESSAGE POPUP ── */
 .msg-popover { width: 340px; }
 .hdr-badge {
-  background: #ef4444; color: #fff; font-size: 11px; font-weight: 700;
+  background: #ef4444; color: #fff;
+  font-size: 11px; font-weight: 700;
   padding: 1px 7px; border-radius: 20px;
 }
-
-/* Contact list inside popup */
-.msg-list-scroll{
-  max-height: 200px;
-  overflow-y: auto;
-}
-
+.msg-list-scroll { max-height: 200px; overflow-y: auto; }
 .msg-list-scroll::-webkit-scrollbar { width: 5px; }
-.msg-list-scroll::-webkit-scrollbar-thumb { background: #e0e0e0; border-radius: 10px; }
-
-
+.msg-list-scroll::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 10px; }
 .msg-list { max-height: 360px; overflow-y: auto; }
 .msg-list::-webkit-scrollbar { width: 4px; }
-.msg-list::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 4px; }
-.msg-empty { padding: 24px; text-align: center; color: #9ca3af; font-size: 13px; }
+.msg-list::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+.msg-empty { padding: 24px; text-align: center; color: var(--text-sub); font-size: 13px; }
 
 .mc-row {
   display: flex; align-items: center; gap: 10px;
   padding: 10px 14px; cursor: pointer; transition: background 0.12s;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-card);
 }
 .mc-row:last-child { border-bottom: none; }
-.mc-row:hover { background: #f9fafb; }
-.mc-unread { background: #fff8f6; }
-.mc-unread:hover { background: #fdf4f0; }
+.mc-row:hover { background: var(--hover-bg); }
+.mc-unread { background: var(--hover-primary); }
+.mc-unread:hover { background: var(--hover-primary); filter: brightness(0.97); }
 
 .mc-av-wrap {
   position: relative; flex-shrink: 0;
   width: 46px; height: 46px; min-width: 46px; min-height: 46px;
 }
-.mc-av {
+.mc-av, .notif-av {
   width: 46px !important; height: 46px !important;
   min-width: 46px; min-height: 46px;
   border-radius: 50%; object-fit: cover;
-  display: block; border: 2px solid #f3f4f6;
-  aspect-ratio: 1 / 1;
+  display: block; border: 2px solid var(--border-color);
+  aspect-ratio: 1/1;
 }
 .mc-dot {
   position: absolute; bottom: 1px; right: 1px;
   width: 11px; height: 11px; border-radius: 50%;
-  background: #22c55e; border: 2px solid #fff;
+  background: #22c55e; border: 2px solid var(--bg-card);
 }
-
 .mc-info { flex: 1; min-width: 0; }
 .mc-name-row {
   display: flex; justify-content: space-between; align-items: baseline;
   gap: 6px; margin-bottom: 3px;
 }
 .mc-name {
-  font-size: 13px; font-weight: 600; color: #111827;
+  font-size: 13px; font-weight: 600; color: var(--text-main);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.mc-time { font-size: 11px; color: #9ca3af; flex-shrink: 0; white-space: nowrap; }
+.mc-time { font-size: 11px; color: var(--text-sub); flex-shrink: 0; white-space: nowrap; }
 .mc-prev {
-  font-size: 12px; color: #6b7280;
+  font-size: 12px; color: var(--text-sub);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.mc-bold { font-weight: 600; color: #111827; }
-.mc-you { color: #9ca3af; }
-.mc-recalled { font-style: italic; color: #9ca3af; }
-.mc-badge {
-  width: 8px; height: 8px; border-radius: 50%;
-  background: #FF642F; flex-shrink: 0;
-}
+.mc-bold { font-weight: 600; color: var(--text-main); }
+.mc-you { color: var(--text-sub); }
+.mc-recalled { font-style: italic; color: var(--text-sub); }
+.mc-reacted { color: #f97316; font-size: 12px; }
+.mc-badge { width: 8px; height: 8px; border-radius: 50%; background: #FF642F; flex-shrink: 0; }
 
-/* User Menu Dropdown */
+/* ── NOTIFICATION POPUP ── */
+.notif-popover { width: 360px; }
+.notif-list { max-height: 400px; overflow-y: auto; }
+.notif-list::-webkit-scrollbar { width: 4px; }
+.notif-list::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+.notif-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 12px 14px; cursor: pointer; transition: background 0.12s;
+  border-bottom: 1px solid var(--border-color);
+  position: relative;
+  background: var(--bg-card);
+}
+.notif-row:last-child { border-bottom: none; }
+.notif-row:hover { background: var(--hover-bg); }
+.notif-unread { background: var(--hover-primary); }
+.notif-unread:hover { background: var(--hover-primary); filter: brightness(0.97); }
+.notif-icon-wrap { flex-shrink: 0; width: 40px; height: 40px; position: relative; }
+.notif-icon-default {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: var(--hover-primary); border: 1px solid var(--border-color);
+  display: flex; align-items: center; justify-content: center; font-size: 18px;
+}
+.notif-content { flex: 1; min-width: 0; }
+.notif-text { font-size: 13px; color: var(--text-main); margin: 0 0 3px; line-height: 1.4; }
+.notif-text b { font-weight: 700; }
+.notif-time { font-size: 11px; color: var(--text-sub); }
+.notif-dot { width: 8px; height: 8px; border-radius: 50%; background: #FF642F; flex-shrink: 0; margin-top: 4px; }
+
+/* ── USER MENU ── */
 .user-menu-popover {
   position: absolute; bottom: 100%; left: 0; width: 100%;
-  background: white; border-radius: 12px;
-  box-shadow: 0 -5px 25px rgba(0,0,0,0.1); margin-bottom: 12px;
-  overflow: hidden; z-index: 1100; border: 1px solid #eee;
+  background: var(--bg-card); border-radius: 12px;
+  box-shadow: 0 -5px 25px rgba(0,0,0,0.15); margin-bottom: 12px;
+  overflow: hidden; z-index: 1100;
+  border: 1px solid var(--border-color);
 }
-.menu-item { padding: 12px 16px; display: flex; align-items: center; cursor: pointer; color: #555; font-size: 14px; transition: 0.2s; }
-.menu-item:hover { background: #f9f9f9; color: #FF642F; }
-.menu-item img { width: 18px; margin-right: 12px; opacity: 0.6; }
-
-.menu-title {
-  margin-left:5px;
-  font-weight:500;
+.menu-item {
+  padding: 12px 16px; display: flex; align-items: center;
+  cursor: pointer; color: var(--text-sub); font-size: 14px;
+  transition: 0.2s;
+  background: var(--bg-card);
 }
+.menu-item:hover { background: var(--hover-bg); color: #FF642F; }
+.menu-item.logout:hover { color: #ef4444; }
+.menu-title { margin-left: 5px; font-weight: 500; }
 
-/* --- RESPONSIVE MOBILE --- */
+/* ── MOBILE TOGGLE ── */
 .mobile-toggle {
-  display: none; 
-  position: fixed; 
-  top: 20px; left: 20px;
+  display: none;
+  position: fixed; top: 20px; left: 20px;
   width: 40px; height: 40px;
-  background: white; 
+  background: var(--bg-card);
   border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-  z-index: 1200; 
-  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.12);
+  z-index: 1200; cursor: pointer;
   align-items: center; justify-content: center;
+  color: var(--text-sub);
+  transition: background 0.3s;
 }
-.mobile-toggle img { width: 22px; height: 22px; }
-.mobile-toggle.active { background: #FF642F; }
-.mobile-toggle.active img { filter: brightness(0) invert(1); }
+.mobile-toggle.active {  color: var(--text-sub); }
 
 .sidebar-overlay { display: none; }
 
+/* ── RESPONSIVE ── */
 @media (max-width: 1024px) {
   .mobile-toggle { display: flex; }
-  
+
   .vertical-sidebar {
     transform: translateX(-100%);
-    padding-top: 80px; /* đủ chỗ cho mobile-toggle (40px) + gap */ 
+    padding-top: 0;
+    overflow-y: auto;
   }
-  
+
+  .vertical-sidebar .sidebar-header {
+    position: fixed;
+    top: 0; left: 0;
+    width: 280px; height: 68px;
+    padding: 14px 16px 14px 72px;
+    background: var(--bg-sidebar);
+    border-bottom: 1px solid var(--border-color);
+    z-index: 1100; margin-bottom: 0;
+    box-sizing: border-box;
+    transition: background 0.3s, border-color 0.3s;
+  }
+
   .vertical-sidebar.open {
     transform: translateX(0);
+    padding-top: 0;
   }
-  
+
+  .vertical-sidebar.open nav.sidebar-nav {
+    margin-top: 68px;
+  }
+
   .sidebar-overlay {
     display: block; position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0,0,0,0.4); 
+    background: rgba(0,0,0,0.4);
     backdrop-filter: blur(2px);
     z-index: 999;
   }
+
+.vertical-sidebar {
+    overflow: visible !important;
+  }
+
+.popover-panel {
+    position: absolute !important;
+    left: 10px !important;
+    /* Giảm bottom xuống để popup sát với cụm nút bấm bên dưới */
+    bottom: 65px !important; 
+    
+    /* Ép chiều rộng để nằm gọn trong sidebar 280px, không bị tràn ra ngoài */
+    width: 260px !important;
+    max-width: 260px !important;
+    
+    /* Loại bỏ các khoảng cách và biến đổi cũ */
+    transform: none !important;
+    margin: 0 !important;
+    z-index: 2000;
+    
+    /* Tạo hiệu ứng đổ bóng nhẹ để phân biệt với menu bên dưới */
+    box-shadow: 0 -10px 25px rgba(0,0,0,0.1) !important;
+    border: 1px solid var(--border-color);
+  }
+
+  /* Chỉnh riêng cho từng loại nếu cần vị trí khác nhau một chút */
+  .msg-popover {
+    /* Vị trí này sẽ nằm ngay trên icon Message */
+    bottom: 70px !important; 
+  }
+
+  .notif-popover {
+    /* Vị trí này sẽ nằm ngay trên icon Notification */
+    bottom: 70px !important;
+  }
+
+  /* Giới hạn chiều cao danh sách tin nhắn để popup không che hết cả màn hình */
+  .msg-list-scroll, .notif-list {
+    max-height: 300px !important;
+    overflow-y: auto;
+  }
+
+
 }
 
-/* Messages page: sidebar collapsed, only hamburger visible */
-.vertical-sidebar.collapsed-for-chat {
-  transform: translateX(-100%);
-}
-.vertical-sidebar.collapsed-for-chat.open {
-  transform: translateX(0);
-  padding-top: 0;
-}
-/* Khi chat page sidebar mở: header cố định ở top, ngang hàng nút toggle */
+/* ── MESSAGES PAGE ── */
+.vertical-sidebar.collapsed-for-chat { transform: translateX(-100%); }
+.vertical-sidebar.collapsed-for-chat.open { transform: translateX(0); padding-top: 0; }
 .vertical-sidebar.collapsed-for-chat.open .sidebar-header {
-  position: fixed;
-  top: 0; left: 0;
-  width: 280px;
-  height: 68px;
-  padding: 14px 16px 14px 72px; /* 72px = left offset để tránh nút toggle */
-  background: white;
-  border-bottom: 1px solid #eaeaea;
-  z-index: 1100;
-  margin-bottom: 0;
-  box-sizing: border-box;
+  position: fixed; top: 0; left: 0;
+  width: 280px; height: 68px;
+  padding: 14px 16px 14px 72px;
+  background: var(--bg-sidebar);
+  border-bottom: 1px solid var(--border-color);
+  z-index: 1100; margin-bottom: 0; box-sizing: border-box;
 }
-/* Đẩy nav xuống đúng chiều cao header */
-.vertical-sidebar.collapsed-for-chat.open nav.sidebar-nav {
-  margin-top: 68px;
-}
-.show-on-chat {
-  display: flex !important;
-}
+.vertical-sidebar.collapsed-for-chat.open nav.sidebar-nav { margin-top: 68px; }
+.show-on-chat { display: flex !important; }
 </style>

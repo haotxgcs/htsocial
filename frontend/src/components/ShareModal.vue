@@ -311,7 +311,7 @@ export default {
 /* Style cho modal */
 .modal-backdrop {
   position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-  background-color: rgba(255, 255, 255, 0.8);
+  background-color: rgba(0, 0, 0, 0.45);
   display: flex; justify-content: center; align-items: center;
   z-index: 10000;
   animation: fadeIn 0.2s ease-out;
@@ -324,33 +324,42 @@ export default {
 }
 
 /* Thêm position relative để LoadingOverlay phủ đúng */
-.modal-box { position: relative; background: white; width: 100%; max-width: 550px; border-radius: 12px; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); }
+.modal-box { position: relative; background: var(--bg-card); width: 100%; max-width: 550px; border-radius: 12px; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); }
 
 .modal-header { display: flex; justify-content: center; align-items: center; padding: 20px 24px; position: relative; flex-shrink: 0; }
-.modal-header h3 { margin: 0; font-size: 20px; font-weight: 700; color: #1c1e21; text-align: center; }
-.close-btn { position: absolute; right: 16px; background: #f0f2f5; border: none; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 20px; color: #8a8d91; transition: background-color 0.2s; }
-.close-btn:hover { background: #e4e6ea; }
+.modal-header h3 { margin: 0; font-size: 20px; font-weight: 700; color: var(--text-main); text-align: center; }
+.close-btn { position: absolute; right: 16px; background: var(--bg-input); border: none; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 20px; color: var(--text-sub); transition: background-color 0.2s; }
+.close-btn:hover {background: var(--hover-bg); }
 .share-content { padding: 20px 24px; overflow-y: auto; flex: 1; scrollbar-width: none; -ms-overflow-style: none; }
 .share-content::-webkit-scrollbar { display: none; }
 .user-info { display: flex; align-items: center; margin-bottom: 16px; }
 .avatar { width: 40px; height: 40px; border-radius: 50%; margin-right: 12px; object-fit: cover; }
 .user-details { flex: 1; }
-.user-details strong { font-size: 15px; font-weight: 600; color: #1c1e21; display: block; margin-bottom: 4px; }
-.audience-inline select { padding: 4px 8px; border-radius: 6px; border: 1px solid #ccc; font-size: 13px; background: #f0f2f5; cursor: pointer; outline: none; }
+.user-details strong { font-size: 15px; font-weight: 600; color: var(--text-main); display: block; margin-bottom: 4px; }
+.audience-inline select { 
+  padding: 4px 8px; 
+  border-radius: 6px; border: 1px solid #ccc; font-size: 13px; background: var(--bg-input); color: var(--text-sub); cursor: pointer; outline: none; }
 .audience-inline select:focus { border-color: #FF642F; }
-.share-input-wrapper { border: 1px solid #ccc; border-radius: 8px; padding: 12px; margin-bottom: 16px; position: relative; background: white; transition: border-color 0.2s; }
+.share-input-wrapper { 
+  border: 1px solid var(--border-color); 
+  border-radius: 8px; 
+  padding: 12px; 
+  margin-bottom: 16px; 
+  position: relative; 
+  background: var(--bg-input); transition: border-color 0.2s;
+   }
 .share-input-wrapper:focus-within { border-color: #FF642F;  }
-.share-textarea { width: 100%; min-height: 80px; max-height: 150px; resize: none; border: none; outline: none; font-family: inherit; font-size: 15px; line-height: 1.4; background: transparent; box-sizing: border-box; padding-bottom: 30px; }
+.share-textarea { color: var(--text-main);width: 100%; min-height: 80px; max-height: 150px; resize: none; border: none; outline: none; font-family: inherit; font-size: 15px; line-height: 1.4; background: transparent; box-sizing: border-box; padding-bottom: 30px; }
 .share-textarea::placeholder { color: #626569; }
 .emoji-trigger { position: absolute; bottom: 8px; right: 8px; }
 .emoji-btn { background: none; border: none; cursor: pointer; padding: 4px; border-radius: 50%; transition: background 0.2s; display: flex; align-items: center; justify-content: center; }
 .emoji-btn:hover { background-color: #f0f2f5; }
 .icon-emoji-img { width: 22px; height: 22px; opacity: 0.6; }
 .emoji-btn:hover .icon-emoji-img { opacity: 1; }
-.shared-box { border: 1px solid #e4e6eb; padding: 12px; border-radius: 8px; background: #f8f9fa; }
+.shared-box { border: 1px solid var(--border-color); padding: 12px; border-radius: 8px; background: var(--bg-card); }
 .post-header { display: flex; align-items: center; margin-bottom: 12px; }
 .avatar-small { width: 36px; height: 36px; border-radius: 50%; margin-right: 10px; object-fit: cover; }
-.author-details strong { font-size: 14px; font-weight: 600; color: #1c1e21; display: block; }
+.author-details strong { font-size: 14px; font-weight: 600; color: var(--text-main); display: block; }
 .timestamp { font-size: 12px; color: #65676b; margin: 2px 0 0 0; }
 .post-content { font-size: 14px; line-height: 1.4; color: #1c1e21; word-wrap: break-word; white-space: pre-line; margin-bottom: 8px; }
 .post-content p { margin: 0; }
@@ -382,15 +391,15 @@ export default {
   font-size: 16px;
   font-weight: 700;
   margin: 0 0 5px 0;
-  color: #333;
+  color: var(--text-main);
 }
 
 /* 2. Nhãn Danh mục (Tag) */
 .shared-category {
   display: inline-block;
   font-size: 11px;
-  background: #FFF0E6; /* Nền cam nhạt */
-  color: #FF642F;       /* Chữ cam đậm */
+  background: var(--hover-primary);
+  color: var(--primary);       /* Chữ cam đậm */
   padding: 2px 8px;
   border-radius: 12px;
   margin-bottom: 12px;
@@ -403,7 +412,7 @@ export default {
   font-weight: 700;
   margin: 0 0 10px 0;
   font-size: 12px;
-  color: #333;
+  color: var(--text-main);
 }
 
 /* 5. Nội dung text (Giữ xuống dòng) */
@@ -411,6 +420,7 @@ export default {
   margin: 0 0 10px 0;
   white-space: pre-line; /* Quan trọng: Giữ xuống dòng */
   line-height: 1.4;
+  color: var(--text-main);
 }
 
 /* Loại bỏ margin cho dòng cuối cùng */

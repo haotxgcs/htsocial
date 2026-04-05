@@ -3,6 +3,7 @@ const User = require("../models/UserModel");
 const Comment = require("../models/CommentModel");
 const Share = require("../models/ShareModel");
 const cloudinary = require("../services/cloudinary");
+const { notify } = require("./NotificationController");
 
 // Helper: extract Cloudinary public_id từ URL để xóa media cũ
 const extractPublicId = (url) => {
@@ -417,6 +418,18 @@ exports.toggleLike = async (req, res) => {
       post.likes.push(userId);
       user.likedPosts.push(postId); // 👈 Thêm postId vào likedPosts
     }
+
+    if (String(post.author) !== String(userId)) {
+        await notify({
+          recipientId: post.author,
+          senderId:    userId,
+          type:        "like_post",
+          refId:       post._id,
+          refType:     "Post",
+          meta: { postId: post._id }
+        }).catch(() => {});
+      }
+    
 
     await post.save();
     await user.save(); // 👈 Lưu lại user sau khi thay đổi

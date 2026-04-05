@@ -93,7 +93,7 @@
           <button @click="resetFilter" class="clear-filter-btn">View All Posts</button>
         </div>
 
-        <div v-for="post in paginatedPosts" :key="post._id" class="feed-item">
+        <div v-for="post in paginatedPosts" :key="post._id" :id="`post-${post._id}`" class="feed-item">
   
           <div v-if="post.type === 'post'" class="post">
             <div class="post-header">
@@ -110,11 +110,20 @@
                 </div>
               </div>
               <div class="post-menu-wrapper" v-click-outside="closeAllMenus">
-                <img src="../assets/menu.png" class="menu-post-icon" @click.stop="toggleMenu(post._id)" />
+                <div class="menu-post-icon" @click.stop="toggleMenu(post._id)"><Menu/></div>
                 <div v-if="openMenuId === post._id" class="dropdown-menu" @click.stop>
-                  <button v-if="isMyPost(post)" @click="editPost(post)"><img src="../assets/edit.png"/> Edit Post</button>
-                  <button v-if="!isMyPost(post)" @click="hideThisPost(post._id)"><img src="../assets/hide.png"/> Hide Post</button>
-                  <button v-if="isMyPost(post)" @click="deletePost(post._id)" style="color: red"><img src="../assets/delete.png"/> Delete Post</button>
+                  <button v-if="isMyPost(post)" @click="editPost(post)">
+                    <div class="menu-icon-left"><Pencil/></div>
+                    <span>Edit Post</span>
+                  </button>
+                  <button v-if="!isMyPost(post)" @click="hideThisPost(post._id)">
+                    <div class="menu-icon-left"><EyeOff/></div>
+                    <span>Hide Post</span>
+                  </button>
+                  <button v-if="isMyPost(post)" @click="deletePost(post._id)" style="color: red">
+                    <div class="menu-icon-left"><Trash2/></div>
+                    <span>Delete Post</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -299,16 +308,19 @@
             </div>
 
             <div class="post-menu-wrapper" v-click-outside="closeAllMenus">
-              <img src="../assets/menu.png" class="menu-post-icon" @click.stop="toggleMenu(post._id)" />
+              <div class="menu-post-icon" @click.stop="toggleMenu(post._id)" ><Menu/></div>
               <div v-if="openMenuId === post._id" class="dropdown-menu" @click.stop>
                 <button v-if="isMyShare(post)" @click="editShare(post)">
-                  <img src="../assets/edit.png" class="menu-icon-left"/> Edit Share
+                  <div class="menu-icon-left"><Pencil/></div>
+                  <span>Edit Share</span>
                 </button>
                 <button v-if="!isMyShare(post)" @click="hideThisShare(post._id)">
-                  <img src="../assets/hide.png" class="menu-icon-left"/> Hide Share
+                  <div  class="menu-icon-left"><EyeOff/></div>
+                  <span>Hide Share</span>
                 </button>
                 <button v-if="isMyShare(post)" @click="deleteShare(post._id)" style="color: red">
-                  <img src="../assets/delete.png" class="menu-icon-left"/> Delete Share
+                  <div  class="menu-icon-left"><Trash2/></div>
+                  <span>Delete Share</span>
                 </button>
               </div>
             </div>
@@ -434,7 +446,7 @@
     <EditShareModal v-if="showEditShareModal" :share="editedShare" @close="showEditShareModal = false" @updated="fetchPosts" />
     <ShareModal v-if="showShareModal" :post="postToShare" :user="user" @close="showShareModal = false" @shared="fetchPosts" />
     <EditPostModal :is-visible="editModalVisible" :post="editedPost" :user="user" @close="closeEditModal" @updated="handlePostUpdated" />
-    <CommentModal :is-visible="commentModalVisible" :post="selectedPost" :user="user" :initial-save-count="getPostSaveCount(selectedPost)" @close="closeCommentModal" @commented="handleCommentAdded" @comment-deleted="handleCommentDeleted" @liked="handlePostLiked" @share="handleSharePost" @comment-count-updated="onCommentCountUpdated" @save-count-updated="handleSaveCountUpdated" @save-status-changed="handleSaveStatusChanged" @rating-updated="handleRatingUpdated"/>
+    <CommentModal :is-visible="commentModalVisible" :post="selectedPost" :user="user" :initial-save-count="getPostSaveCount(selectedPost)" @close="closeCommentModal" @commented="handleCommentAdded" @comment-deleted="handleCommentDeleted" @liked="handlePostLiked" @share="handleSharePost" @comment-count-updated="onCommentCountUpdated" @save-count-updated="handleSaveCountUpdated" @save-status-changed="handleSaveStatusChanged" @rating-updated="handleRatingUpdated" :highlight-comment-id="highlightCommentId"/>
     <Pagination 
       v-if="totalPages > 1" 
       :current-page="currentPage" 
@@ -453,6 +465,8 @@ import EditPostModal from './EditPostModal.vue';
 import CreatePostModal from './CreatePostModal.vue';
 import LoadingOverlay from './LoadingOverlay.vue';
 import Pagination from './Pagination.vue';
+
+import { Menu, Pencil, EyeOff, Trash2 } from 'lucide-vue-next';
 
 // Custom directive để xử lý click ra ngoài menu (dropdown)
 const clickOutside = {
@@ -485,7 +499,12 @@ export default {
     EditPostModal,
     CreatePostModal,
     LoadingOverlay,
-    Pagination
+    Pagination,
+
+    Menu,
+    Pencil,
+    EyeOff,
+    Trash2
   },
   data() {
     return {
@@ -549,7 +568,9 @@ export default {
       itemIndexMap: {},
 
       // loading state
-      loading:true
+      loading:true,
+
+      highlightCommentId: null,
 
     }
   },
@@ -1448,6 +1469,54 @@ prevItem(postId) {
     : (this.itemIndexMap[postId] = current - 1);
 },
 
+async handleNotifNavigation() {
+  const { postId, highlightComment } = this.$route.query;
+  if (!postId) return;
+
+  // Đợi posts load xong
+  if (this.loading) {
+    await new Promise(resolve => {
+      const stop = this.$watch('loading', val => { if (!val) { stop(); resolve(); } });
+    });
+  }
+
+  // Tìm post trong feed (cả post gốc lẫn share)
+  let targetPost = this.posts.find(p =>
+    p._id === postId ||
+    (p.type === 'share' && p.post?._id === postId)
+  );
+
+  // Nếu không có trong feed → fetch riêng
+  if (!targetPost) {
+    try {
+      const res = await fetch(`http://localhost:3000/posts/${postId}`);
+      if (res.ok) targetPost = await res.json();
+    } catch(e) { console.error(e); }
+  }
+
+  if (!targetPost) return;
+
+  // Scroll đến post trong feed nếu có
+  await this.$nextTick();
+  const el = document.getElementById(`post-${postId}`);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+  // Nếu có highlightComment → mở CommentModal
+  if (highlightComment) {
+    const post = targetPost.type === 'share' ? targetPost.post : targetPost;
+    this.selectedPost = post;
+    this.highlightCommentId = highlightComment;
+    this.commentModalVisible = true;
+  }
+
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.add('post-highlighted');
+    setTimeout(() => el.classList.remove('post-highlighted'), 3000);
+  }
+  this.$router.replace({ path: '/home' });
+},
+
 
     
 
@@ -1455,6 +1524,14 @@ prevItem(postId) {
     
 
   },
+
+  watch: {
+  $route(to) {
+    if (to.path === '/home' && to.query.postId) {
+      this.handleNotifNavigation();
+    }
+  }
+},
 
   mounted() {
     const savedUser = localStorage.getItem("user");
@@ -1465,6 +1542,7 @@ prevItem(postId) {
       this.loadSavedPosts();
       this.loadSearchHistory();
       this.fetchAllUsers();
+      this.handleNotifNavigation();
     } else {
       this.$router.push("/login");
     }
@@ -1499,6 +1577,8 @@ prevItem(postId) {
   padding-left: 320px; 
   padding-top: 30px; 
   padding-right: 40px;
+  background-color: var(--bg-body); 
+  color: var(--text-main);
 }
 
 /* ==========================================================================
@@ -1536,9 +1616,10 @@ prevItem(postId) {
    2. HEADER & SEARCH
    ========================================================================== */
 .top-header-section {
-  background: white; padding: 16px; border-radius: 16px;
+  background: var(--bg-card); padding: 16px; border-radius: 16px;
   box-shadow: 0 2px 10px rgba(0,0,0,0.02);
-  display: flex; flex-direction: column; gap: 16px;
+  display: flex; flex-direction: column; gap: 16px; 
+  border: 1px solid var(--border-color);
 }
 
 .search-container { 
@@ -1558,16 +1639,17 @@ prevItem(postId) {
   width: 100%;
   padding: 10px 36px 10px 16px; /* Chừa chỗ cho nút X */
   border-radius: 20px; 
-  border: 1px solid #eee;
-  background: #f9f9f9; 
+  border: 1px solid var(--border-color);
+  background: var(--bg-input); /* Thay #f9f9f9 */
+  color: var(--text-main); 
   outline: none; 
   transition: 0.2s; 
   font-size: 14px;
 }
 
 .input-wrapper input:focus { 
-  background: white; 
-  border-color: #FF642F; 
+  background: var(--bg-card); 
+  border-color: var(--primary); 
   box-shadow: 0 0 0 2px rgba(255, 100, 47, 0.1); 
 }
 
@@ -1575,14 +1657,15 @@ prevItem(postId) {
   width: 100%;
   padding: 10px 36px 10px 16px; /* Padding phải rộng hơn để chừa chỗ cho nút X */
   border-radius: 20px; 
-  border: 1px solid #eee;
-  background: #f9f9f9; 
+  border: 1px solid var(--border-color);
+  background: var(--bg-input); /* Thay #f9f9f9 */
+  color: var(--text-main);
   outline: none; 
   transition: 0.2s; 
   font-size: 14px;
 }
 .search-container input:focus { 
-  background: white; 
+  background: var(--bg-card); 
   border-color: #FF642F; 
   box-shadow: 0 0 0 2px rgba(255, 100, 47, 0.1); 
 }
@@ -1590,13 +1673,13 @@ prevItem(postId) {
 .clear-icon {
   position: absolute;
   right: 12px;
-  color: #999;
+  color: var(--text-sub);
   cursor: pointer;
   font-size: 14px;
   font-weight: bold;
   padding: 4px;
 }
-.clear-icon:hover { color: #FF642F; }
+.clear-icon:hover { color: var(--primary); }
 
 .search-btn {
   background: #FF642F; color: white; border: none; 
@@ -1610,10 +1693,10 @@ prevItem(postId) {
   top: 100%; /* Nằm ngay dưới input */
   left: 0;
   width: 100%; /* Rộng bằng input */
-  background: white;
+  background: var(--bg-card);
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-  border: 1px solid #eee;
+  border: 1px solid var(--border-color);
   z-index: 100;
   margin-top: 6px;
   overflow: hidden;
@@ -1628,18 +1711,18 @@ prevItem(postId) {
 .history-header {
   display: flex; justify-content: space-between;
   padding: 8px 16px;
-  background: #f8f9fa;
+  background: var(--hover-bg);
   font-size: 12px;
   font-weight: 600;
-  color: #888;
-  border-bottom: 1px solid #eee;
+  color: var(--text-sub);
+  border-bottom: 1px solid var(--border-color);
 }
 .clear-all { cursor: pointer; color: #FF642F; font-size: 11px;}
 .clear-all:hover { text-decoration: underline; }
 
 .history-list {
   list-style: none; padding: 0; margin: 0;
-  max-height: 250px; overflow-y: auto;
+  max-height: 250px; overflow-y: auto; 
 }
 .history-list li {
   display: flex; justify-content: space-between; align-items: center;
@@ -1647,16 +1730,16 @@ prevItem(postId) {
   cursor: pointer;
   transition: 0.1s;
 }
-.history-list li:hover { background: #fdf4f0; } /* Màu cam nhạt khi hover */
+.history-list li:hover { background: var(--hover-bg); } /* Màu cam nhạt khi hover */
 
 .history-item-content {
   display: flex; align-items: center; gap: 10px;
-  font-size: 14px; color: #333;
+  font-size: 14px; color: var(--text-main);
 }
 .clock-icon { font-size: 12px; opacity: 0.6; }
 
 .delete-item {
-  font-size: 14px; color: #ddd; padding: 4px; border-radius: 50%;
+  font-size: 14px; color: var(--text-sub); padding: 4px; border-radius: 50%;
 }
 .delete-item:hover { color: #FF4444;}
 
@@ -1666,22 +1749,27 @@ prevItem(postId) {
 }
 .filter-container::-webkit-scrollbar { display: none; }
 .filter-pill {
-  white-space: nowrap; padding: 6px 16px; border-radius: 20px; border: 1px solid #eee;
-  background: white; color: #555; font-size: 13px; font-weight: 500; cursor: pointer; transition: 0.2s;
+  white-space: nowrap; padding: 6px 16px; border-radius: 20px; border: 1px solid var(--border-color);
+  background: var(--bg-card); 
+  color: var(--text-sub); font-size: 13px; font-weight: 500; cursor: pointer; transition: 0.2s;
 }
 .filter-pill.active, .filter-pill:hover { background: #FF642F; color: white; border-color: #FF642F; }
 
 /* Create Post */
 .create-post {
-  background: white; padding: 16px; border-radius: 16px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+  background: var(--bg-card); 
+  padding: 16px; border-radius: 16px;
+  border: 1px solid var(--border-color);
 }
-.create-post h3 { margin: 0 0 10px 0; font-size: 15px; color: #444; }
+.create-post h3 { margin: 0 0 10px 0; font-size: 15px; color: var(--text-main); }
 .create-post input {
-  width: 100%; padding: 12px; border: 1px solid #eee; border-radius: 12px;
-  background: #f8f9fa; cursor: pointer; transition: 0.2s;
+  width: 100%; padding: 12px; 
+  border: 1px solid var(--border-color); 
+  border-radius: 12px;
+  background: var(--bg-input); 
+  color: var(--text-main);
 }
-.create-post input:hover { background: #f0f0f0; }
+.create-post input:hover { background: var(--hover-bg); }
 
 /* ==========================================================================
    ⭐ NEW: SEARCH RESULTS STYLING (User & Section Title) ⭐
@@ -1689,7 +1777,7 @@ prevItem(postId) {
 .section-title {
   font-size: 18px;
   font-weight: 700;
-  color: #333;
+  color: var(--text-main);
   margin: 10px 0 12px 4px; /* Căn chỉnh lề */
 }
 
@@ -1707,11 +1795,12 @@ prevItem(postId) {
   display: flex;
   justify-content: space-between; /* Đẩy tên sang trái, nút sang phải */
   align-items: center;
-  background: white;
+  background: var(--bg-card);
   padding: 12px 16px;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.03);
-  border: 1px solid #f0f0f0;
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
   transition: all 0.2s ease;
 }
 
@@ -1719,6 +1808,7 @@ prevItem(postId) {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0,0,0,0.08);
   border-color: #FF642F; /* Highlight viền cam khi hover */
+  background: var(--hover-bg);
 }
 
 .user-info-left {
@@ -1737,12 +1827,12 @@ prevItem(postId) {
 
 
 
-.user-details .user-fullname { display:flex; font-weight: 700; font-size: 14px; margin: 0; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
- .user-details .username { font-size: 12px; color: #999; margin: 0; }
+.user-details .user-fullname { display:flex; font-weight: 700; font-size: 14px; margin: 0; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
+ .user-details .username { font-size: 12px; color: var(--text-sub); margin: 0; }
 
 .view-profile-btn {
-  background-color: #f0f2f5;
-  color: #333;
+  background-color: var(--bg-input);
+  color: var(--text-main);
   border: none;
   padding: 8px 16px;
   border-radius: 20px;
@@ -1760,14 +1850,14 @@ prevItem(postId) {
 .no-posts-container {
   text-align: center;
   padding: 40px;
-  background: white;
+  background: var(--bg-card);
   border-radius: 16px;
   color: #888;
-  border: 1px dashed #ddd;
+  border: 1px dashed var(--border-color);
 }
 .clear-filter-btn {
   margin-top: 10px;
-  background: white;
+  background: var(--bg-card);
   border: 1px solid #FF642F;
   color: #FF642F;
   padding: 6px 20px;
@@ -1775,33 +1865,34 @@ prevItem(postId) {
   cursor: pointer;
   font-weight: 600;
 }
-.clear-filter-btn:hover { background: #FF642F; color: white; }
+.clear-filter-btn:hover { background: #FF642F; color: var(--hover-bg); }
 
 /* ==========================================================================
    3. POST CARDS
    ========================================================================== */
 .post, .shared-post {
-  background: white; border-radius: 16px;
+  background: var(--bg-card); border-radius: 16px;
   box-shadow: 0 4px 15px rgba(0,0,0,0.03);
-  border: 1px solid #f0f0f0; overflow: visible;
+  border: 1px solid var(--border-color); 
+  color: var(--text-main); overflow: visible;
   display: flex; flex-direction: column;
 }
 
 .post-header { padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; }
 .post-author-info { display: flex; align-items: center; gap: 12px; }
 .post-author-info img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 1px solid #eee; }
-.author-details strong { display: block; font-size: 14px; color: #333; }
-.author-details .time { font-size: 12px; color: #999; margin-top: 2px; }
+.author-details strong { display: block; font-size: 14px; color: var(--text-main); }
+.author-details .time { font-size: 12px; color: var(--text-sub); margin-top: 2px; }
 
 .post-content-wrapper { padding: 4px 16px 12px 16px; }
-.post-text { font-size: 15px; line-height: 1.5; color: #333; margin: 0; white-space: pre-line; }
+.post-text { font-size: 15px; line-height: 1.5; color: var(--text-main); margin: 0; white-space: pre-line; }
 .read-more-btn { border: none; background: none; color: #FF642F; font-weight: 600; font-size: 13px; cursor: pointer; padding: 0; margin-top: 5px; }
 .read-more-btn:hover { text-decoration: underline; }
 
 .recipe-category {
   display: inline-block;
   font-size: 13px;
-  background: #FFF0E6; /* Nền cam nhạt */
+  background-color: var(--hover-primary);
   color: #FF642F;       /* Chữ cam đậm */
   padding: 2px 8px;
   border-radius: 12px;
@@ -1814,14 +1905,14 @@ prevItem(postId) {
   margin: 20px 0 10px 0;
   
   font-size: 13px;
-  color: #333;
+  color: var(--text-main);
 }
 
 .recipe-title {
   font-size: 16px;
   font-weight: 700;
   margin: 0 0 5px 0;
-  color: #333;
+  color: var(--text-main);
 }
 
 
@@ -1842,40 +1933,43 @@ prevItem(postId) {
 }
 
 /* Rating */
-.rating-statistics { margin: 12px 16px 10px 16px; background: #fff9e6; border: 1px solid #ffe9b8; padding: 10px 14px; border-radius: 10px; }
+.rating-statistics { margin: 12px 16px 10px 16px; background: var(--hover-primary);
+  border: 1px solid var(--border-color); padding: 10px 14px; border-radius: 10px; }
 .rating-summary { display: flex; justify-content: space-between; align-items: center; }
 .average-rating { display: flex; align-items: center; gap: 8px; }
 .rating-number { font-weight: bold; color: #f57c00; font-size: 18px; }
 .stars-display { display: flex; gap: 2px; }
 .star-icon { color: #ddd; font-size: 16px; }
 .star-icon.filled { color: #ffc107; }
-.rating-count { font-size: 12px; color: #856404; font-weight: 500; }
+.rating-count { font-size: 12px; color: var(--text-sub); font-weight: 500; }
 
 .post-stats { padding: 0 16px 10px; font-size: 12px; color: #999; display: flex; gap: 12px; }
 
 /* Actions */
-.post-actions { padding: 8px 0; border-top: 1px solid #f5f5f5; display: flex; justify-content: space-around; }
+.post-actions { padding: 8px 0; border-top: 1px solid var(--border-color); display: flex; justify-content: space-around; }
 .post-actions button {
   background: none; border: none; display: flex; align-items: center; gap: 6px;
-  padding: 8px 12px; border-radius: 8px; cursor: pointer; color: #666; font-size: 13px; font-weight: 500; transition: 0.2s;
+  padding: 8px 12px; border-radius: 8px; cursor: pointer; color: var(--text-sub); font-size: 13px; font-weight: 500; transition: 0.2s;
 }
-.post-actions button:hover { background: #fff5eb; color: #FF642F; }
+.post-actions button:hover { background: var(--hover-bg); color: var(--primary); }
 .post-actions button img { width: 18px; height: 18px; opacity: 0.7; }
 
-.post-actions button.active img { filter: none; opacity: 1; }
+.post-actions button.active img { filter:none; opacity: 1; }
 
 /* Menus */
 .post-menu-wrapper { position: relative; }
 .menu-post-icon { width: 24px; cursor: pointer; opacity: 0.5; padding: 4px; }
 .dropdown-menu {
-  position: absolute; right: 0; top: 100%; background: white; border: 1px solid #eee;
+  position: absolute; right: 0; top: 100%; background: var(--bg-card); 
+  border: 1px solid var(--border-color);
   box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden; z-index: 100; width: 140px; font-weight: 500;
 }
 .dropdown-menu button {
-  width: 100%; padding: 10px 12px; text-align: left; background: white; border: none;
+  width: 100%; padding: 10px 12px; text-align: left; background: var(--bg-card); 
+  color: var(--text-main); border: none;
   display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;
 }
-.dropdown-menu button:hover { background: #f9f9f9; }
+.dropdown-menu button:hover { background: var(--hover-bg); }
 .dropdown-menu button img { width: 16px; opacity: 0.7; }
 
 /* Shared Specifics */
@@ -1885,11 +1979,12 @@ prevItem(postId) {
 
 /* Khung bao ngoài bài gốc */
 .shared-content-box { 
-  border: 1px solid #ddd; 
+  border: 1px solid var(--border-color); 
+  background-color: var(--bg-card); 
   border-radius: 12px; 
   margin: 0 16px 12px; 
   overflow: hidden; 
-  background-color: #fff;
+ 
   
 }
 
@@ -1911,7 +2006,7 @@ prevItem(postId) {
   display: flex; 
   align-items: center; /* Căn giữa dọc */
   gap: 12px; 
-  border-bottom: 1px solid #ffebeb;
+  border-bottom: 1px solid var(--border-color);
   
 }
 
@@ -1938,13 +2033,13 @@ prevItem(postId) {
 .linked-items-in-post {
   margin-top: 14px;
   padding-top: 12px;
-  border-top: 1px dashed #e5e7eb;
+  border-top: 1px dashed var(--border-color);
 }
 
 .linked-items-title {
   font-size: 13px;
   font-weight: 700;
-  color: #333;
+  color: var(--text-main);
   margin-bottom: 8px;
 }
 
@@ -1955,9 +2050,10 @@ prevItem(postId) {
   display: flex;
   gap: 10px;
   padding: 10px;
-  border: 1px solid #e4e6ea;
+  border: 1px solid var(--border-color);
+  background: var(--bg-input);
   border-radius: 12px;
-  background: #fafafa;
+
 }
 
 /* GROUP ARROWS */
@@ -1975,8 +2071,9 @@ prevItem(postId) {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  border: 1px solid #e5e7eb;
-  background: white;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-main);
   cursor: pointer;
   font-size: 16px;
   font-weight: bold;
@@ -1987,7 +2084,7 @@ prevItem(postId) {
 }
 
 .carousel-arrow:hover:not(:disabled) {
-  background: #fff7ed;
+  background: var(--hover-primary);
   border-color: #fb923c;
   color: #ea580c;
 }
@@ -2002,8 +2099,8 @@ prevItem(postId) {
   align-self: flex-start;
   font-size: 12px;
   font-weight: 600;
-  color: #6b7280;
-  background: #f3f4f6;
+  color: var(--text-sub);
+  background: var(--bg-input);
   padding: 3px 10px;
   border-radius: 999px;
   width: fit-content;
@@ -2070,20 +2167,33 @@ prevItem(postId) {
   padding: 4px 10px;
   font-size: 12px;
   border-radius: 999px;
-  border: 1px solid #e5e7eb;
-  background: white;
+  background: var(--bg-card);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
   cursor: pointer;
 }
 
 .view-item-btn:hover {
-  background: #fff7ed;
-  border-color: #fb923c;
-  color: #ea580c;
+  background: var(--hover-bg);
+  border-color: #FF642F;
+  color: #FF642F;
 }
 
 .content-body{
   position: relative; /* Để làm mốc cho LoadingOverlay */
   min-height: 200px;
+}
+
+/* Highlight post từ notification */
+.feed-item.post-highlighted {
+  animation: post-highlight-fade 3s ease forwards;
+  border-radius: 16px;
+}
+
+@keyframes post-highlight-fade {
+  0%   { box-shadow: 0 0 0 3px #FF642F, 0 0 20px rgba(255, 100, 47, 0.35); background: #fff5f0; }
+  60%  { box-shadow: 0 0 0 3px #FF642F, 0 0 20px rgba(255, 100, 47, 0.35); background: #fff5f0; }
+  100% { box-shadow: none; background: transparent; }
 }
 
 

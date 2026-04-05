@@ -84,7 +84,12 @@ const userSchema = new mongoose.Schema(
         address: { type: String, required: true },
         isDefault: { type: Boolean, default: false }
       }
-    ]
+    ],
+
+    darkTheme: {
+      type: Boolean,
+      default: false
+    }
 
 
   },

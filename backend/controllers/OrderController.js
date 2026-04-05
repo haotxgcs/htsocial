@@ -1,4 +1,5 @@
 const Order = require("../models/OrderModel");
+const { notify } = require("./NotificationController");
 const Cart = require("../models/CartModel");
 const MarketplaceItem = require("../models/MarketplaceItemModel");
 const User = require("../models/UserModel");
@@ -298,6 +299,28 @@ exports.checkout = async (req, res) => {
     // ✅ 10. RESPONSE
     // ✅ FIX: If online -> tell frontend proceed payment
     // =========================================================
+    // Notify buyer + each seller
+    for (const order of createdOrders) {
+      await notify({
+        recipientId: userId,
+        type:        "order_placed",
+        refId:       order._id,
+        refType:     "Order",
+        meta:        { orderId: order._id }
+      }).catch(() => {});
+
+      if (order.seller && String(order.seller) !== String(userId)) {
+        await notify({
+          recipientId: order.seller,
+          senderId:    userId,
+          type:        "new_order",
+          refId:       order._id,
+          refType:     "Order",
+          meta:        { orderId: order._id, buyerName: user.firstname + " " + user.lastname }
+        }).catch(() => {});
+      }
+    }
+
     res.status(201).json({
       success: true,
       msg:
@@ -482,6 +505,27 @@ exports.buyNow = async (req, res) => {
           : "Order placed successfully",
       order
     });
+
+    await notify({
+      recipientId: userId,
+      type:        "order_placed",
+      refId:       order._id,
+      refType:     "Order",
+      meta:        { orderId: order._id }
+    }).catch(() => {});
+      if (order.seller && String(order.seller) !== String(userId)) {
+        await notify({
+          recipientId: order.seller,
+          senderId:    userId,
+          type:        "new_order",
+          refId:       order._id,
+          refType:     "Order",
+          meta:        { orderId: order._id, buyerName: user.firstname + " " + user.lastname }
+        }).catch(() => {});
+      }
+      
+
+
 
   } catch (err) {
     console.error("Buy now error:", err);
@@ -831,6 +875,16 @@ exports.updateOrderStatusBySeller = async (req, res) => {
     // =========================================================
     await order.save();
 
+    // Notify buyer about status change
+    await notify({
+      recipientId: order.user,
+      senderId:    sellerId,
+      type:        "order_status",
+      refId:       order._id,
+      refType:     "Order",
+      meta:        { orderId: order._id, status }
+    }).catch(() => {});
+
     // =========================================================
     // ✅ 8. RESPONSE
     // =========================================================
@@ -908,6 +962,18 @@ exports.cancelOrderBySeller = async (req, res) => {
 
     await order.save();
 
+    // Notify seller about cancellation
+    if (order.user) {
+      await notify({
+        recipientId: order.user,
+        senderId: sellerId,
+        type:        "order_cancelled",
+        refId:       order._id,
+        refType:     "Order",
+        meta: { orderId: order._id, by: "seller" }
+      }).catch(() => {});
+    }
+
     res.json({
       success: true,
       msg: "Order cancelled successfully",
@@ -982,6 +1048,18 @@ exports.cancelOrder = async (req, res) => {
     }
 
     await order.save();
+
+    // Notify seller about cancellation
+    if (order.seller) {
+      await notify({
+        recipientId: order.seller,
+        senderId:    userId,
+        type:        "order_cancelled",
+        refId:       order._id,
+        refType:     "Order",
+        meta:        { orderId: order._id, by: "buyer" }
+      }).catch(() => {});
+    }
 
     res.json({
       success: true,
@@ -1127,6 +1205,19 @@ exports.reviewItem = async (req, res) => {
     }
 
     await order.save();
+
+    // Notify seller about new review
+    const reviewedItem = await MarketplaceItem.findById(itemId).select("seller title");
+    if (reviewedItem && String(reviewedItem.seller) !== String(userId)) {
+      await notify({
+        recipientId: reviewedItem.seller,
+        senderId:    userId,
+        type:        "review",
+        refId:       itemId,
+        refType:     "MarketplaceItem",
+        meta: { itemName: reviewedItem.title, itemId: itemId ,reviewId: review._id }
+      }).catch(() => {});
+    }
 
     // ✅ Response
     res.status(201).json({

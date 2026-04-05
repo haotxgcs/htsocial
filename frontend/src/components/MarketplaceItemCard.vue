@@ -9,11 +9,19 @@
         v-click-outside="closeMenu"
         @click.stop
       >
-        <span class="menu-icon" @click.stop="toggleMenu"><img src="../assets/menu.png"></span>
+        <span class="menu-icon" @click.stop="toggleMenu">
+          <Menu/>
+        </span>
 
         <div v-if="showMenu" class="menu-dropdown" @click.stop>
-          <button class="menu-item" @click.stop="editItem"><img src="../assets/edit.png"><span>Edit</span></button>
-          <button class="menu-item danger" @click.stop="deleteItem"><img src="../assets/delete.png"><span>Delete</span></button>
+          <button class="menu-item" @click.stop="editItem">
+            <Pencil/>
+            <span>Edit</span>
+          </button>
+          <button class="menu-item danger" @click.stop="deleteItem">
+            <Trash2/>
+            <span>Delete</span>
+          </button>
         </div>
       </div>
 
@@ -43,6 +51,7 @@
 
 
 <script>
+import { Menu, Pencil, Trash2 } from 'lucide-vue-next';
   const clickOutside = {
     mounted(el, binding) {
       el._handler = (e) => {
@@ -60,6 +69,11 @@
 
 export default {
   name: "MarketplaceItemCard",
+  components:{
+    Menu,
+    Pencil,
+    Trash2
+  },
   data() {
   return {
     showMenu: false,
@@ -144,15 +158,15 @@ export default {
 
 <style scoped>
 .item-card {
-  width: 100%;              /* 👈 QUAN TRỌNG */
-  background: white;
+  width: 100%;
+  background: var(--bg-card);
   border-radius: 16px;
   overflow: visible;
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.3s;
   box-shadow: 0 2px 6px rgba(0,0,0,0.08);
   display: flex;
-  flex-direction: column;   /* 👈 đảm bảo nội dung xếp dọc */
+  flex-direction: column;
 }
 
 .item-card:hover {
@@ -162,10 +176,11 @@ export default {
 .image-box {
   position: relative;
   width: 100%;
-  height: 200px;        /* 🔥 CỐ ĐỊNH CHIỀU CAO */
+  height: 200px;
   overflow: hidden;
-  aspect-ratio: 1 / 1;      /* 👈 THAY cho height: 180px */
-  background: #f3f4f6;      /* 👈 tránh nhảy layout khi ảnh load */
+  aspect-ratio: 1 / 1;
+  background: var(--bg-input);
+  border-radius: 16px 16px 0 0;
 }
 
 .image-box img {
@@ -177,9 +192,8 @@ export default {
 
 .badge {
   position: absolute;
-  top: 8px;
-  left: 8px;
-  background: #ff642f;
+  top: 8px; left: 8px;
+  background: #FF642F;
   color: white;
   padding: 4px 10px;
   border-radius: 999px;
@@ -192,7 +206,7 @@ export default {
 
 .price {
   font-weight: 700;
-  color: #ff642f;
+  color: #FF642F;
   margin-bottom: 4px;
 }
 
@@ -200,31 +214,29 @@ export default {
   font-size: 14px;
   font-weight: 600;
   margin-bottom: 8px;
-
   line-height: 1.3;
-
+  color: var(--text-main);
   display: -webkit-box;
-  -webkit-line-clamp: 2;     /* 👈 GIỚI HẠN 2 DÒNG */
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
-
   overflow: hidden;
   text-overflow: ellipsis;
   word-break: break-word;
 }
 
-.review{
-  font-size:14px;
-  font-weight:500;
+.review {
+  font-size: 14px;
+  font-weight: 500;
   color: #f5a623;
-  font-style:italic;
+  font-style: italic;
   margin-bottom: 5px;
 }
 
-.no-review{
+.no-review {
   font-size: 13px;
-  color: #aaa;
+  color: var(--text-sub);
   font-style: italic;
-  margin-bottom:5px;
+  margin-bottom: 5px;
 }
 
 .rating-summary {
@@ -234,18 +246,18 @@ export default {
 }
 
 .avg-stars { display: flex; gap: 1px; }
-.avg-star { font-size: 18px; color: #ddd; }
+.avg-star { font-size: 18px; color: var(--border-color); }
 .avg-star.full { color: #f5a623; }
 
 .avg-score {
   font-size: 16px;
   font-weight: 700;
-  color: #333;
+  color: var(--text-main);
 }
 
 .avg-count {
   font-size: 13px;
-  color: #888;
+  color: var(--text-sub);
 }
 
 .seller {
@@ -253,131 +265,105 @@ export default {
   align-items: center;
   gap: 6px;
   font-size: 13px;
-  color: #666;
+  color: var(--text-sub);
 }
 
 .seller img {
-  width: 26px;
-  height: 26px;
+  width: 26px; height: 26px;
   border-radius: 50%;
+  border: 1px solid var(--border-color);
 }
 
-/* menu style */
-/* ===== MENU WRAPPER ===== */
+/* ── MENU WRAPPER ── */
 .menu-wrapper {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 8px; right: 8px;
   z-index: 10;
   opacity: 0;
   transition: opacity 0.2s ease;
 }
 
-/* chỉ hiện menu khi hover card */
 .item-card:hover .menu-wrapper {
   opacity: 1;
 }
 
-/* ===== ICON ===== */
+/* ── MENU ICON ── */
 .menu-icon {
-  width: 28px;
-  height: 28px;
+  width: 28px; height: 28px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.9);
-  color: #555;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  cursor: pointer;
+  background: var(--bg-input);
+  color: var(--text-sub);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; cursor: pointer;
   box-shadow: 0 2px 6px rgba(0,0,0,0.15);
 }
 
 .menu-icon:hover {
-  background: #fdf4f0;
-  color: white;
+  background: var(--hover-bg);
+  color: #FF642F;
 }
 
-/* ===== DROPDOWN ===== */
+/* ── MENU DROPDOWN ── */
 .menu-dropdown {
   position: absolute;
-  top: 34px;
-  right: 0;
-  background: white;
+  top: 34px; right: 0;
+  background: var(--bg-card);
   border-radius: 10px;
   min-width: 140px;
   box-shadow: 0 10px 24px rgba(0,0,0,0.15);
+  border: 1px solid var(--border-color);
   overflow: hidden;
   animation: fadeDown 0.15s ease;
 }
 
 @keyframes fadeDown {
-  from {
-    opacity: 0;
-    transform: translateY(-6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .menu-dropdown button {
   width: 100%;
   padding: 10px 14px;
   border: none;
-  background: white;
+  background: var(--bg-card);
+  color: var(--text-main);
   text-align: left;
   font-size: 14px;
   cursor: pointer;
+  transition: background 0.15s;
 }
 
 .menu-dropdown button:hover {
-  background: #f5f5f5;
+  background: var(--hover-bg);
 }
 
 .menu-dropdown .danger {
   color: #ff4d4f;
 }
 
-/* ===== MENU ITEM ===== */
+/* ── MENU ITEM ── */
 .menu-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 10px 14px;
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; padding: 10px 14px;
   border: none;
-  background: white;
-  font-size: 14px;
-  cursor: pointer;
-  color: #333;
+  background: var(--bg-card);
+  color: var(--text-main);
+  font-size: 14px; cursor: pointer;
+  transition: background 0.15s;
 }
 
-.menu-item:hover {
-  background: #f5f5f5;
-}
+.menu-item:hover { background: var(--hover-bg); }
 
-/* ===== ICON ===== */
 .menu-item img {
-  width: 24px !important;
-  height: 24px !important;
-  min-width: 24px;
-  min-height: 24px;
-  object-fit: contain;
-  opacity: 0.75;
-  flex-shrink: 0;
+  width: 24px !important; height: 24px !important;
+  min-width: 24px; min-height: 24px;
+  object-fit: contain; opacity: 0.75; flex-shrink: 0;
 }
 
-/* ===== DELETE STYLE ===== */
-.menu-item.danger {
-  color: #ff4d4f;
-}
+.menu-item.danger { color: #ff4d4f; }
 
 .menu-item.danger .menu-icon-img {
   filter: brightness(0) saturate(100%) invert(33%) sepia(77%) saturate(3936%)
     hue-rotate(344deg) brightness(98%) contrast(101%);
 }
-
-
 </style>

@@ -192,7 +192,7 @@
             <p class="sub-text">Be the first to share what you think!</p>
           </div>
 
-          <div v-for="comment in filteredComments" :key="comment._id" class="comment-item">
+          <div v-for="comment in filteredComments" :key="comment._id" :id="`comment-${comment._id}`" class="comment-item" :class="{ 'comment-highlight': highlightedId === comment._id }">
             <img :src="getAvatarUrl(comment.author)" class="comment-avatar" alt="avatar" />
             <div class="comment-content">
               <div class="comment-bubble">
@@ -280,10 +280,9 @@
                        <button @click.stop="toggleEmojiPicker('reply-' + comment._id)" class="emoji-btn-small">
                          <img src="../assets/emoji.png" class="icon-emoji-img"/>
                        </button>
-                       <div v-if="activeEmojiPicker === 'reply-' + comment._id" class="emoji-popover-up" @click.stop>
-                         <EmojiPicker :native="true" @select="insertEmoji" theme="light" />
-                       </div>
+                       
                     </div>
+                    
                   </div>
                   
                   <button 
@@ -291,6 +290,9 @@
                     :disabled="!replyInputs[comment._id]?.trim()"
                     class="send-reply-btn"
                   >➤</button>
+                </div>
+                <div v-if="activeEmojiPicker === 'reply-' + comment._id" class="emoji-popover-up" @click.stop>
+                  <EmojiPicker :native="true" @select="insertEmoji" theme="light" />
                 </div>
               </div>
 
@@ -371,14 +373,16 @@
                              <button @click.stop="toggleEmojiPicker('replyToReply-' + reply._id)" class="emoji-btn-small">
                                <img src="../assets/emoji.png" class="icon-emoji-img"/>
                              </button>
-                             <div v-if="activeEmojiPicker === 'replyToReply-' + reply._id" class="emoji-popover-up" @click.stop>
-                               <EmojiPicker :native="true" @select="insertEmoji" theme="light" />
-                             </div>
+                             
                           </div>
                         </div>
 
                         <button @click="submitReplyToReply(comment._id, reply._id)" class="send-reply-btn" :disabled="!replyInputsReply[reply._id]?.trim()">➤</button>
+                        
                       </div>
+                      <div v-if="activeEmojiPicker === 'replyToReply-' + reply._id" class="emoji-popover-up" @click.stop>
+                               <EmojiPicker :native="true" @select="insertEmoji" theme="light" />
+                             </div>
                     </div>
                   </div>
                 </div>
@@ -457,6 +461,10 @@ export default {
     initialSaveCount: {
       type: Number,
       default: 0
+    },
+    highlightCommentId: {
+      type: String,
+      default: null
     }
   },
   data() {
@@ -504,7 +512,9 @@ export default {
         key: null // ID của comment/reply (nếu có)
       },
 
-      currentItemIndex: 0
+      currentItemIndex: 0,
+
+      highlightedId: null,
 
     }
   },
@@ -610,10 +620,21 @@ export default {
 
         // Lắng nghe sự kiện click để đóng emoji picker
         document.addEventListener('click', this.closeEmojiPickerOnClickOutside, true);
+
+        if (this.highlightCommentId) {
+          this.highlightedId = this.highlightCommentId;
+          this.$nextTick(() => {
+            setTimeout(() => {
+              const el = document.getElementById(`comment-${this.highlightCommentId}`);
+              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 500);
+          });
+        }
       } else {
         // Cleanup khi đóng modal
         document.removeEventListener('click', this.closeEmojiPickerOnClickOutside, true);
         this.activeEmojiPicker = null;
+        this.highlightedId = null;
       }
     },
 
@@ -720,6 +741,10 @@ closeEmojiPickerOnClickOutside(event) {
     closeModal() {
       this.$emit('close');
       this.resetModal();
+
+      if (this.$route.query.postId || this.$route.query.highlightComment) {
+        this.$router.replace({ path: '/home' });
+      }
     },
 
     resetModal() {
@@ -1394,9 +1419,19 @@ closeEmojiPickerOnClickOutside(event) {
 <style scoped>
 /* --- CÁC STYLE CŨ (Giữ nguyên) --- */
 
-.comment-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(255, 255, 255, 0.8); display: flex; justify-content: center; align-items: center; z-index: 9999; padding: 20px; box-sizing: border-box; }
-.comment-modal-content {
-  background: white;
+.comment-modal-overlay { 
+  position: fixed; 
+  top: 0; 
+  left: 0; 
+  width: 100%; 
+  height: 100%; 
+  background-color: rgba(0, 0, 0, 0.45);
+   display: flex; 
+   justify-content: center; 
+   align-items: center; z-index: 9999; padding: 20px; box-sizing: border-box; }
+
+   .comment-modal-content {
+  background: var(--bg-card);
   border-radius: 12px;
   width: 100%;
   max-width: 600px;
@@ -1410,7 +1445,7 @@ closeEmojiPickerOnClickOutside(event) {
   
   /* Quan trọng: Ẩn thanh cuộn của khung chính để các phần con tự cuộn */
   overflow: hidden; 
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border-color);
 }
 /* 2. Header: Cố định, không bị co lại */
 .comment-modal-header {
@@ -1418,21 +1453,34 @@ closeEmojiPickerOnClickOutside(event) {
   justify-content: center;
   align-items: center;
   padding: 20px 24px;
-  background: white;
-  border-bottom: 1px solid #eee;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-color);
   position: relative;
   
   /* Quan trọng: Không cho phép header bị co nhỏ khi thiếu chỗ */
   flex-shrink: 0; 
   z-index: 10;
 }
-.comment-modal-header h3 { margin: 0; font-size: 18px; font-weight: 700; color: #1c1e21; text-align: center; }
-.close-btn { background: #f0f2f5; border: none; border-radius: 50%; width: 36px; height: 36px; font-size: 20px; color: #606770; display: flex; align-items: center; justify-content: center; cursor: pointer; position: absolute; right: 24px; top: 50%; transform: translateY(-50%); }
-.close-btn:hover { background: #e4e6ea; }
+.comment-modal-header h3 { 
+  margin: 0; 
+  font-size: 18px; 
+  font-weight: 700; 
+  color: var(--text-main); 
+  text-align: center; 
+}
+.close-btn { 
+  background: var(--bg-input);
+  border: none; 
+  border-radius: 50%; 
+  width: 36px; 
+  height: 36px; 
+  font-size: 20px; 
+  color: var(--text-sub); display: flex; align-items: center; justify-content: center; cursor: pointer; position: absolute; right: 24px; top: 50%; transform: translateY(-50%); }
+.close-btn:hover { background: var(--hover-bg); }
 
 .post-detail {
   padding: 20px 24px;
-  border-bottom: 1px solid #e4e6eb;
+  border-bottom: 1px solid var(--border-color);
   
   /* Giới hạn chiều cao tối đa (ví dụ 30% màn hình modal) để nhường chỗ cho comment */
   max-height: 30vh; 
@@ -1441,27 +1489,33 @@ closeEmojiPickerOnClickOutside(event) {
 }
 .post-author-info { display: flex; align-items: flex-start; margin-bottom: 12px; }
 .author-avatar { width: 40px; height: 40px; border-radius: 50%; margin-right: 12px; object-fit: cover; }
-.author-details strong { font-size: 15px; font-weight: 600; color: #1c1e21; }
-.author-details .time { font-size: 13px; color: #65676b; margin-top: 2px; }
+.author-details strong { 
+  font-size: 15px; font-weight: 600; color: var(--text-main); }
+.author-details .time { font-size: 13px; color: var(--text-sub); margin-top: 2px; }
 
-.post-content { font-size: 15px; line-height: 1.4; color: #1c1e21; margin: 12px 0; white-space: pre-line; }
+.post-content { 
+  font-size: 15px; 
+  line-height: 1.4; 
+  color: var(--text-main); margin: 12px 0; white-space: pre-line; }
 .content-collapsed { max-height: none; overflow: hidden; }
-.read-more-btn { background: none; border: none; color: #FF642F; font-weight: 600; font-size: 14px; cursor: pointer; padding: 4px 0; margin-top: 4px; }
+.read-more-btn { background: none; border: none; color: var(--primary); font-weight: 600; font-size: 14px; cursor: pointer; padding: 4px 0; margin-top: 4px; }
 .read-more-btn:hover { text-decoration: underline; }
 
-.recipe-content { background: #f8f9fa; border: 1px solid #e3e6ea; border-radius: 12px; padding: 16px; margin-top: 12px; }
+.recipe-content { 
+  background: var(--bg-input); 
+  border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; margin-top: 12px; }
 .recipe-title {
   font-size: 16px;
   font-weight: 700;
   margin: 0 0 5px 5px;
-  color: #333;
+  color: var(--text-main);
 }
 
 .recipe-category {
   display: inline-block;
   font-size: 13px;
-  background: #FFF0E6; /* Nền cam nhạt */
-  color: #FF642F;       /* Chữ cam đậm */
+  background: var(--hover-primary);
+  color: var(--primary);
   padding: 2px 8px;
   border-radius: 12px;
   margin-bottom: 12px;
@@ -1472,58 +1526,136 @@ closeEmojiPickerOnClickOutside(event) {
   font-weight: 700;
   margin: 0 0 10px 0;
   font-size: 13px;
-  color: #333;
+  color: var(--text-main);
 }
 .recipe-section { margin-bottom: 12px; }
 .recipe-section:last-child { margin-bottom: 0; }
-.recipe-section strong { color: #FF642F; font-size: 14px; font-weight: 600; display: block; margin-bottom: 6px; }
-.recipe-text { font-size: 14px; line-height: 1.5; color: #1c1e21; margin: 0; white-space: pre-line; background: white; padding: 8px 12px; border-radius: 8px; border: 1px solid #e3e6ea; }
+.recipe-section strong { color: var(--primary); font-size: 14px; font-weight: 600; display: block; margin-bottom: 6px; }
+.recipe-text { 
+  font-size: 14px; 
+  line-height: 1.5; 
+  color: var(--text-main); 
+  margin: 0; white-space: pre-line; 
+  background: var(--bg-card); padding: 8px 12px; border-radius: 8px; border: 1px solid #e3e6ea; }
 
 .post-media-modal { margin: 16px 0; text-align: center; }
-.post-image-modal { width: 100%; max-height: 480px; object-fit: cover; border-radius: 12px; display: block; }
-.post-video-modal { width: 100%; max-height: 300px; object-fit: contain; border-radius: 8px; background-color:black;}
-.post-stats { display: flex; gap: 16px; margin: 16px 0 12px 0; font-size: 14px; color: #65676b; }
+.post-image-modal { 
+  width: 100%; 
+  max-height: 480px; 
+  object-fit: cover; 
+  border-radius: 12px; 
+  display: block; 
+}
+.post-video-modal { 
+  width: 100%; 
+  max-height: 300px; 
+  object-fit: contain; 
+  border-radius: 8px; background-color:black;}
+.post-stats { display: flex; gap: 16px; margin: 16px 0 12px 0; font-size: 14px; color: var(--text-sub); }
 
-.post-actions-modal { display: flex; justify-content: space-around; padding: 8px 0; border-top: 1px solid #e4e6eb; margin-top: 10px; }
-.action-btn { display: flex; align-items: center; gap: 8px; background: none; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-weight: 500; color: #65676b; flex: 1; justify-content: center; }
-.action-btn:hover { color: #FF642F; background: #fdf4f0; }
+.post-actions-modal { 
+  display: flex; 
+  justify-content: space-around; 
+  padding: 8px 0; 
+  border-top: 1px solid var(--border-color); 
+  margin-top: 10px; 
+}
+
+.action-btn { 
+  display: flex; 
+  align-items: center; 
+  gap: 8px; 
+  background: none; 
+  border: none; 
+  padding: 8px 12px; 
+  border-radius: 6px; 
+  cursor: pointer; 
+  font-weight: 500; 
+  color: var(--text-sub); flex: 1; justify-content: center; }
+.action-btn:hover { color: var(--primary); background: var(--hover-primary); }
 .action-icon { width: 20px; height: 20px; }
 
 .comments-section {
   flex-grow: 1;     /* Tự động giãn ra lấp đầy khoảng trống giữa bài viết và footer */
   padding: 10px;
-  background-color: #f9f9f9;
+  background-color: var(--bg-body);
   
   overflow-y: auto; /* Bật thanh cuộn cho riêng vùng này */
   min-height: 0;    /* Fix lỗi flexbox trên một số trình duyệt */
 }
 .comments-list::-webkit-scrollbar { display: none; }
-.no-comments { text-align: center; padding: 40px 20px; color: #65676b; }
+.no-comments { 
+  text-align: center; 
+  padding: 40px 20px; 
+  color: var(--text-sub); 
+}
 .no-comments-icon { font-size: 48px; margin-bottom: 16px; }
 
 /* Comment Items */
 .comment-item { display: flex; margin-bottom: 16px; padding: 8px 4px; }
 .comment-avatar { width: 32px; height: 32px; border-radius: 50%; margin-right: 8px; object-fit: cover; }
 .comment-content { flex: 1; min-width: 0; }
-.comment-bubble { background: #f0f2f5; border-radius: 16px; padding: 8px 12px; display: inline-block; max-width: 90%; word-wrap: break-word; }
+.comment-bubble { background: var(--bg-input); border-radius: 16px; padding: 8px 12px; display: inline-block; max-width: 90%; word-wrap: break-word; }
 .edit-comment-container { width: 100%; margin-top: 8px; }
-.edit-comment-container .edit-textarea { width: 100%; min-height: 80px; padding: 12px 16px; border: 1px solid #ddd; border-radius: 12px; resize: vertical; font-family: inherit; font-size: 14px; line-height: 1.4; box-sizing: border-box; background-color: white; color: #1c1e21; }
-.edit-comment-container .edit-textarea:focus { outline: none; border-color: #FF642F; box-shadow: 0 0 0 2px rgba(24, 119, 242, 0.2); }
+.edit-comment-container .edit-textarea { 
+  width: 100%; 
+  min-height: 80px; 
+  padding: 12px 16px; 
+  border: 1px solid var(--border-color); 
+  border-radius: 12px; 
+  resize: vertical; 
+  font-family: inherit; 
+  font-size: 14px; 
+  line-height: 1.4; 
+  box-sizing: border-box; 
+  background-color: var(--bg-card); color: var(--text-main); 
+}
+.edit-comment-container .edit-textarea:focus { 
+  outline: none; 
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(24, 119, 242, 0.2); 
+}
 .edit-rating-value {
   margin-left: 8px;
   font-size: 13px;
-  
-  /* SỬA Ở ĐÂY: Đổi từ màu cũ sang màu cam #f57c00 */
   color: #856404; 
   
   font-weight: 700; /* Tăng độ đậm một chút cho rõ */
 }
-.comment-author { font-size: 13px; font-weight: 600; color: #1c1e21; display: inline-flex; margin-bottom: 2px; align-items: center; }
-.comment-text { font-size: 14px; color: #1c1e21; margin: 0; line-height: 1.4; word-wrap: break-word; }
-.comment-actions { display: flex; align-items: center; gap: 12px; margin-top: 4px; margin-left: 12px; font-size: 12px; color: #65676b; }
-.comment-time { font-size: 12px; color: #65676b; }
-.comment-action-btn { background: none; border: none; font-size: 12px; font-weight: 500; color: #65676b; cursor: pointer; padding: 0; display: flex; align-items: center; gap: 4px; }
-.comment-action-btn:hover { text-decoration: underline; color: #FF642F; }
+.comment-author { 
+  font-size: 13px; 
+  font-weight: 600; 
+  color: var(--text-main); 
+  display: inline-flex; 
+  margin-bottom: 2px; 
+  align-items: center; 
+}
+.comment-text { 
+  font-size: 14px; 
+  color: var(--text-main);
+   margin: 0; line-height: 1.4; word-wrap: break-word; 
+  }
+.comment-actions { 
+  display: flex; 
+  align-items: center; 
+  gap: 12px; 
+  margin-top: 4px; 
+  margin-left: 12px; 
+  font-size: 12px; color: var(--text-sub); }
+.comment-time { font-size: 12px; color: var(--text-sub); }
+.comment-action-btn { 
+  background: none; 
+  border: none; 
+  font-size: 12px; 
+  font-weight: 500; 
+  color: var(--text-sub); 
+  cursor: pointer; 
+  padding: 0; display: flex; align-items: center; gap: 4px; 
+}
+.comment-action-btn:hover { 
+  text-decoration: underline; 
+  color: var(--primary);
+}
 .action-icon-small { width: 14px; height: 14px; }
 
 /* Add Comment Section (Đã sửa lại cho Emoji) */
@@ -1531,8 +1663,8 @@ closeEmojiPickerOnClickOutside(event) {
   display: flex;
   align-items: center;
   padding: 12px 16px;
-  border-top: 1px solid #e4e6eb;
-  background: white;
+  border-top: 1px solid var(--border-color); 
+  background: var(--bg-card);
   gap: 10px;
   
   /* Quan trọng: Không cần position: sticky nữa vì Flexbox đã đẩy nó xuống cuối */
@@ -1562,14 +1694,14 @@ closeEmojiPickerOnClickOutside(event) {
   display: flex;
   align-items: center;
   flex: 1; /* Chiếm hết phần không gian còn lại */
-  background: #f0f2f5;
+  background: var(--bg-input);
   border-radius: 20px;
   padding: 0 12px;
   position: relative;
   height: 36px; /* Chiều cao cố định cho đẹp */
 }
-.comment-input { flex: 1; border: none; background: transparent; outline: none; font-size: 14px; padding-right: 8px; color: #1c1e21; }
-.comment-input::placeholder { color: #65676b; }
+.comment-input { flex: 1; border: none; background: transparent; outline: none; font-size: 14px; padding-right: 8px; color: var(--text-main); }
+.comment-input::placeholder { color: var(--text-sub); }
 
 /* --- STYLES MỚI CHO EMOJI --- */
 
@@ -1578,7 +1710,7 @@ closeEmojiPickerOnClickOutside(event) {
   flex: 1;
   display: flex;
   align-items: center;
-  background: #f0f2f5;
+  background: var(--bg-input);
   border-radius: 18px;
   padding: 4px 8px 4px 12px;
   position: relative;
@@ -1591,11 +1723,15 @@ closeEmojiPickerOnClickOutside(event) {
   outline: none; 
   font-size: 13px; 
   padding: 4px 0; 
-  color: #1c1e21;
+  color: var(--text-main);
 }
 
 /* 2. Nút Emoji (Main & Small) */
-.emoji-wrapper-main { position: relative; display: flex; align-items: center; margin-right: 8px; }
+.emoji-wrapper-main { 
+  position: relative; 
+  display: flex; 
+  align-items: center; 
+  margin-right: 8px; }
 .emoji-wrapper-small { position: relative; display: flex; align-items: center; }
 
 .emoji-btn-main, .emoji-btn-small { 
@@ -1621,7 +1757,7 @@ closeEmojiPickerOnClickOutside(event) {
   z-index: 100; 
   box-shadow: 0 5px 15px rgba(0,0,0,0.2); 
   border-radius: 8px; 
-  background: white;
+  background: var(--bg-card);
 }
 /* Cho reply (hiện thấp hơn chút) */
 .emoji-wrapper-edit .emoji-popover-up {
@@ -1641,7 +1777,7 @@ closeEmojiPickerOnClickOutside(event) {
 .send-comment-btn, .send-reply-btn { 
   background: none; 
   border: none; 
-  color: #FF642F; 
+  color: var(--primary); 
   font-size: 16px; 
   cursor: pointer; 
   padding: 0 4px; 
@@ -1649,7 +1785,8 @@ closeEmojiPickerOnClickOutside(event) {
   transition: transform 0.1s; 
   flex-shrink: 0;
 }
-.send-comment-btn:hover:not(:disabled), .send-reply-btn:hover:not(:disabled) { transform: scale(1.1); color: #FF642F; }
+.send-comment-btn:hover:not(:disabled), .send-reply-btn:hover:not(:disabled) { 
+  transform: scale(1.1); color: #FF642F; }
 .send-comment-btn:disabled, .send-reply-btn:disabled { color: #bcc0c4; cursor: default; }
 
 /* --- END EMOJI STYLES --- */
@@ -1663,13 +1800,13 @@ closeEmojiPickerOnClickOutside(event) {
   flex-shrink: 0; /* Đảm bảo nút không bị co nhỏ */
 }
 .toggle-rating-btn {
-  background: #fdf4f0;
+  background: var(--hover-primary);
   border: none;
   padding: 0 12px;
   border-radius: 18px; /* Bo tròn kiểu "chip" */
   font-size: 13px;
   cursor: pointer;
-  color: #FF642F;
+  color: var(--primary);
   font-weight: 500;
   transition: all 0.2s;
   white-space: nowrap;
@@ -1685,11 +1822,11 @@ closeEmojiPickerOnClickOutside(event) {
   align-items: center;
   gap: 4px;
   padding: 8px 12px;
-  background: white;
+  background: var(--bg-card);
   border-radius: 20px;
   margin-bottom: 12px; /* Cách xa nút một chút */
   box-shadow: 0 4px 12px rgba(0,0,0,0.15); /* Thêm bóng đổ cho đẹp */
-  border: 1px solid #e4e6eb;
+  border: 1px solid var(--border-color);
   z-index: 10;}
 .star { font-size: 20px; cursor: pointer; color: #ddd; }
 .star.filled { color: #ffc107; }
@@ -1698,8 +1835,8 @@ closeEmojiPickerOnClickOutside(event) {
 
 /* Rating Stats */
 .rating-statistics {
-  background: linear-gradient(135deg, #fff9e6 0%, #ffe9b8 100%);
-  border: 1px solid #ffd966;
+  background: var(--hover-primary);
+  /* border: 1px solid #ffd966; */
   border-radius: 12px;
   padding: 12px 16px;
   margin: 12px 0;
@@ -1715,7 +1852,7 @@ closeEmojiPickerOnClickOutside(event) {
   align-items: center;
   gap: 8px;
 }
-.rating-number { font-size: 24px; font-weight: bold; color: #f57c00; margin-right: 8px; }
+.rating-number { font-size: 24px; font-weight: bold; color: var(--primary); margin-right: 8px; }
 /* --- Tìm và thay thế đoạn này trong <style scoped> --- */
 
 /* 1. Ngôi sao trong comment */
@@ -1738,7 +1875,7 @@ closeEmojiPickerOnClickOutside(event) {
 }
 .star-icon { font-size: 16px; color: #ddd; }
 .star-icon.filled { color: #ffc107; }
-.rating-count { font-size: 13px; color: #856404; font-weight: 600; }
+.rating-count { font-size: 13px; color: var(--text-sub); font-weight: 600; }
 .updated { animation: pulse 0.3s ease-in-out; }
 @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
 
@@ -1747,23 +1884,54 @@ closeEmojiPickerOnClickOutside(event) {
 .reply-input-wrapper, .reply-to-reply-input-wrapper { display: flex; align-items: center; gap: 8px; }
 .user-avatar-small { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
 
-.replies-section { margin-top: 12px; padding-left: 20px; border-left: 2px solid #f0f2f5; }
-.toggle-replies-btn { background: none; border: none; color: #FF642F; cursor: pointer; font-size: 12px; font-weight: 600; margin-bottom: 8px; }
+.replies-section { 
+  margin-top: 12px; 
+  padding-left: 20px; 
+  border-left: 2px solid var(--border-color); }
+.toggle-replies-btn { 
+  background: none; 
+  border: none; 
+  color: var(--primary);
+  cursor: pointer; 
+  font-size: 12px; font-weight: 600; margin-bottom: 8px; 
+}
 .reply-item { display: flex; gap: 8px; margin-top: 8px; }
 .reply-content { flex: 1; }
-.reply-bubble { background-color: #f0f2f5; padding: 6px 10px; border-radius: 12px; display: inline-block; max-width: 75%; word-wrap: break-word; }
-.reply-bubble strong { font-size: 13px; color: #050505; }
+.reply-bubble { 
+  background-color: var(--bg-input); 
+  padding: 6px 10px; 
+  border-radius: 12px; 
+  display: inline-block; 
+  max-width: 75%; 
+  word-wrap: break-word; 
+}
+.reply-bubble strong { 
+  font-size: 13px; 
+  color: var(--text-main); 
+}
 .reply-bubble p { font-size: 13px; margin: 0; }
-.reply-to-name { color: #FF642F; font-weight: 500; margin-right: 4px; }
-.author-label { background-color: #FF642F; color: white; font-size: 11px; font-weight: 500; padding: 2px 6px; margin-left: 6px; border-radius: 4px; }
+.reply-to-name { 
+  color: var(--primary); 
+  font-weight: 500; 
+  margin-right: 4px; 
+}
+.author-label { 
+  background-color: var(--primary);
+  color: white; 
+  font-size: 11px; 
+  font-weight: 500; 
+  padding: 2px 6px; 
+  margin-left: 6px; 
+  border-radius: 4px; 
+}
 .reply-actions { display: flex; gap: 8px; margin-top: 2px; font-size: 11px; color: #65676b; margin-left: 10px; }
-.reply-time { color: #65676b; font-size: 11px; }
+.reply-time { color: var(--text-sub); font-size: 11px; }
 
 .edit-input-wrapper {
   display: flex;
   align-items: flex-start; /* Căn trên cùng */
-  background: #ffffff;
-  border: 1px solid #ddd;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
   border-radius: 12px;
   padding: 8px;
   position: relative;
@@ -1771,7 +1939,7 @@ closeEmojiPickerOnClickOutside(event) {
 }
 
 .edit-input-wrapper:focus-within {
-  border-color: #FF642F;
+  border-color: var(--primary);
   box-shadow: 0 0 0 2px rgba(24, 119, 242, 0.2);
 }
 
@@ -1787,7 +1955,7 @@ closeEmojiPickerOnClickOutside(event) {
   resize: vertical;
   min-height: 60px;
   padding-right: 8px;
-  color: #1c1e21;
+  color: var(--text-main);
 }
 
 /* Nút Emoji trong Edit (đặt ở góc dưới hoặc phải) */
@@ -1805,14 +1973,29 @@ closeEmojiPickerOnClickOutside(event) {
 .edit-reply-container .edit-reply-input { width: calc(100% - 40px) !important; min-height: 80px; padding: 10px 14px; border: 1px solid #ddd; border-radius: 12px; resize: vertical; font-family: inherit; font-size: 13px; line-height: 1.4; box-sizing: border-box; background-color: white; color: #1c1e21; }
 .edit-actions { display: flex; gap: 8px; margin-top: 8px; }
 .save-btn, .cancel-btn { padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; }
-.save-btn { background-color: #FF642F; color: white; }
-.cancel-btn { background-color: #e4e6ea; color: #1c1e21; }
+.save-btn { background-color: var(--primary); color: #fff; }
+.cancel-btn { background-color: var(--bg-input); color: var(--text-main); }
 
 /* Filter Bar */
-.comment-filter-bar { display: flex; gap: 8px; padding: 12px 16px; background: white; border-bottom: 1px solid #e4e6eb; overflow-x: auto; }
-.filter-btn { padding: 8px 16px; border: 1px solid #e4e6eb; background: white; border-radius: 20px; font-size: 13px; font-weight: 500; color: #65676b; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
-.filter-btn:hover { background: #FF642F; color:white; border-color: #FF642F; }
-.filter-btn.active { background: #FF642F; color: white; border-color: #FF642F; }
+.comment-filter-bar { 
+  display: flex; 
+  gap: 8px; 
+  padding: 12px 16px; 
+  background: var(--bg-card); 
+  border-bottom: 1px solid var(--border-color); 
+  overflow-x: auto; 
+}
+.filter-btn { 
+  padding: 8px 16px; 
+  border: 1px solid var(--border-color); background: var(--bg-card);
+  border-radius: 20px; 
+  font-size: 13px; 
+  font-weight: 500; 
+  color: var(--text-sub); 
+  cursor: pointer; white-space: nowrap; flex-shrink: 0; 
+}
+.filter-btn:hover { background: var(--primary); color:white; border-color: #FF642F; }
+.filter-btn.active { background: var(--primary); color: white; border-color: #FF642F; }
 
 .linked-items-preview {
   margin-top: 16px;
@@ -1828,10 +2011,10 @@ closeEmojiPickerOnClickOutside(event) {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border: 1px solid #e4e6ea;
+  border: 1px solid var(--border-color);
   border-radius: 10px;
   padding: 10px 12px;
-  background: #fafafa;
+  background: var(--bg-input);
 }
 
 .linked-item-left {
@@ -1860,11 +2043,12 @@ closeEmojiPickerOnClickOutside(event) {
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 260px;
+  
 }
 
 .linked-item-meta {
   font-size: 12px;
-  color: #FF642F;
+  color: var(--primary);
   margin-top: 2px;
 }
 
@@ -1884,15 +2068,16 @@ closeEmojiPickerOnClickOutside(event) {
   padding: 4px 10px;
   font-size: 12px;
   border-radius: 999px;
-  border: 1px solid #e5e7eb;
-  background: white;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-main);
   cursor: pointer;
 }
 
 .view-item-btn:hover {
-  background: #fff7ed;
-  border-color: #fb923c;
-  color: #ea580c;
+  background: var(--hover-primary); 
+  color: var(--primary); 
+  border-color: var(--primary);
 }
 
 .linked-item-arrows {
@@ -1904,8 +2089,9 @@ closeEmojiPickerOnClickOutside(event) {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  border: 1px solid #e4e6ea;
-  background: white;
+  border: 1px solid var(--border-color); 
+  background: var(--bg-card); 
+  color: var(--text-main);
   cursor: pointer;
   font-size: 18px;
 }
@@ -1920,11 +2106,33 @@ margin-top: 6px;
   align-self: flex-start;
   font-size: 12px;
   font-weight: 600;
-  color: #6b7280;
-  background: #f3f4f6;
+  color: var(--text-sub); 
+  background: var(--bg-input);
   padding: 3px 10px;
   border-radius: 999px;
   width: fit-content;
+}
+
+/* Highlight comment từ notification */
+.comment-highlight {
+  animation: comment-highlight-fade 3s ease forwards;
+  border-radius: 10px;
+  padding-left: 10px;
+}
+
+@keyframes comment-highlight-fade {
+  0%   { 
+    box-shadow: inset 3px 0 0 var(--primary); 
+    background: var(--hover-primary); 
+  }
+  60%  { 
+    box-shadow: inset 3px 0 0 #FF642F; 
+    background: var(--hover-primary); 
+  }
+  100% { 
+    box-shadow: inset 3px 0 0 transparent; 
+    background: transparent; 
+  }
 }
 
 

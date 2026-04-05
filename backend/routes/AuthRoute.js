@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const AuthController = require("../controllers/AuthController");
+const auth = require("../middleware/authMiddleware");
 const multer = require("multer");
 
 // Cấu hình multer
@@ -18,6 +19,8 @@ router.post("/logout", AuthController.logout);
 
 // User info
 router.get("/", AuthController.getAllUsers);
+
+router.patch("/preference", auth, AuthController.updatePreference);
 router.get("/:id", AuthController.getUserById);
 router.put("/:id", AuthController.updateUser);
 router.delete("/:id", AuthController.deleteUser);

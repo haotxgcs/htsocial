@@ -138,7 +138,7 @@
 
               <button
                 v-else-if="user.friendStatus === 'sent'"
-                class="btn-secondary full-width"
+                class="btn-secondary-disable full-width"
                 disabled
               >
                 Request Sent
@@ -189,7 +189,7 @@
         <LoadingOverlay v-if="loadingRequests" />
         <div v-if="!loadingRequests && paginatedRequests.length > 0" class="modern-grid">
           <div v-for="request in paginatedRequests" :key="request._id" class="modern-card">
-            <div class="card-image-wrapper">
+            <div class="card-image-wrapper" @click.stop="$router.push(`/profile/${request._id}`)">
               <img :src="getImageUrl(request.avatar)" class="card-img" />
               <div class="status-badge" v-if="request.active">Online</div>
             </div>
@@ -829,12 +829,6 @@ changePage(tab, page) {
 
 <style scoped>
 /* --- GLOBAL VARIABLES & WRAPPER --- */
-:root {
-  --primary-color: #FF642F; 
-  --bg-color: #f3f4f6;
-  --text-main: #111827;
-  --text-sub: #6b7280;
-}
 
 .content-body {
   position: relative;
@@ -866,13 +860,14 @@ changePage(tab, page) {
 /* --- 1. HEADER SECTION --- */
 .page-header {
   text-align: center; margin-bottom: 24px; padding: 24px;
-  background: white; border-radius: 12px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05); border: 1px solid #eee; font-weight: 600;
+  background: var(--bg-card); border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05); border: 1px solid var(--border-color); font-weight: 600;
   max-width:950px; margin-left:auto; margin-right:auto;
 }
 
 .page-header h2 {
-  margin: 0 0 8px 0; font-size: 24px; font-weight: 800; color: #1c1e21;
+  margin: 0 0 8px 0; font-size: 24px; font-weight: 800; 
+  color: var(--text-main);
 }
 .subtitle { margin: 0; font-size: 14px; color: #FF642F; }
 .icon { width: 20px; height: 20px; }
@@ -889,22 +884,37 @@ changePage(tab, page) {
   /* background: #fcf8f5; <-- Có thể bật nền nếu muốn che nội dung khi cuộn */
 }
 
-.glass-nav {  backdrop-filter: blur(16px); padding: 6px; border-radius: 100px; display: flex; gap: 6px; box-shadow: 0 10px 30px rgba(0,0,0,0.08);  }
+.glass-nav {  
+  /* Sử dụng nền hơi trong suốt dựa trên màu card */
+  background: var(--bg-card);
+  backdrop-filter: blur(16px); 
+  padding: 6px; 
+  border-radius: 100px; 
+  display: flex; 
+  gap: 6px; 
+  box-shadow: 0 10px 30px rgba(0,0,0,0.15);  
+  border: 1px solid var(--border-color);
+}
 
 .nav-pill {
   padding: 10px 20px;
   border-radius: 40px;
   border: none;
   background: transparent;
-  color: #6b7280;
+  color: var(--text-sub);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
-  display: flex; align-items: center; gap: 6px;
+  display: flex; 
+  align-items: center; 
+  gap: 6px;
   font-size: 14px;
 }
 
-.nav-pill:hover { background-color: #f2f2f2; }
+.nav-pill:hover { 
+  background-color: var(--hover-bg); 
+  color: var(--primary);
+}
 
 .nav-pill.active {
   background: #FF642F; /* Màu cam chủ đạo */
@@ -913,10 +923,11 @@ changePage(tab, page) {
 }
 
 .badge {
-  background: #fff; color: #FF642F; /* Đảo màu badge khi active */
+  background: var(--bg-body); 
+  color: var(--primary); /* Đảo màu badge khi active */
   font-size: 11px; padding: 2px 6px; border-radius: 10px; font-weight: 700;
 }
-.nav-pill:not(.active) .badge { background: #e5e7eb; color: #6b7280; }
+.nav-pill:not(.active) .badge { background: #e5e7eb; color: var(--primary);}
 .nav-pill:not(.active) .badge.red { background: #ef4444; color: white; }
 
 /* --- 3. MAIN CONTAINER --- */
@@ -930,7 +941,7 @@ changePage(tab, page) {
 .content-section { animation: fadeIn 0.4s ease-out; }
 
 .section-header {
-  background: white;
+  background: var(--bg-card);
   padding: 20px 24px;
   border-radius: 16px;
   margin-bottom: 24px; /* Khoảng cách với lưới bạn bè */
@@ -938,10 +949,10 @@ changePage(tab, page) {
   display: flex;
   align-items: center;
   justify-content: space-between; /* Đẩy tiêu đề sang trái, số lượng sang phải */
-  border: 1px solid #f3f4f6;
+  border: 1px solid var(--border-color);
 }
-.section-header h2 { font-size: 22px; font-weight: 800; color: #1c1e21; margin: 0; }
-.counter { background: #fdf4f0;
+.section-header h2 { font-size: 22px; font-weight: 800; color: var(--text-main); margin: 0; }
+.counter { background: var(--bg-body);
   color: #FF642F;
   padding: 6px 16px;
   border-radius: 30px;
@@ -974,8 +985,8 @@ changePage(tab, page) {
 }
 
 .glass-input {
-  width: 100%; padding: 10px 16px; border-radius: 30px; border: 1px solid #e5e7eb;
-  background: white; outline: none; font-size: 14px; transition: all 0.2s; box-sizing: border-box;
+  width: 100%; padding: 10px 16px; border-radius: 30px; border: 1px solid var(--border-color);
+  background: var(--bg-card); color:var(--text-main);outline: none; font-size: 14px; transition: all 0.2s; box-sizing: border-box;
 }
 .glass-input:focus { border-color: #FF642F; box-shadow: 0 0 0 3px rgba(255, 100, 47, 0.1); }
 
@@ -989,19 +1000,19 @@ changePage(tab, page) {
 
 /* CARD STYLE */
 .modern-card, .friend-row-card {
-  background: white;
+  background: var(--bg-card);
   border-radius: 16px;
   overflow: hidden;
   box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-  border: 1px solid #f0f2f5;
+  border: 1px solid var(--border-color);
   transition: transform 0.2s;
   display: flex; flex-direction: column;
   
 }
-.modern-card:hover, .friend-row-card:hover { transform: translateY(-4px); box-shadow: 0 8px 16px rgba(0,0,0,0.08); }
+.modern-card:hover, .friend-row-card:hover { transform: translateY(-4px); box-shadow: 0 8px 16px rgba(0,0,0,0.08); border-color: var(--primary);}
 
 .card-image-wrapper { position: relative; width: 100%; aspect-ratio: 1/1; }
-.card-img { width: 100%; height: 100%; object-fit: cover; background-color: #f3f4f6; cursor: pointer;}
+.card-img { width: 100%; height: 100%; object-fit: cover; background-color: var(--bg-input); cursor: pointer;}
 .status-badge {
   position: absolute; bottom: 8px; right: 8px;
   background: #10b981; color: white; font-size: 10px; font-weight: 700;
@@ -1009,8 +1020,8 @@ changePage(tab, page) {
 }
 
 .card-body { padding: 16px; flex: 1; display: flex; flex-direction: column; }
-.card-body h4 { margin: 0 0 4px; font-size: 16px; font-weight: 700; color: #111827; }
-.username { color: #6b7280; font-size: 13px; margin: 0 0 12px; }
+.card-body h4 { margin: 0 0 4px; font-size: 16px; font-weight: 700; color: var(--text-main); }
+.username { color: var(--text-sub); font-size: 13px; margin: 0 0 12px; }
 
 .action-group { margin-top: auto; display: grid; gap: 8px; }
 
@@ -1023,28 +1034,32 @@ changePage(tab, page) {
 .btn-primary:disabled { background: #e5e7eb; color: #9ca3af; cursor: not-allowed; }
 
 .btn-chat {
-  background: #eff6ff; color: #2563eb; border: 1.5px solid #bfdbfe; padding: 8px;
+  background: var(--hover-bg); 
+  color: var(--primary); 
+  border: 1.5px solid var(--primary); padding: 8px;
   border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; width: 100%; transition: background 0.2s;
 }
-.btn-chat:hover { background: #2563eb; color: #fff; }
+.btn-chat:hover { background: var(--primary); 
+  color: #fff; }
 
-.btn-unfriend, .btn-cancel {
-  background: #fff1f2; color: #e11d48; border: 1.5px solid #fecdd3; padding: 8px;
+.btn-unfriend, .btn-cancel, .btn-secondary{
+  border: 1px solid #ef4444;
+  background: var(--bg-card); color: #ef4444; padding: 8px;
   border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; width: 100%; transition: background 0.2s;
 }
-.btn-unfriend:hover, .btn-cancel:hover { background: #e11d48; color: #fff; }
+.btn-unfriend:hover, .btn-cancel:hover, .btn-secondary:hover { background: #ef4444; color: #fff; }
 
-.btn-icon {
-  background: #f3f4f6; border: none; width: 32px; height: 32px;
-  border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+ .btn-secondary-disable {
+  background: var(--bg-input); 
+  color: var(--text-sub); border: none; padding: 8px;
+  border-radius: 8px; font-weight: 600; font-size: 13px; cursor: not-allowed; width: 100%;
 }
-.btn-icon:hover { background: #e5e7eb; transform: scale(1.1); }
-/* .text-red { color: #ef4444; } .text-red:hover { background: #fee2e2; } */
+
 .full-width { width: 100%; }
 
 /* FRIEND ROW STYLE (Chuyển sang dạng Card lưới) */
 .friend-row-card { align-items: center; padding: 16px; text-align: center; }
-.friend-avatar-small { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin-bottom: 10px; border: 2px solid #f3f4f6; }
+.friend-avatar-small { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin-bottom: 10px; border: 2px solid var(--border-color); }
 .friend-info { margin-bottom: 12px; }
 .friend-info h4 { margin: 0; font-size: 16px; font-weight: 700; color: #111827; }
 .friend-info p { margin: 2px 0 4px; font-size: 13px; color: #6b7280; }
@@ -1052,7 +1067,7 @@ changePage(tab, page) {
 .friend-actions { display: flex; justify-content: center; gap: 10px; width: 100%; }
 
 /* Empty State */
-.empty-state { text-align: center; padding: 60px 0; color: #9ca3af; grid-column: 1 / -1; }
+.empty-state { text-align: center; padding: 60px 0; color: var(--text-sub); grid-column: 1 / -1; }
 .empty-icon { font-size: 48px; display: block; margin-bottom: 16px; opacity: 0.5; }
 
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }

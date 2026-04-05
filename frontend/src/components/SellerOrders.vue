@@ -452,6 +452,16 @@ export default {
   mounted() {
     this.fetchOrders();
     this.fetchRefunds();
+
+    const queryTab = this.$route.query.tab;
+      if (queryTab === 'refunds' || queryTab === 'refund') {
+        this.tab = 'refunds'; // Khớp với giá trị button tab trong template của bạn
+      } else if (queryTab === 'reviews') {
+        this.tab = 'reviews';
+        this.fetchReviews();
+      } else {
+        this.tab = 'orders';
+      }
   },
 
   watch: {
@@ -477,11 +487,41 @@ export default {
     async fetchRefunds() {
       try {
         const token = localStorage.getItem("token");
-        const res = await fetch(`${process.env.VUE_APP_API_URL}/refund/seller-refunds`, { headers: { Authorization: `Bearer ${token}` } });
+        const res = await fetch(`${process.env.VUE_APP_API_URL}/refund/seller-refunds`, { 
+          headers: { Authorization: `Bearer ${token}` } 
+        });
         const data = await res.json();
-        if (res.ok) this.refunds = data.refunds || [];
-      } catch (err) { console.error("Fetch refunds error:", err); }
+        if (res.ok) {
+          this.refunds = data.refunds || [];
+          
+          // THÊM LOGIC NÀY: Sau khi load xong dữ liệu, kiểm tra orderId trên URL
+          this.checkAutoOpenRefund();
+        }
+      } catch (err) { 
+        console.error("Fetch refunds error:", err); 
+      }
     },
+
+    checkAutoOpenRefund() {
+    const targetOrderId = this.$route.query.orderId;
+    if (targetOrderId && this.tab === 'refunds') {
+      // Tìm đơn hàng refund khớp với ID từ URL
+      const targetRefund = this.refunds.find(r => r.orderId === targetOrderId);
+      
+      if (targetRefund) {
+        // Mở modal giống như khi nhấn nút "View" thủ công[cite: 6, 7]
+        this.openRefundModal(targetRefund);
+        
+        // (Tùy chọn) Xóa orderId trên URL sau khi đã mở để tránh popup hiện lại khi reload
+        this.$router.replace({ 
+          path: this.$route.path,
+          query: { } 
+        });
+      }
+    }
+  },
+
+
 
     async fetchReviews() {
       this.reviewsLoading = true;
@@ -616,7 +656,7 @@ export default {
 
     formatDate(d) {
       if (!d) return "";
-      return new Date(d).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" , hour:"2-digit", minute:"2-digit"});
+      return new Date(d).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
     },
     formatPrice(price) {
       return new Intl.NumberFormat("en-US", {
@@ -642,12 +682,14 @@ export default {
   margin-left: 320px;
   padding: 80px 40px 60px;
   max-width: 1200px;
+  background-color: var(--bg-body);
+  color: var(--text-main);
 }
 
 .page-title {
   font-size: 24px;
   font-weight: 700;
-  color: #1a1a1a;
+  color: var(--text-main);
   margin-bottom: 24px;
 }
 
@@ -658,14 +700,14 @@ export default {
   display: flex;
   gap: 0;
   margin-bottom: 24px;
-  border-bottom: 2px solid #f0f0f0;
+  border-bottom: 2px solid var(--border-color);
 }
 
 .tabs button {
   padding: 10px 20px;
   border: none;
   background: none;
-  color: #999;
+  color: var(--text-sub);
   cursor: pointer;
   font-size: 14px;
   font-weight: 500;
@@ -676,12 +718,12 @@ export default {
   gap: 7px;
   transition: color 0.15s;
 }
-.tabs button:hover { color: #FF642F; }
-.tabs button.active { color: #FF642F; border-bottom-color: #FF642F; font-weight: 700; }
+.tabs button:hover { color: var(--primary); }
+.tabs button.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 700; }
 
 .tab-badge {
-  background: #f0f0f0;
-  color: #666;
+  background: var(--bg-input);
+  color: var(--text-sub);
   font-size: 11px;
   font-weight: 700;
   padding: 2px 8px;
@@ -706,35 +748,38 @@ export default {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #f8f9fa;
-  border: 1.5px solid #e9ecef;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
   border-radius: 10px;
   padding: 8px 14px;
   margin-bottom: 14px;
   transition: border-color 0.2s;
 }
-.search-bar:focus-within { border-color: #FF642F; background: #fff; }
-.search-icon { font-size: 15px; color: #aaa; flex-shrink: 0; }
+.search-bar:focus-within { border-color: var(--primary);  }
+.search-icon { font-size: 15px; color: var(--text-sub); flex-shrink: 0; }
 .search-input {
   flex: 1;
   border: none;
   background: transparent;
   outline: none;
   font-size: 14px;
-  color: #333;
+  color: var(--text-main);
 }
-.search-input::placeholder { color: #bbb; }
+.search-input::placeholder { color: var(--text-sub); opacity: 0.6; }
+
+
+
 .search-clear {
   background: none;
   border: none;
-  color: #aaa;
+  color: var(--text-sub);
   font-size: 18px;
   cursor: pointer;
   line-height: 1;
   padding: 0 2px;
   flex-shrink: 0;
 }
-.search-clear:hover { color: #FF642F; }
+.search-clear:hover { color: var(--primary); }
 
 .filter-bar {
   display: flex;
@@ -748,14 +793,15 @@ export default {
   display: flex; align-items: center; gap: 6px;
   padding: 6px 14px;
   border-radius: 20px;
-  border: 1.5px solid #e8e8e8;
-  background: white; color: #666;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card); 
+  color: var(--text-sub);
   font-size: 13px; font-weight: 500;
   cursor: pointer;
   transition: all 0.15s;
 }
-.filter-pill:hover { border-color: #FF642F; color: #FF642F; }
-.filter-pill.active { background: #FF642F; color: white; border-color: #FF642F; }
+.filter-pill:hover { border-color: var(--primary); color: var(--primary); }
+.filter-pill.active { background: var(--primary); color: white; border-color: #FF642F; }
 
 .pill-dot {
   width: 7px; height: 7px; border-radius: 50%;
@@ -773,7 +819,7 @@ export default {
 .filter-pill.active .pill-dot { background: rgba(255,255,255,0.8); }
 
 .pill-count {
-  background: rgba(0,0,0,0.07);
+  background: var(--bg-input);
   border-radius: 10px; padding: 1px 7px;
   font-size: 11px; font-weight: 700;
 }
@@ -783,8 +829,9 @@ export default {
 .star-filter { display: flex; gap: 6px; margin-left: auto; }
 .star-pill {
   padding: 5px 12px; border-radius: 20px;
-  border: 1.5px solid #e8e8e8;
-  background: white; color: #888;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card); 
+  color: var(--text-sub);
   font-size: 13px; font-weight: 500; cursor: pointer;
   transition: all 0.15s;
 }
@@ -796,33 +843,33 @@ export default {
 /* ========================= */
 .table-wrapper {
   max-height: 520px; overflow-y: auto;
-  background: white; border-radius: 14px;
+  background: var(--bg-card); border-radius: 14px;
   box-shadow: 0 2px 12px rgba(0,0,0,0.06);
-  border: 1px solid #f0f0f0;
+  border: 1px solid var(--border-color);
 }
 .table-wrapper::-webkit-scrollbar { width: 5px; }
-.table-wrapper::-webkit-scrollbar-thumb { background: #e0e0e0; border-radius: 10px; }
+.table-wrapper::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 10px; }
 
-.table { width: 100%; border-collapse: collapse; background: white; }
+.table { width: 100%; border-collapse: collapse; background: var(--bg-card); }
 
-.table thead { position: sticky; top: 0; background: #fafafa; z-index: 10; }
+.table thead { position: sticky; top: 0; background: var(--bg-input); z-index: 10; }
 
 .table th {
   padding: 12px 14px;
-  border-bottom: 1.5px solid #f0f0f0;
+  border-bottom: 2px solid var(--border-color);
   text-align: left;
   font-size: 11px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 0.5px; color: #bbb;
+  text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-sub);
 }
 
 .table td {
-  padding: 13px 14px; border-bottom: 1px solid #f8f8f8;
-  font-size: 14px; color: #333; vertical-align: middle;
+  padding: 13px 14px; border-bottom: 1px solid var(--border-color);
+  font-size: 14px; color: var(--text-main); vertical-align: middle;
 }
 .table tr:last-child td { border-bottom: none; }
-.table tr:hover td { background: #fdfaf9; }
+.table tr:hover td { background: var(--hover-bg); }
 
-.order-id { font-family: monospace; font-weight: 600; color: #666; }
+.order-id { font-family: monospace; font-weight: 600; color: var(--text-sub); }
 
 .order-status-badge {
   font-size: 13px;
@@ -835,15 +882,15 @@ export default {
 .order-status-badge.cod    { background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7; }
 .order-status-badge.online { background:#e3f2fd;color:#1565c0;border:1px solid #90caf9; }
 
-.total-price { font-size: 15px; font-weight: 700; color: #FF642F; }
-.date-cell { font-size: 12px; color: #bbb; white-space: nowrap; }
+.total-price { font-size: 15px; font-weight: 700; color: var(--primary); }
+.date-cell { font-size: 12px; color: var(--text-sub); white-space: nowrap; }
 .reason-cell { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #666; font-size: 13px; }
 
-.item-scroll { max-height: 38px; overflow-y: auto; }
+.item-scroll { max-height: 25px; overflow-y: auto; }
 .item-scroll::-webkit-scrollbar { width: 3px; }
 .item-scroll::-webkit-scrollbar-thumb { background: #ddd; border-radius: 4px; }
-.item-row { font-size: 12px; color: #555; margin-bottom: 2px; }
-.item-qty { color: #aaa; }
+.item-row { font-size: 12px; color: var(--text-main); margin-bottom: 2px; }
+.item-qty { color: var(--text-sub); }
 
 /* Status badges */
 .status-badge {
@@ -885,8 +932,8 @@ export default {
 .btn-view:hover { background: #fff4f1; }
 
 .btn-update {
-  padding: 5px 12px; background: #FF642F; color: white;
-  border: none; border-radius: 7px;
+  padding: 5px 12px; background: var(--primary); color: white;
+  border: 1.5px solid var(--primary); border-radius: 7px;
   font-size: 13px; font-weight: 600; cursor: pointer;
   transition: background 0.15s;
 }
@@ -919,7 +966,8 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 
 .review-card {
-  background: white; border: 1px solid #f0f0f0;
+  background: var(--bg-card); 
+  border: 1px solid var(--border-color);
   border-radius: 16px; padding: 18px;
   display: flex; flex-direction: column; gap: 12px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.04);
@@ -929,12 +977,12 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .review-item-bar {
   display: flex; align-items: center; gap: 10px;
-  padding-bottom: 12px; border-bottom: 1px solid #f5f5f5;
+  padding-bottom: 12px; border-bottom: 1px solid var(--border-color);
 }
 .review-item-img { width: 44px; height: 44px; object-fit: cover; border-radius: 8px; flex-shrink: 0; background: #eee; }
 .review-item-info { flex: 1; min-width: 0; }
-.review-item-title { font-size: 13px; font-weight: 600; color: #333; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.review-item-price { font-size: 12px; color: #FF642F; margin-top: 2px; }
+.review-item-title { font-size: 13px; font-weight: 600; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.review-item-price { font-size: 12px; color:var(--primary); margin-top: 2px; }
 
 .rating-badge { flex-shrink: 0; padding: 4px 10px; border-radius: 20px; font-size: 13px; font-weight: 700; }
 .rating--green  { background: #dcfce7; color: #15803d; }
@@ -948,27 +996,27 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .reviewer-row { display: flex; align-items: center; gap: 10px; }
 .reviewer-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex-shrink: 0; background: #eee; }
-.reviewer-name { font-size: 13px; font-weight: 600; color: #333; }
-.review-date { font-size: 11px; color: #bbb; margin-top: 1px; }
+.reviewer-name { font-size: 13px; font-weight: 600; color: var(--text-main); }
+.review-date { font-size: 11px; color: var(--text-sub); margin-top: 1px; }
 
-.review-comment { font-size: 13px; color: #444; line-height: 1.6; margin: 0; white-space: pre-line; }
+.review-comment { font-size: 13px; color: var(--text-main); line-height: 1.6; margin: 0; white-space: pre-line; }
 .text-clamped { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.toggle-btn { background: none; border: none; color: #FF642F; font-size: 12px; font-weight: 500; cursor: pointer; padding: 3px 0; display: block; }
+.toggle-btn { background: none; border: none; color: var(--primary); font-size: 12px; font-weight: 500; cursor: pointer; padding: 3px 0; display: block; }
 .toggle-btn:hover { text-decoration: underline; }
 .review-comment.no-comment { color: #ccc; font-style: italic; }
 
 .seller-reply-box {
-  background: linear-gradient(135deg, #fff8f5, #fff4f0);
-  border-left: 3px solid #FF642F;
+  background: var(--hover-primary);
+  border-left: 4px solid var(--primary);
   border-radius: 0 10px 10px 0;
   padding: 10px 14px;
 }
 .seller-reply-label {
-  font-size: 11px; font-weight: 700; color: #FF642F;
+  font-size: 11px; font-weight: 700; color: var(--primary);
   margin-bottom: 5px; display: flex; align-items: center; gap: 6px;
 }
 .reply-date { font-weight: 400; color: #bbb; }
-.seller-reply-text { font-size: 13px; color: #444; margin: 0 0 8px; line-height: 1.5; white-space: pre-line; }
+.seller-reply-text { font-size: 13px; color: var(--text-main); margin: 0 0 8px; line-height: 1.5; white-space: pre-line; }
 .btn-edit-reply {
   background: none; border: 1px solid #FF642F; color: #FF642F;
   padding: 3px 10px; border-radius: 6px; font-size: 12px; cursor: pointer;

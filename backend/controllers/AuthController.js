@@ -1,6 +1,7 @@
 // controllers/AuthController.js
 
 const User = require("../models/UserModel");
+const { notify } = require("./NotificationController");
 const Post = require("../models/PostModel");
 const { getFriendStatus } = require("../services/userFriendLogic");
 const bcrypt = require("bcryptjs");
@@ -326,7 +327,8 @@ exports.login = async (req, res) => {
         likedPosts: user.likedPosts,
         active: user.active,
         requestSent: user.requestSent,
-        requestReceived: user.requestReceived
+        requestReceived: user.requestReceived,
+        darkTheme: user.darkTheme
       }
     });
 
@@ -1071,6 +1073,13 @@ exports.sendFriendRequest = async (req, res) => {
     await fromUser.save();
     await toUser.save();
 
+    // Notify recipient
+    await notify({
+      recipientId: toUserId,
+      senderId:    fromUserId,
+      type:        "friend_request"
+    }).catch(() => {});
+
     res.status(200).json({ msg: "Đã gửi lời mời kết bạn" });
   } catch (err) {
     console.error("Send friend request error:", err);
@@ -1099,6 +1108,13 @@ exports.acceptFriendRequest = async (req, res) => {
 
     await user.save();
     await requester.save();
+
+    // Notify requester their request was accepted
+    await notify({
+      recipientId: requesterId,
+      senderId:    userId,
+      type:        "friend_accepted"
+    }).catch(() => {});
 
     res.status(200).json({ msg: "Đã chấp nhận lời mời" });
   } catch (err) {
@@ -1484,5 +1500,20 @@ exports.clearSearchHistory = async (req, res) => {
   } catch (err) {
     console.error("Clear history error:", err);
     res.status(500).json({ error: err.message });
+  }
+};
+
+// PATCH /users/preference — lưu darkTheme
+exports.updatePreference = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { darkTheme } = req.body;
+
+    await User.findByIdAndUpdate(userId, { darkTheme });
+
+    // Cập nhật lại localStorage phía client sẽ tự xử lý
+    res.json({ success: true, darkTheme });
+  } catch (err) {
+    res.status(500).json({ msg: "Server error" });
   }
 };

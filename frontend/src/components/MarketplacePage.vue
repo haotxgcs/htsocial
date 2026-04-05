@@ -99,35 +99,13 @@
       </div>
     </div>
 
-    <div v-if="totalPages > 1" class="pagination">
-
-      <button
-        class="page-btn"
-        :disabled="currentPage === 1"
-        @click="changePage(currentPage - 1)"
-      >
-        ‹ Prev
-      </button>
-
-      <button
-        v-for="page in totalPages"
-        :key="page"
-        class="page-btn"
-        :class="{ active: page === currentPage }"
-        @click="changePage(page)"
-      >
-        {{ page }}
-      </button>
-
-      <button
-        class="page-btn"
-        :disabled="currentPage === totalPages"
-        @click="changePage(currentPage + 1)"
-      >
-        Next ›
-      </button>
-
-    </div>
+    <!-- PAGINATION -->
+     <Pagination 
+      v-if="totalPages > 1" 
+      :current-page="currentPage" 
+      :total-pages="totalPages" 
+      @update:page="changePage"
+    />
 
 
     </div>
@@ -162,6 +140,7 @@ import MarketplaceItemCard from "../components/MarketplaceItemCard.vue";
 import MarketplaceCreateModal from "../components/MarketplaceCreateModal.vue";
 import MarketplaceEditModal from "../components/MarketplaceEditModal.vue"
 import LoadingOverlay from "../components/LoadingOverlay.vue";
+import Pagination from "../components/Pagination.vue";
 
 
 export default {
@@ -170,7 +149,8 @@ export default {
     MarketplaceItemCard,
     MarketplaceCreateModal,
     MarketplaceEditModal,
-    LoadingOverlay
+    LoadingOverlay,
+    Pagination
   },
   data() {
     return {
@@ -505,6 +485,9 @@ changePage(page) {
 
   min-height: 100vh;
   margin-bottom:40px;
+  background-color: var(--bg-body);
+  color: var(--text-main);
+  transition: background-color 0.3s, color 0.3s;
 }
 
 .marketplace-container {
@@ -514,7 +497,7 @@ changePage(page) {
 
 
 .marketplace-header {
-  background: white;
+  background: var(--bg-card);
   padding: 16px;
   border-radius: 16px;
   margin-bottom: 16px;
@@ -530,13 +513,16 @@ changePage(page) {
   flex: 1;
   padding: 10px 16px;
   border-radius: 999px;
-  border: 1px solid #eee;
+  border: 1px solid var(--border-color);
+  background: var(--bg-input); /* Thay nền input */
+  color: var(--text-main);
 }
 
 .search-box input:focus {
   outline: none;
   border-color: #ff642f;
   box-shadow: 0 0 0 2px rgba(255, 100, 47, 0.1);
+  background: var(--bg-card);
 }
 
 
@@ -560,8 +546,9 @@ changePage(page) {
 .filters button {
   border-radius: 999px;
   padding: 6px 16px;
-  border: 1px solid #eee;
-  background: white;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-sub);
   cursor: pointer;
 }
 
@@ -572,7 +559,8 @@ changePage(page) {
 }
 
 .create-box {
-  background: white;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
   padding: 14px;
   border-radius: 16px;
   display: flex;
@@ -584,7 +572,8 @@ changePage(page) {
 .create-box input {
   width: 100%;
   border: none;
-  background: #f3f4f6;
+  background: var(--bg-input);
+  color: var(--text-sub) ;
   padding: 10px 16px;
   border-radius: 999px;
 }
@@ -618,10 +607,10 @@ changePage(page) {
   top: 100%; /* Nằm ngay dưới input */
   left: 0;
   width: 85%; /* Rộng bằng input */
-  background: white;
+  background: var(--bg-card);
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-  border: 1px solid #eee;
+  border: 1px solid var(--border-color);
   z-index: 100;
   margin-top: 6px;
   overflow: hidden;
@@ -636,11 +625,11 @@ changePage(page) {
 .history-header {
 display: flex; justify-content: space-between;
   padding: 8px 16px;
-  background: #f8f9fa;
+  background: var(--hover-bg);
   font-size: 12px;
   font-weight: 600;
-  color: #888;
-  border-bottom: 1px solid #eee;
+  color: var(--text-sub);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .clear-btn {
@@ -657,7 +646,7 @@ display: flex; justify-content: space-between;
 }
 
 .history-list li:hover{
-  background: #fdf4f0;
+  background: var(--hover-primary);
 }
 
 .history-item {
@@ -674,11 +663,11 @@ display: flex; justify-content: space-between;
 
 .history-item-content {
   display: flex; align-items: center; gap: 10px;
-  font-size: 14px; color: #333;
+  font-size: 14px; color: var(--text-main);
 }
 
 
-.clock-icon { font-size: 12px; opacity: 0.6; }
+.clock-icon { font-size: 12px; opacity: 0.6; color: var(--text-sub);}
 
 .history-text {
   font-size: 14px;
@@ -696,45 +685,13 @@ font-size: 14px; color: #ddd; padding: 4px; border-radius: 50%;
 .clear-icon {
   position: absolute;
   right: 110px;
-  color: #999;
+  color: var(--text-sub);
   cursor: pointer;
   font-size: 14px;
   font-weight: bold;
   padding: 8px;
 }
 .clear-icon:hover { color: #FF642F; }
-
-/* pagination style */
-.pagination {
-  display: flex;
-  justify-content: center;
-  gap: 6px;
-  margin: 30px 0;
-}
-
-.page-btn {
-  min-width: 36px;
-  padding: 6px 12px;
-  border-radius: 8px;
-  border: 1px solid #eee;
-  background: white;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-  color: #555;
-}
-
-.page-btn.active {
-  background: #ff642f;
-  color: white;
-  border-color: #ff642f;
-}
-
-.page-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
 
 
 @media (max-width: 1024px) {
