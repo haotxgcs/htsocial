@@ -52,6 +52,10 @@ function formatNotif(n) {
     refund_requested: `<b>${senderName}</b> requested a refund for order <b>#${shortId}</b>`,
     refund_approved:  `Your refund for order <b>#${shortId}</b> has been <b>approved</b> 💰`,
     refund_rejected:  `Your refund for order <b>#${shortId}</b> has been <b>rejected</b> ❌`,
+
+    report_received:  `Your report has been received. We'll review it within 24–48 hours.`,
+    report_resolved:  `Your report has been <b>${n.meta?.status === "dismissed" ? "dismissed" : "resolved"}</b>${n.meta?.adminNote ? `: <i>${n.meta.adminNote}</i>` : ""}`,
+
   };
 
   // ── Icon ──────────────────────────────────────────────────────
@@ -61,7 +65,8 @@ function formatNotif(n) {
     friend_request: "👤", friend_accepted: "🤝",
     order_placed: "🛒", order_status: "📦", new_order: "🛍️",
     review: "⭐", order_cancelled: "❌",
-    refund_requested: "🔄", refund_approved: "💰", refund_rejected: "❌",
+    refund_requested: "🔄", refund_approved: "💰", refund_rejected: "❌", 
+    report_received: "🚩", report_resolved: "✅",
   };
 
   // ── Link ──────────────────────────────────────────────────────

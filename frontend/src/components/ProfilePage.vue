@@ -100,18 +100,25 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                 Message
               </button>
+
               <!-- Add/Unfriend — hidden when blocked -->
               <button v-if="!blockStatus"
                 class="btn-primary-gradient"
                 :class="friendStatus"
                 @click="handleFriendAction"
                 :disabled="loadingFriend"
-              >{{ friendButtonText }}</button>
+              >{{ friendButtonText }}
+            </button>
+
               <!-- Block — only shown when not blocking anyone -->
               <button v-if="!blockStatus" class="btn-action btn-block" @click="handleBlock" :disabled="loadingBlock">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
                 Block
               </button>
+
+              <button v-if="!isMyProfile" class="btn-action btn-report" @click.stop="openReport('user', user._id)">
+              🚩 Report
+            </button>
             </template>
           </div>
 
@@ -174,11 +181,25 @@
                     </div>
                   </div>
                   <div class="post-menu-wrapper" v-click-outside="closeAllMenus">
-                    <img src="../assets/menu.png" class="menu-post-icon" @click.stop="toggleMenu(post._id)" />
-                    <div v-if="openMenuId === post._id" class="dropdown-menu">
-                      <button v-if="isMyPost(post)" @click="editPost(post)"><img src="../assets/edit.png" class="menu-icon-left"/> Edit Post</button>
-                      <button v-if="!isMyPost(post)" @click="hideThisPost(post._id)"><img src="../assets/hide.png" class="menu-icon-left"/> Hide Post</button>
-                      <button v-if="isMyPost(post)" @click="deletePost(post._id)" style="color: red"><img src="../assets/delete.png" class="menu-icon-left"/> Delete Post</button>
+                    <div class="menu-post-icon" @click.stop="toggleMenu(post._id)"><Menu/></div>
+                    <div v-if="openMenuId === post._id" class="dropdown-menu" @click.stop>
+                      <button v-if="isMyPost(post)" @click="editPost(post)">
+                        <div class="menu-icon-left"><Pencil/></div>
+                        <span>Edit Post</span>
+                      </button>
+                      <button v-if="!isMyPost(post)" @click="hideThisPost(post._id)">
+                        <div class="menu-icon-left"><EyeOff/></div>
+                        <span>Hide Post</span>
+                      </button>
+                      <button v-if="isMyPost(post)" @click="deletePost(post._id)" style="color: red">
+                        <div class="menu-icon-left"><Trash2/></div>
+                        <span>Delete Post</span>
+                      </button>
+
+                      <button v-if="!isMyPost(post)" @click="openReport('post', post._id)" style="color: #f59e0b">
+                        <div class="menu-icon-left"><FlagTriangleRight/></div>
+                        <span>Report Post</span>
+                      </button>
                     </div>
                   </div>
                 </div> 
@@ -331,16 +352,24 @@
             </div>
 
             <div class="post-menu-wrapper" v-click-outside="closeAllMenus">
-              <img src="../assets/menu.png" class="menu-post-icon" @click.stop="toggleMenu(post._id)" />
+              <div class="menu-post-icon" @click.stop="toggleMenu(post._id)" ><Menu/></div>
               <div v-if="openMenuId === post._id" class="dropdown-menu" @click.stop>
                 <button v-if="isMyShare(post)" @click="editShare(post)">
-                  <img src="../assets/edit.png" class="menu-icon-left"/> Edit Share
+                  <div class="menu-icon-left"><Pencil/></div>
+                  <span>Edit Share</span>
                 </button>
                 <button v-if="!isMyShare(post)" @click="hideThisShare(post._id)">
-                  <img src="../assets/hide.png" class="menu-icon-left"/> Hide Share
+                  <div class="menu-icon-left"><EyeOff/></div>
+                  <span>Hide Share</span>
                 </button>
                 <button v-if="isMyShare(post)" @click="deleteShare(post._id)" style="color: red">
-                  <img src="../assets/delete.png" class="menu-icon-left"/> Delete Share
+                  <div class="menu-icon-left"><Trash2/></div>
+                  <span>Delete Share</span>
+                </button>
+
+                <button v-if="!isMyShare(post)" @click="openReport('post', post._id)" style="color: #f59e0b">
+                  <div class="menu-icon-left"><FlagTriangleRight/></div>
+                  <span>Report Share</span>
                 </button>
               </div>
             </div>
@@ -622,9 +651,13 @@
     <EditProfileModal :is-visible="editProfileModalVisible" :user="user" @close="closeEditProfileModal" @save="handleProfileSave" />
     <ImagePreviewModal :is-visible="imagePreviewVisible" :image-url="previewImageUrl" @close="closeImagePreview" />
     <NotificationModal :is-visible="notification.visible" :type="notification.type" :title="notification.title" :message="notification.message" @confirm="closeNotify" />
-    <ConfirmDialog v-if="confirmFriendVisible" :message="confirmFriendMessage" @confirm="confirmFriendAction" @cancel="confirmFriendVisible = false"
-/>
-
+    <ConfirmDialog v-if="confirmFriendVisible" :message="confirmFriendMessage" @confirm="confirmFriendAction" @cancel="confirmFriendVisible = false"/>
+    <ReportModal
+      :is-visible="reportModal.visible"
+      :target-type="reportModal.targetType"
+      :target-id="reportModal.targetId"
+      @close="reportModal.visible = false"
+    />
   </div>
 </template>
 
@@ -639,7 +672,9 @@ import EditProfileModal from './EditProfileModal.vue';
 import ImagePreviewModal from './ImagePreviewModal.vue';
 import NotificationModal from './NotificationModal.vue';
 import LoadingOverlay from './LoadingOverlay.vue';
-import Pagination from './Pagination.vue'
+import Pagination from './Pagination.vue'; 
+import ReportModal from './ReportModal.vue';
+import { Menu, Pencil, Trash2, EyeOff, FlagTriangleRight } from 'lucide-vue-next';
 
 // 1. ĐỊNH NGHĨA DIRECTIVE CLICK OUTSIDE (MỚI)
 const clickOutside = {
@@ -673,9 +708,16 @@ export default {
     ImagePreviewModal,
     NotificationModal,
     LoadingOverlay,
-    Pagination
+    Pagination,
+    ReportModal,
 
-  },
+    Menu,
+    Pencil,
+    Trash2,
+    EyeOff,
+    FlagTriangleRight
+
+  },  
   data() {
     return {
       user: {},
@@ -784,6 +826,12 @@ export default {
       totalPostsPages: 1,
       totalFriendsPages: 1,
       totalMediaPages: 1,
+
+      reportModal: { 
+        visible: false, 
+        targetType: '', 
+        targetId: null 
+      },
 
     };
   },
@@ -1983,6 +2031,22 @@ onPostPageChange(page) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 },
 
+openReport(targetType, targetId) {
+  this.openMenuId = null; // đóng menu
+  this.$nextTick(() => {  // đợi DOM update xong rồi mới mở modal
+    this.reportModal = {
+      visible: true,
+      targetType,
+      targetId: String(targetId)
+    };
+  });
+},
+
+handleReported() {
+  this.reportModal.visible = false;
+  this.showNotify("success", "Report Submitted", "Thank you. Our team will review your report.");
+},
+
   },
 
   mounted() {
@@ -2118,6 +2182,15 @@ watch: {
 .btn-unblock { background: color-mix(in srgb, #d97706 10%, var(--bg-card)); color: #d97706; border: 1.5px solid color-mix(in srgb, #d97706 25%, transparent); }
 .btn-unblock:hover { background: #d97706; color: #fff; }
 .btn-action:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-report {
+  border: 1.5px solid #f59e0b;
+  background: var(--bg-card);
+  color: #f59e0b;
+}
+.btn-report:hover {
+  background: #f59e0b;
+  color: #fff;
+}
 
 /* Block wall */
 .block-wall {
@@ -2281,13 +2354,7 @@ watch: {
 /* Icon Menu (3 chấm) */
 .menu-post-icon {
   width: 20px;  /* Đặt cứng kích thước */
-  height: 20px;
-  cursor: pointer;
-  padding: 8px; /* Vùng bấm rộng */
-  border-radius: 50%;
-  transition: background 0.2s;
-  object-fit: contain; /* Giữ tỉ lệ icon */
-  opacity: 0.6; /* Làm mờ nhẹ */
+  height: 20px; cursor: pointer; opacity: 0.5; padding: 4px;
 }
 
 .menu-post-icon:hover {

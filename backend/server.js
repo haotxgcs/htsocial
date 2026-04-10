@@ -18,9 +18,12 @@ const orderRoutes       = require("./routes/OrderRoute");
 const userAddress       = require("./routes/UserAddressRoute");
 const reviewRoutes      = require("./routes/ReviewRoute");
 const refundRoutes      = require("./routes/RefundRoute");
+const adminRoutes = require("./routes/AdminRoute");
 const stripeRoutes      = require("./routes/StripeRoute");
 const { stripeWebhook } = require("./controllers/StripeController");
 const notificationRoutes = require("./routes/NotificationRoute");
+const reportRoutes = require("./routes/ReportRoute");
+const contactRoutes = require("./routes/ContactRoute");
 
 const Message  = require("./models/MessageModel");
 const Notification = require("./models/NotificationModel");
@@ -253,15 +256,19 @@ app.use("/comments",     commentRoutes);
 app.use("/shares",       shareRoutes);
 app.use("/messages",     messageRoutes);
 app.use("/feeds",        feedRoutes);
-app.use("/block",        blockRoutes);  // ← thêm dòng này
+app.use("/block",        blockRoutes);  
 app.use("/marketplace",  marketplaceRoutes);
 app.use("/cart",         cartRoutes);
 app.use("/orders",       orderRoutes);
 app.use("/user-address", userAddress);
 app.use("/reviews",      reviewRoutes);
 app.use("/refund",       refundRoutes);
+app.use("/admin",         adminRoutes);
 app.use("/stripe",       stripeRoutes);
 app.use("/notifications", notificationRoutes);
+app.use("/reports", reportRoutes); 
+app.use("/contact", contactRoutes);
+
 
 // Inject io vào controller sau khi init
 if (NotificationController._setIO) NotificationController._setIO(io);

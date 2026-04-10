@@ -19,6 +19,7 @@ import OrderDetailPage from './components/OrderDetailPage.vue';
 import PaymentPage from './components/PaymentPage.vue';
 import CartPage from './components/CartPage.vue';
 import SellerOrders from './components/SellerOrders.vue';
+import AdminPage from './components/AdminPage.vue';
 
 
 
@@ -44,7 +45,8 @@ const routes = [
   { path: "/seller-orders/:id", component: OrderDetailPage },
   { path: '/seller-orders', component: SellerOrders },
   { path: '/payment/:id', component: PaymentPage },
-  { path: '/cart', component: CartPage }
+  { path: '/cart', component: CartPage },
+  { path: '/admin', component: AdminPage}
 
 ];
  

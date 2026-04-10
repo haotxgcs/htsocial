@@ -78,7 +78,7 @@ export default {
 
 /* 2. Card chính */
 .confirm-card {
-  background: white;
+  background: var(--bg-card);
   padding: 32px;
   border-radius: 20px;
   width: 90%;
@@ -105,13 +105,13 @@ export default {
 .confirm-card h3 {
   font-size: 20px;
   font-weight: 700;
-  color: #111827;
+  color: var(--text-main);
   margin: 0 0 10px;
 }
 
 .message {
   font-size: 15px;
-  color: #6b7280; /* Màu xám chữ */
+  color: var(--text-sub); /* Màu xám chữ */
   margin: 0 0 24px;
   line-height: 1.5;
 }

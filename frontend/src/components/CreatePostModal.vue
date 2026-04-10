@@ -1040,7 +1040,8 @@ export default {
 .linked-items { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
 .linked-item {
   display: flex; align-items: center; gap: 10px; padding: 8px 10px;
-  border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-input);
+  border: 1px solid var(--border-color); border-radius: 8px; 
+  background: var(--bg-input);
 }
 
 .linked-item-thumb { width: 36px; height: 36px; object-fit: cover; border-radius: 6px; flex-shrink: 0; }

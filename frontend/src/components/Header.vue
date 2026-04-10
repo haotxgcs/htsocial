@@ -56,12 +56,18 @@
           <div class="icon-box"><Store/></div>
           <span>Seller Orders</span>
         </router-link>
+
+        <router-link v-if="currentUser.role === 'admin'" to="/admin" class="nav-item" active-class="active">
+          <div class="icon-box"><ShieldUser/></div>
+          <span>Admin Panel</span>
+        </router-link>
         
       </nav>
 
       <div class="spacer"></div>
 
       <div class="sidebar-actions">
+
         <div class="action-btn" @click="toggleDark()" title="Theme">
           <div v-if="isDark"><Sun/></div>
           <div v-else><Moon/></div>
@@ -198,7 +204,7 @@
 import { io } from 'socket.io-client';
 
 const API = process.env.VUE_APP_API_URL || 'http://localhost:3000';
-import { House, Users, Store, Bookmark, EyeOff, ShoppingBag, Moon, Sun, MessageCircle, Bell, CircleUserRound, Settings, LogOut, ShoppingCart, PanelLeftClose, PanelLeftOpen  } from 'lucide-vue-next';
+import { House, Users, Store, Bookmark, EyeOff, ShoppingBag, Moon, Sun, MessageCircle, Bell, CircleUserRound, Settings, LogOut, ShoppingCart, PanelLeftClose, PanelLeftOpen,ShieldUser  } from 'lucide-vue-next';
 
 export default {
   name: 'VerticalHeader',
@@ -218,7 +224,8 @@ export default {
     LogOut,
     ShoppingCart,
     PanelLeftClose,
-    PanelLeftOpen
+    PanelLeftOpen,
+    ShieldUser
   },
   
   data() {
@@ -314,6 +321,7 @@ export default {
           this.currentUser.id = user._id || user.id;
           this.currentUser.name = `${user.firstname || ''} ${user.lastname || ''}`.trim() || 'User';
           this.currentUser.username = user.username ? `@${user.username}` : (user.email || '@user');
+          this.currentUser.role = user.role || "user";
           this.isDark = user.darkTheme || false;
           this.applyTheme(this.isDark);
 
@@ -616,6 +624,29 @@ export default {
         });
       });
 
+      this.socket.on('notification:report_received', (payload) => {
+        this.addNotif({
+          type: 'report_received',
+          icon: '🚩',
+          text: payload.text || `Your report has been received and is under review.`,
+          reportId: payload.meta?.reportId || payload.reportId || null,
+          meta: payload.meta || null,
+          createdAt: payload.createdAt
+        });
+      });
+
+      // Thêm listener cho report_resolved (hiện chưa có):
+      this.socket.on('notification:report_resolved', (payload) => {
+        this.addNotif({
+          type: 'report_resolved',
+          icon: '✅',
+          text: payload.text || `Your report has been resolved.`,
+          reportId: payload.meta?.reportId || null,
+          meta: payload.meta || null,
+          createdAt: payload.createdAt
+        });
+      });
+
     },
 
     // ── API ──────────────────────────────────────────────────────
@@ -733,12 +764,14 @@ export default {
     },
 
     // ── Notification helpers ─────────────────────────────────────
-    addNotif({ type, text, icon, avatar, link, createdAt }) {
+    addNotif({ type, text, icon, avatar, link, createdAt, reportId, meta }) {
       this.notifications.unshift({
         id: Date.now() + Math.random(),
         type, text, icon,
         avatar: avatar ? (avatar.startsWith('http') ? avatar : `http://localhost:3000/${avatar}`) : null,
         link: link || null,
+        reportId: reportId || meta?.reportId || null,
+        meta: meta || null,
         read: false,
         createdAt: createdAt || new Date().toISOString()
       });
@@ -772,6 +805,14 @@ export default {
         } catch (e) { console.error('markOneRead:', e); }
       }
       this.closeDropdowns();
+
+      // Nếu là report notification → navigate sang /notification với reportId
+      if (n.type === 'report_received' || n.type === 'report_resolved') {
+        const reportId = n.reportId || n.meta?.reportId || null;
+        this.$router.push('/notification?openReport=' + (reportId || ''));
+        return;
+      }
+
       if (n.link) this.$router.push(n.link);
     },
 

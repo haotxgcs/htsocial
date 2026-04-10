@@ -222,21 +222,21 @@ export default {
 </script>
 
 <style scoped>
-.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); z-index: 2000; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(4px); animation: fadeIn 0.2s ease; }
-.modal-card { background: white; width: 90%; max-width: 420px; border-radius: 20px; padding: 0; box-shadow: 0 20px 50px rgba(0,0,0,0.3); animation: zoomIn 0.2s ease; overflow: hidden; }
-.modal-header { padding: 20px 24px; border-bottom: 1px solid #f0f2f5; display: flex; justify-content: space-between; align-items: center; }
-.modal-header h3 { margin: 0; font-size: 18px; font-weight: 700; color: #1c1e21; }
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.45); z-index: 2000; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(4px); animation: fadeIn 0.2s ease; }
+.modal-card { background: var(--bg-card); width: 90%; max-width: 420px; border-radius: 20px; padding: 0; box-shadow: 0 20px 50px rgba(0,0,0,0.3); animation: zoomIn 0.2s ease; overflow: hidden; }
+.modal-header { padding: 20px 24px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+.modal-header h3 { margin: 0; font-size: 18px; font-weight: 700; color: var(--text-main); }
 .close-btn { background: none; border: none; font-size: 24px; color: #65676b; cursor: pointer; }
 .modal-body { padding: 24px; }
-.instruction { font-size: 14px; color: #4b5563; margin-bottom: 20px; line-height: 1.5; }
-.sub-text { font-size: 12px; color: #6b7280; font-style: italic; }
-.input-group label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px; }
-.modern-input { width: 100%; padding: 12px 16px; border-radius: 12px; border: 1px solid #e5e7eb; background: #f9fafb; font-size: 15px; transition: all 0.2s; box-sizing: border-box; }
-.modern-input:focus { border-color: #FF642F; background: white; outline: none; box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1); }
+.instruction { font-size: 14px; color: var(--text-sub); margin-bottom: 20px; line-height: 1.5; }
+.sub-text { font-size: 12px; color: var(--text-sub); font-style: italic; }
+.input-group label { display: block; font-size: 13px; font-weight: 600; color: var(--text-main); margin-bottom: 8px; }
+.modern-input { width: 100%; padding: 12px 16px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-input); color:var(--text-main); font-size: 15px; transition: all 0.2s; box-sizing: border-box; }
+.modern-input:focus { border-color: #FF642F; background: var(--bg-card); color:var(--text-main); outline: none; box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1); }
 .otp-input { letter-spacing: 4px; text-align: center; font-weight: 700; font-size: 18px; }
 .otp-sent-icon { font-size: 40px; text-align: center; margin-bottom: 16px; display: block; }
 .mt-4 { margin-top: 16px; }
-.modal-footer { padding: 16px 24px; background: #f9fafb; border-top: 1px solid #f0f2f5; display: flex; justify-content: flex-end; gap: 12px; }
+.modal-footer { padding: 16px 24px; background: var(--bg-card); border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 12px; }
 .btn-secondary { padding: 10px 20px; border-radius: 10px; background: white; border: 1px solid #d1d5db; color: #374151; font-weight: 600; cursor: pointer; }
 .btn-primary { padding: 10px 24px; border-radius: 10px; background: #FF642F; border: none; color: white; font-weight: 600; cursor: pointer; transition: background 0.2s; }
 .btn-primary:disabled { background: #FF642F; cursor: not-allowed; }

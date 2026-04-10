@@ -103,6 +103,11 @@
     <!-- ACTION BUTTONS -->
     <div v-if="!isOwner" class="buyer-actions">
 
+      <button class="report-btn" @click="openReport('item', item._id)">
+        <FlagTriangleRight class="icon"/>
+        Report Item
+      </button>
+
       <button class="cart-btn" @click="openModal('cart')" :disabled="item.quantity === 0">
         <ShoppingCart class="icon" />
         Add to Cart
@@ -112,6 +117,8 @@
         <Zap class="icon" />
         Buy Now
       </button>
+
+       
 
 
 
@@ -328,6 +335,13 @@
       @confirm="handleBuyAction"
     />
 
+    <ReportModal
+      :is-visible="reportModal.visible"
+      :target-type="reportModal.targetType"
+      :target-id="reportModal.targetId"
+      @close="reportModal.visible = false"
+    />
+
   </div>
 </template>
 
@@ -338,11 +352,14 @@ import LoadingOverlay from "../components/LoadingOverlay.vue";
 import MarketplaceEditModal from "../components/MarketplaceEditModal.vue";
 import MarketplaceBuyModal from "../components/MarketplaceBuyModal.vue";
 import ActionModal from "../components/ActionModal.vue";
+import ReportModal from "../components/ReportModal.vue";
+
 import {
   ShoppingCart,
   Zap,
   MessageCircle,
-  Truck
+  Truck,
+  FlagTriangleRight
 } from "lucide-vue-next";
 
 
@@ -354,10 +371,13 @@ export default {
     MarketplaceEditModal,
     MarketplaceBuyModal,
     ActionModal,
+    ReportModal,
+
     ShoppingCart,
     Zap,
-    MessageCircle,
-    Truck
+    MessageCircle, 
+    Truck,
+    FlagTriangleRight
   },
 
   data() {
@@ -394,6 +414,12 @@ export default {
       expandedComments: {},
 
       highlightedReviewId: null,
+
+      reportModal: { 
+        visible: false, 
+        targetType: '', 
+        targetId: null 
+      },
 
 
     };
@@ -648,6 +674,12 @@ watch: {
     openModal(mode) {
     this.modalMode = mode;
     this.showBuyModal = true;
+  },
+
+  openReport(targetType = 'item', targetId = this.item?._id) {
+    this.reportModal.targetType = targetType;
+    this.reportModal.targetId = targetId;
+    this.reportModal.visible = true;
   },
 
   /* ========================= */
@@ -995,6 +1027,18 @@ watch: {
 }
 .buy-btn:hover { background: #e05522; }
 .buy-btn:disabled { background: #ffb3a2; cursor: not-allowed; }
+
+.report-btn {
+  flex: 1; background: var(--bg-card);
+  border: 2px solid #f59e0b;   color: #f59e0b;
+  padding: 12px; border-radius: 10px; font-weight: bold; cursor: pointer;
+  transition: 0.2s;
+}
+
+.report-btn:hover{
+  color: white;
+  background: #f59e0b;
+}
 
 .type {
   display: inline-block; width: fit-content;

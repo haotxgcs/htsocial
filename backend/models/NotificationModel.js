@@ -23,7 +23,9 @@ const notificationSchema = new mongoose.Schema(
         "order_placed", "order_status", "new_order",
         "review",
         "order_cancelled",
-        "refund_requested", "refund_approved", "refund_rejected"
+        "refund_requested", "refund_approved", "refund_rejected",
+        "report_received",   // ← thêm
+        "report_resolved",
       ],
       required: true
     },

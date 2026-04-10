@@ -13,7 +13,7 @@ export default {
   computed: {
     showHeader() {
       const path = this.$route.path
-      return !['/login', '/register', '/'].includes(path) &&
+      return !['/login', '/register', '/', '/admin'].includes(path) &&
              !path.startsWith('/verify');
     }
   }

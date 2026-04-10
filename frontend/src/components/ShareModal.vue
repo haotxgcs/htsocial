@@ -324,11 +324,46 @@ export default {
 }
 
 /* Thêm position relative để LoadingOverlay phủ đúng */
-.modal-box { position: relative; background: var(--bg-card); width: 100%; max-width: 550px; border-radius: 12px; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); }
+.modal-box { 
+position: relative; 
+background: var(--bg-card); 
+width: 100%; max-width: 550px; 
+border-radius: 12px; 
+max-height: 90vh; 
+overflow: hidden; 
+display: flex; 
+flex-direction: column; 
+box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); }
 
-.modal-header { display: flex; justify-content: center; align-items: center; padding: 20px 24px; position: relative; flex-shrink: 0; }
-.modal-header h3 { margin: 0; font-size: 20px; font-weight: 700; color: var(--text-main); text-align: center; }
-.close-btn { position: absolute; right: 16px; background: var(--bg-input); border: none; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 20px; color: var(--text-sub); transition: background-color 0.2s; }
+.modal-header { 
+  display: flex; 
+  justify-content: center; 
+  align-items: center; 
+  padding: 20px 24px; position: relative; flex-shrink: 0; 
+}
+.modal-header h3 { 
+  margin: 0; 
+  font-size: 20px; 
+  font-weight: 700; 
+  color: var(--text-main); 
+  text-align: center; 
+}
+.close-btn { 
+  position: absolute; 
+  right: 16px; 
+  background: var(--bg-input); 
+  border: none; 
+  border-radius: 50%; 
+  width: 36px; 
+  height: 36px; 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  cursor: pointer; 
+  font-size: 20px; 
+  color: var(--text-sub); 
+  transition: background-color 0.2s; 
+}
 .close-btn:hover {background: var(--hover-bg); }
 .share-content { padding: 20px 24px; overflow-y: auto; flex: 1; scrollbar-width: none; -ms-overflow-style: none; }
 .share-content::-webkit-scrollbar { display: none; }
@@ -338,7 +373,7 @@ export default {
 .user-details strong { font-size: 15px; font-weight: 600; color: var(--text-main); display: block; margin-bottom: 4px; }
 .audience-inline select { 
   padding: 4px 8px; 
-  border-radius: 6px; border: 1px solid #ccc; font-size: 13px; background: var(--bg-input); color: var(--text-sub); cursor: pointer; outline: none; }
+  border-radius: 6px; border: 1px solid var(--border-color); font-size: 13px; background: var(--bg-input); color: var(--text-sub); cursor: pointer; outline: none; }
 .audience-inline select:focus { border-color: #FF642F; }
 .share-input-wrapper { 
   border: 1px solid var(--border-color); 
@@ -356,7 +391,9 @@ export default {
 .emoji-btn:hover { background-color: #f0f2f5; }
 .icon-emoji-img { width: 22px; height: 22px; opacity: 0.6; }
 .emoji-btn:hover .icon-emoji-img { opacity: 1; }
-.shared-box { border: 1px solid var(--border-color); padding: 12px; border-radius: 8px; background: var(--bg-card); }
+.shared-box { 
+  border: 1px solid var(--border-color); 
+  padding: 12px; border-radius: 8px; background: var(--bg-card); }
 .post-header { display: flex; align-items: center; margin-bottom: 12px; }
 .avatar-small { width: 36px; height: 36px; border-radius: 50%; margin-right: 10px; object-fit: cover; }
 .author-details strong { font-size: 14px; font-weight: 600; color: var(--text-main); display: block; }
@@ -371,7 +408,7 @@ export default {
 .recipe-item span { color: #65676b; white-space: pre-line; word-wrap: break-word; }
 .media-preview { margin-top: 8px; }
 .media-preview img, .media-preview video { width: 100%; max-height: 300px; object-fit: contain; border-radius: 8px;  }
-.modal-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 16px 24px; border-top: 1px solid #e4e6eb; flex-shrink: 0; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 16px 24px;  flex-shrink: 0; border-top: 1px solid var(--border-color);}
 .btn { padding: 10px 24px; border: none; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer; transition: all 0.2s ease; }
 .btn.share { background-color: #FF642F; color: white; }
 .btn.share:hover { background-color: #FF642F; }

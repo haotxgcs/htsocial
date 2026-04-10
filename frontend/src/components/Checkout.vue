@@ -748,19 +748,19 @@ export default {
 /* ✅ Title */
 .checkout-title {
   text-align: center; margin-bottom: 24px; padding: 24px;
-  background: white; border-radius: 12px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05); border: 1px solid #eee; font-weight:600;
+  background: var(--bg-card); border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05); border: 1px solid var(--border-color); font-weight:600;
 }
 
 .checkout-title h2 {
-  margin: 0 0 8px 0; font-size: 24px; font-weight: 800; color: #1c1e21;
+  margin: 0 0 8px 0; font-size: 24px; font-weight: 800; color: var(--text-main);
 }
 
 /* ===========================
    ✅ SECTION CARD
 =========================== */
 .checkout-section {
-  background: white;
+  background: var(--bg-card);
   padding: 20px;
   border-radius: 18px;
   margin-bottom: 18px;
@@ -774,10 +774,10 @@ export default {
   gap: 8px;
   font-size: 16px;
   font-weight: 600;
-  color: #222;
+  color: var(--text-main);
   padding-bottom: 12px;
   margin-bottom: 18px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .section-icon {
@@ -794,7 +794,7 @@ export default {
   align-items: center;
   margin-bottom: 18px;
   padding-bottom: 12px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .section-address-header-clean {
@@ -814,7 +814,7 @@ export default {
 .small-btn {
   justify-content: space-between;
   border: 2px solid #ff642f;
-  background: white;
+  background: var(--bg-card);
   color: #ff642f;
   padding: 7px 14px;
   border-radius: 10px;
@@ -845,19 +845,19 @@ export default {
   align-items: flex-start;
   padding: 16px;
   border-radius: 14px;
-  border: 1px solid #eee;
+  border: 1px solid var(--border-color);
   transition: 0.2s;
   cursor: pointer;
 }
 
 .address-card:hover {
   border-color: #ff642f;
-  background: #fff7f3;
+  background: var(--bg-hover);
 }
 
 .address-card.active {
   border-color: #ff642f;
-  background: #fff7f3;
+  background: var(--bg-card);
 }
 
 /* Main Info */
@@ -885,7 +885,7 @@ export default {
 
 .sub {
   font-size: 14px;
-  color: #666;
+  color: var(--text-sub);
 }
 
 /* Default Badge */
@@ -931,7 +931,7 @@ export default {
   background: transparent;
   cursor: pointer;
   padding: 6px;
-  color: #444;
+  color: var(--text-sub);
 }
 
 .menu-btn:hover {
@@ -944,7 +944,7 @@ export default {
   top: 34px;
   right: 0;
   width: 170px;
-  background: white;
+  background: var(--bg-card);
   border-radius: 12px;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
   overflow: hidden;
@@ -955,7 +955,8 @@ export default {
 .menu-dropdown button {
   width: 100%;
   padding: 11px 14px;
-  background: white;
+  background: var(--bg-card);
+  color: var(--text-main);
   border: none;
   display: flex;
   gap: 10px;
@@ -965,7 +966,7 @@ export default {
 }
 
 .menu-dropdown button:hover {
-  background: #f8f8f8;
+  background: var(--bg-hover);
 }
 
 .menu-dropdown .danger {
@@ -973,7 +974,7 @@ export default {
 }
 
 .menu-dropdown .danger:hover {
-  background: #ffecec;
+  background: var(--bg-hover);
 }
 
 /* Icon */
@@ -990,7 +991,7 @@ export default {
   align-items: center;
   gap: 14px;
   padding: 14px 0;
-  border-bottom: 1px solid #f1f1f1;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .order-item:last-child {
@@ -1002,7 +1003,7 @@ export default {
   height: 90px;
   border-radius: 14px;
   object-fit: cover;
-  border: 1px solid #eee;
+  border: 1px solid var(--border-color);
 }
 
 .product-info {
@@ -1043,7 +1044,7 @@ export default {
 
 
 .order-seller-group {
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--border-color);
   padding-bottom: 15px;
   margin-bottom: 15px;
 }
@@ -1051,7 +1052,7 @@ export default {
 .order-seller {
   font-weight: 600;
   margin-bottom: 10px;
-  color: #444;
+  color: var(--text-main);
 }
 
 .order-item {
@@ -1108,10 +1109,10 @@ export default {
   gap: 14px;
   padding: 16px;
   border-radius: 14px;
-  border: 1.5px solid #e5e5e5;
+  border: 1.5px solid var(--border-color);
   cursor: pointer;
   transition: 0.2s;
-  background: #fff;
+  background: var(--bg-card);
 }
 
 .payment-card:hover {
@@ -1120,7 +1121,7 @@ export default {
 
 .payment-card.active {
   border-color: #ff5722;
-  background: #fff8f3;
+  background: var(--bg-hover);
 }
 
 .payment-info {
@@ -1151,17 +1152,17 @@ export default {
   min-height: 70px;     /* thấp hơn */
   padding: 12px 14px;
   border-radius: 12px;  /* nhỏ hơn 18px */
-  border: 1px solid #e5e5e5;
+  border: 1px solid var(--border-color);
   font-size: 14px;
   resize: vertical;     /* cho phép kéo nếu cần */
   transition: 0.2s;
-  background: #fafafa;
+  background: var(--bg-input);
 }
 
 .note-input:focus {
   outline: none;
   border-color: #ff5722;
-  background: #fff;
+  background: var(--bg-hover);
   box-shadow: 0 0 0 3px rgba(255, 87, 34, 0.08);
 }
 
@@ -1172,7 +1173,7 @@ export default {
    ✅ FOOTER TOTAL
 =========================== */
 .checkout-footer {
-  background: white;
+  background: var(--bg-card);
   border-radius: 18px;
   padding: 18px;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);

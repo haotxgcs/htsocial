@@ -58,7 +58,7 @@ export default {
 }
 
 .status-card {
-  background: white; padding: 32px; border-radius: 24px;
+  background: var(--bg-card); padding: 32px; border-radius: 24px;
   width: 90%; max-width: 360px; text-align: center;
   box-shadow: 0 20px 60px rgba(0,0,0,0.2);
   animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -80,9 +80,9 @@ export default {
 .status-icon.warning { background: #fef3c7; }
 .status-icon.warning svg { color: #f59e0b; }
 
-.status-card h3 { font-size: 22px; font-weight: 800; color: #111827; margin: 0 0 8px; }
-.message { font-size: 15px; color: #374151; margin: 0; line-height: 1.5; }
-.sub-text { font-size: 13px; color: #6b7280; margin-top: 4px; margin-bottom: 24px; }
+.status-card h3 { font-size: 22px; font-weight: 800; color: var(--text-main); margin: 0 0 8px; }
+.message { font-size: 15px; color: var(--text-main); margin: 0; line-height: 1.5; }
+.sub-text { font-size: 13px; color: var(--text-sub); margin-top: 4px; margin-bottom: 24px; }
 
 .btn-confirm {
   width: 100%; padding: 12px; border-radius: 12px; border: none;

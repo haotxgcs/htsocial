@@ -1,7 +1,7 @@
 /**
  * services/emailTemplates.js
  */
-
+// Template email gửi cho USER khi tạo đơn hàng mới (cả online & COD)
 exports.orderEmailTemplate = ({
   user,
   sellerName,
@@ -152,6 +152,123 @@ exports.orderEmailTemplate = ({
   <div style="background:#fafafa;border-top:1px solid ${borderCol};padding:18px 28px;text-align:center;">
     <p style="margin:0 0 6px;font-size:13px;color:${textGray};">Questions? Contact our support team.</p>
     <p style="margin:0;font-size:12px;color:#bbb;">&copy; ${new Date().getFullYear()} HT Social Marketplace. All rights reserved.</p>
+  </div>
+
+</div>
+</body>
+</html>`;
+};
+
+// ─── Template gửi cho ADMIN khi có contact mới ───────────────────
+exports.contactAdminTemplate = ({ name, email, subject, message }) => {
+  const brand      = "#ff5757";
+  const brandLight = "#fff3ee";
+  const textDark   = "#1a1a1a";
+  const textGray   = "#666666";
+  const borderCol  = "#eeeeee";
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f0f2f5;font-family:'Segoe UI',Arial,sans-serif;">
+<div style="max-width:620px;margin:36px auto 60px;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10);">
+
+  <!-- HEADER -->
+  <div style="background:${brand};padding:26px 28px;text-align:center;">
+    <div style="font-size:22px;font-weight:800;color:#fff;letter-spacing:0.4px;">HT Social</div>
+    <div style="margin-top:5px;font-size:13px;color:rgba(255,255,255,0.82);">New Contact Message</div>
+  </div>
+
+  <!-- HERO -->
+  <div style="padding:28px 28px 20px;text-align:center;border-bottom:1px solid ${borderCol};">
+    <div style="font-size:32px;margin-bottom:8px;">📬</div>
+    <h2 style="margin:0 0 8px;font-size:20px;color:${textDark};font-weight:700;">New message from a user</h2>
+    <p style="margin:0;font-size:14px;color:${textGray};">Someone has submitted a contact request. Please review and respond.</p>
+  </div>
+
+  <!-- SENDER INFO -->
+  <div style="padding:20px 28px;border-bottom:1px solid ${borderCol};">
+    <div style="font-size:12px;font-weight:700;color:${textGray};text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">Sender Information</div>
+    <div style="background:${brandLight};border-radius:10px;padding:14px 18px;font-size:14px;color:${textDark};line-height:2;">
+      <div><span style="color:${textGray};min-width:60px;display:inline-block;">Name:</span> <strong>${name}</strong></div>
+      <div><span style="color:${textGray};min-width:60px;display:inline-block;">Email:</span> <strong>${email}</strong></div>
+      <div><span style="color:${textGray};min-width:60px;display:inline-block;">Reason:</span> <strong>${subject}</strong></div>
+    </div>
+  </div>
+
+  <!-- MESSAGE -->
+  <div style="padding:20px 28px;border-bottom:1px solid ${borderCol};">
+    <div style="font-size:12px;font-weight:700;color:${textGray};text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">Message</div>
+    <div style="background:#fafafa;border-radius:10px;border:1px solid ${borderCol};padding:16px 18px;font-size:14px;color:${textDark};line-height:1.7;white-space:pre-wrap;">${message}</div>
+  </div>
+
+  <!-- CTA -->
+  <div style="padding:24px 28px;text-align:center;">
+    <a href="${process.env.CLIENT_URL || 'http://localhost:8080'}/admin"
+      style="display:inline-block;padding:13px 32px;background:${brand};color:#fff;font-size:14px;font-weight:700;border-radius:10px;text-decoration:none;">
+      Go to Admin Panel to Reply
+    </a>
+  </div>
+
+  <!-- FOOTER -->
+  <div style="background:#fafafa;border-top:1px solid ${borderCol};padding:18px 28px;text-align:center;">
+    <p style="margin:0;font-size:12px;color:#bbb;">&copy; ${new Date().getFullYear()} HT Social. All rights reserved.</p>
+  </div>
+
+</div>
+</body>
+</html>`;
+};
+
+// ─── Template gửi cho USER khi admin reply ───────────────────────
+exports.contactReplyTemplate = ({ name, subject, originalMessage, adminReply }) => {
+  const brand      = "#ff5757";
+  const brandLight = "#fff3ee";
+  const textDark   = "#1a1a1a";
+  const textGray   = "#666666";
+  const borderCol  = "#eeeeee";
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f0f2f5;font-family:'Segoe UI',Arial,sans-serif;">
+<div style="max-width:620px;margin:36px auto 60px;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10);">
+
+  <!-- HEADER -->
+  <div style="background:${brand};padding:26px 28px;text-align:center;">
+    <div style="font-size:22px;font-weight:800;color:#fff;letter-spacing:0.4px;">HT Social</div>
+    <div style="margin-top:5px;font-size:13px;color:rgba(255,255,255,0.82);">Support Response</div>
+  </div>
+
+  <!-- HERO -->
+  <div style="padding:28px 28px 20px;text-align:center;border-bottom:1px solid ${borderCol};">
+    <div style="font-size:32px;margin-bottom:8px;">💬</div>
+    <h2 style="margin:0 0 8px;font-size:20px;color:${textDark};font-weight:700;">We've responded to your message</h2>
+    <p style="margin:0;font-size:14px;color:${textGray};">Hi <strong>${name}</strong>, our support team has reviewed your request and sent a reply below.</p>
+  </div>
+
+  <!-- SUBJECT -->
+  <div style="padding:16px 28px;border-bottom:1px solid ${borderCol};">
+    <span style="font-size:12px;font-weight:700;color:${textGray};text-transform:uppercase;letter-spacing:0.5px;">Regarding: </span>
+    <span style="font-size:13px;font-weight:600;color:${textDark};">${subject}</span>
+  </div>
+
+  <!-- ADMIN REPLY -->
+  <div style="padding:20px 28px;border-bottom:1px solid ${borderCol};">
+    <div style="font-size:12px;font-weight:700;color:${textGray};text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">Admin Response</div>
+    <div style="background:${brandLight};border-radius:10px;border-left:4px solid ${brand};padding:16px 18px;font-size:14px;color:${textDark};line-height:1.7;white-space:pre-wrap;">${adminReply}</div>
+  </div>
+
+  <!-- ORIGINAL MESSAGE -->
+  <div style="padding:20px 28px;border-bottom:1px solid ${borderCol};">
+    <div style="font-size:12px;font-weight:700;color:${textGray};text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">Your Original Message</div>
+    <div style="background:#fafafa;border-radius:10px;border:1px solid ${borderCol};padding:16px 18px;font-size:13px;color:${textGray};line-height:1.7;white-space:pre-wrap;">${originalMessage}</div>
+  </div>
+
+  <!-- FOOTER -->
+  <div style="background:#fafafa;border-top:1px solid ${borderCol};padding:18px 28px;text-align:center;">
+    <p style="margin:0 0 6px;font-size:13px;color:${textGray};">If you have further questions, feel free to contact us again.</p>
+    <p style="margin:0;font-size:12px;color:#bbb;">&copy; ${new Date().getFullYear()} HT Social. All rights reserved.</p>
   </div>
 
 </div>

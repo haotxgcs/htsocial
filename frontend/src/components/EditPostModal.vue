@@ -662,7 +662,7 @@ async searchItems() {
 .edit-post-modal-content {
   position: relative;
   /* ... keep existing styles ... */
-  background: white;
+  background: var(--bg-card);
   border-radius: 12px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
   width: 90%;
@@ -670,6 +670,7 @@ async searchItems() {
   max-height: 90vh;
   overflow-y: auto;
   animation: slideUp 0.3s ease-out;
+  border: 1px solid var(--border-color);
 }
 
 /* Override z-index for Notification Modal to appear above Edit Modal */
@@ -692,18 +693,78 @@ async searchItems() {
 }
 
 /* ... Keep all your existing CSS styles below ... */
-.edit-post-modal-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; position: relative; }
-.edit-post-modal-header h3 { margin: 0; font-size: 20px; font-weight: 700; color: #1c1e21; text-align: center; flex: 1; }
-.close-btn { position: absolute; right: 16px; background: #f0f2f5; border: none; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 20px; color: #8a8d91; transition: background-color 0.2s; }
-.close-btn:hover { background: #e4e6ea; }
-.post-creator-info { display: flex; align-items: center; padding: 16px 24px; gap: 12px; }
-.creator-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
+.edit-post-modal-header { 
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center; 
+  padding: 20px 24px; 
+  position: relative; 
+  border-bottom: 1px solid var(--border-color);
+}
+.edit-post-modal-header h3 { 
+  margin: 0; 
+  font-size: 20px; 
+  font-weight: 700; 
+  color: var(--text-main); 
+  text-align: center; 
+  flex: 1; 
+}
+.close-btn { 
+  position: absolute; 
+  right: 16px; 
+  background: var(--bg-input); 
+  border: none; 
+  border-radius: 50%; 
+  width: 36px; 
+  height: 36px; 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  cursor: pointer; 
+  font-size: 20px; 
+  color: var(--text-sub); 
+  transition: background-color 0.2s; 
+}
+.close-btn:hover { background: var(--hover-bg); }
+.post-creator-info { 
+  display: flex; 
+  align-items: center; 
+  padding: 16px 24px; 
+  gap: 12px; 
+}
+.creator-avatar { 
+  width: 40px; 
+  height: 40px; 
+  border-radius: 50%; 
+  object-fit: cover; 
+  border: 1px solid var(--border-color);
+}
 .creator-details { flex: 1; }
-.creator-details strong { display: block; font-size: 15px; font-weight: 600; color: #1c1e21; margin-bottom: 4px; }
-.privacy-selector select { background: #f0f2f5; border: none; border-radius: 6px; padding: 4px 8px; font-size: 13px; color: #65676b; cursor: pointer; }
+.creator-details strong { 
+  display: block; 
+  font-size: 15px; 
+  font-weight: 600; 
+   color: var(--text-main);  
+  margin-bottom: 4px; 
+}
+.privacy-selector select { 
+  background: var(--bg-input);  
+  border: none; 
+  border-radius: 6px; 
+  padding: 4px 8px; 
+  font-size: 13px; 
+  color: var(--text-sub); 
+  cursor: pointer; 
+}
 .post-content-area { padding: 0 24px; position: relative; }
 .recipe-field { margin-bottom: 20px; }
-.field-label { display: block; font-size: 16px; font-weight: 600; color: #1c1e21; margin-bottom: 8px; }
+.field-label { 
+  display: block; 
+  font-size: 16px; 
+  font-weight: 600; 
+  color: var(--text-main);
+  margin-bottom: 8px; 
+}
 
 .item-toggle {
   display: flex;
@@ -714,23 +775,24 @@ async searchItems() {
 .toggle-btn {
   padding: 6px 12px;
   border-radius: 20px;
-  border: 1px solid #e5e7eb;
-  background: #f9fafb;
+  border: 1px solid var(--border-color);
+  background: var(--bg-input);
+  color: var(--text-sub);
   font-size: 13px;
   cursor: pointer;
 }
 
 .toggle-btn.active {
-  background: #fff7ed;
-  border-color: #fb923c;
-  color: #ea580c;
+   background: var(--hover-primary);
+  border-color: var(--primary);
+  color: var(--primary);
 }
 
 .item-search-results {
   margin-top: 8px;
-  border: 1px solid #e4e6ea;
+  border: 1px solid var(--border-color);
   border-radius: 10px;
-  background: white;
+  background: var(--bg-card);
 
   max-height: 260px;        /* ⭐ QUAN TRỌNG */
   overflow-y: auto;         /* ⭐ SCROLL RIÊNG */
@@ -746,13 +808,14 @@ async searchItems() {
   padding: 8px 10px;
   cursor: pointer;
   transition: background 0.2s;
-  border: 1px solid #e4e6ea;
+  border: 1px solid var(--border-color);
+  background: var(--bg-input);
   border-radius:6px;
   gap: 10px;
 }
 
 .item-result:hover {
-  background: #fdf4f0;
+ background: var(--hover-primary);
 }
 
 .item-result-info {
@@ -770,7 +833,7 @@ async searchItems() {
 
 .item-result-meta {
   font-size: 12px;
-  color: #FF426F;
+  color: #FF462F;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -817,9 +880,9 @@ async searchItems() {
   align-items: center;
   gap: 10px;
   padding: 8px 10px;
-  border: 1px solid #e4e6ea;
+  border: 1px solid var(--border-color);
   border-radius: 8px;
-  background: #fafafa;
+  background: var(--bg-input);
 }
 
 .own-item-badge {
@@ -840,15 +903,13 @@ async searchItems() {
   padding: 4px 8px;
   font-size: 12px;
   border-radius: 6px;
-  border: 1px solid #e5e7eb;
-  background: #f9fafb;
+  border: 1px solid var(--border-color); 
+  background: var(--bg-card); color: var(--text-main); 
   cursor: pointer;
 }
 
 .view-item-btn:hover {
-  background: #fff7ed;
-  border-color: #fb923c;
-  color: #ea580c;
+  background: var(--hover-primary); color: var(--primary);
 }
 
 
@@ -863,12 +924,32 @@ async searchItems() {
 }
 
 
-.recipe-input, .category-select { width: 100%; padding: 12px; font-size: 15px; font-family: inherit; line-height: 1.2; color: #1c1e21; background: #f8f9fa; border: 1px solid #e4e6ea; border-radius: 8px; box-sizing: border-box; transition: border-color 0.2s, background-color 0.2s; }
+.recipe-input, .category-select { 
+  width: 100%; 
+  padding: 12px; 
+  font-size: 15px; 
+  font-family: inherit; 
+  line-height: 1.2; 
+  color: var(--text-main); 
+  background: var(--bg-input); 
+  border: 1px solid var(--border-color); border-radius: 8px; box-sizing: border-box; transition: border-color 0.2s, background-color 0.2s; }
 .recipe-input { font-size: 18px; }
 .category-select { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 12px center; background-size: 20px; padding-right: 40px; }
-.recipe-input:focus, .category-select:focus { border-color: #FF642F; background: #ffffff; outline: none;  }
-.recipe-textarea { width: 100%; min-height: 100px; padding: 12px; font-size: 15px; font-family: inherit; line-height: 1.4; color: #1c1e21; background: #f8f9fa; border: 1px solid #e4e6ea; border-radius: 8px; box-sizing: border-box; resize: vertical; transition: border-color 0.2s, background-color 0.2s; }
-.recipe-textarea:focus { border-color: #FF642F; background: #ffffff; outline: none;  }
+.recipe-input:focus, .category-select:focus { 
+  border-color: var(--primary); 
+  background: var(--bg-card); 
+  outline: none;   }
+.recipe-textarea { 
+  width: 100%; 
+  min-height: 100px; 
+  padding: 12px; font-size: 15px; 
+  font-family: inherit; line-height: 1.4; 
+  color: var(--text-main); 
+  background: var(--bg-input); 
+  border: 1px solid var(--border-color); border-radius: 8px; box-sizing: border-box; resize: vertical; transition: border-color 0.2s, background-color 0.2s; }
+.recipe-textarea:focus { border-color: var(--primary); 
+  background: var(--bg-card); 
+  outline: none;  }
 .recipe-textarea::placeholder { color: #8a8d91; font-style: italic; }
 .ingredients-textarea { font-family: monospace; font-size: 14px; }
 .instructions-textarea { min-height: 120px; }
@@ -877,12 +958,28 @@ async searchItems() {
 .preview-image, .preview-video { width: 100%; max-height: 300px; object-fit: cover; display: block; }
 .remove-media-btn { position: absolute; top: 8px; right: 8px; background: rgba(0, 0, 0, 0.6); color: white; border: none; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 18px; transition: background-color 0.2s; }
 .remove-media-btn:hover { background: rgba(0, 0, 0, 0.8); }
-.add-options { display: flex; justify-content: space-between; gap: 12px; padding: 0; margin-bottom: 16px; width: 100%; box-sizing: border-box; }
+.add-options { 
+  display: flex; 
+  justify-content: space-between; 
+  gap: 12px; padding: 0; 
+  margin-bottom: 16px; width: 100%; box-sizing: border-box; 
+}
 .emoji-action-wrapper { flex: 1; position: relative; }
-.add-option { width: 100%; flex: 1; padding: 10px 12px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 10px; background: #f0f2f5; border: 1px solid #ccc; cursor: pointer; transition: background-color 0.2s; font-size: 14px; white-space: nowrap; box-sizing: border-box; margin: 0; }
-.add-option:hover { background: #fdf4f0; color: #FF642F; border-color: #FF642F; }
+.add-option { 
+  width: 100%; padding: 10px 12px; 
+  display: flex; align-items: center; justify-content: center; gap: 8px; 
+  border-radius: 10px; 
+  background: var(--bg-input); 
+  border: 1px solid var(--border-color); 
+  cursor: pointer; transition: background-color 0.2s; 
+  font-size: 14px; font-weight: 600;
+  color: var(--text-main) !important;
+  white-space: nowrap; box-sizing: border-box; flex:1; 
+}
+
+.add-option:hover { background: var(--hover-primary); color: var(--primary) !important; }
 .add-option:hover img { filter: invert(53%) sepia(35%) saturate(3000%) hue-rotate(345deg) brightness(100%) contrast(105%);}
-.option-icon img { width: 20px; height: 20px; }
+.option-icon img { width: 20px; height: 20px;}
 .emoji-picker-popover { position: absolute; bottom: 100%; left: 0; z-index: 1001; margin-bottom: 10px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2); border-radius: 8px; background: white; }
 .post-actions-footer { padding: 16px 24px; border-top: 1px solid #e4e6ea; }
 .post-submit-btn { width: 100%; padding: 12px; background: #FF642F; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: background-color 0.2s; }

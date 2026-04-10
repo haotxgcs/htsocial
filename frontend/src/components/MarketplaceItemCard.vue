@@ -4,7 +4,6 @@
 
       <!-- MENU 3 CHẤM -->
       <div
-        v-if="isOwner"
         class="menu-wrapper"
         v-click-outside="closeMenu"
         @click.stop
@@ -14,13 +13,20 @@
         </span>
 
         <div v-if="showMenu" class="menu-dropdown" @click.stop>
-          <button class="menu-item" @click.stop="editItem">
+
+          <button v-if="isOwner" class="menu-item" @click.stop="editItem">
             <Pencil/>
             <span>Edit</span>
           </button>
-          <button class="menu-item danger" @click.stop="deleteItem">
+
+          <button v-if="isOwner" class="menu-item danger" @click.stop="deleteItem">
             <Trash2/>
             <span>Delete</span>
+          </button>
+
+          <button v-if="!isOwner" class="menu-item report" @click.stop="openReport">
+            <FlagTriangleRight/>
+            <span>Report Item</span>
           </button>
         </div>
       </div>
@@ -47,11 +53,19 @@
       </div>
     </div>
   </div>
+  <ReportModal
+      :is-visible="reportModal.visible"
+      :target-type="reportModal.targetType"
+      :target-id="reportModal.targetId"
+      @close="reportModal.visible = false"
+    />
 </template>
 
 
 <script>
-import { Menu, Pencil, Trash2 } from 'lucide-vue-next';
+import ReportModal from "./ReportModal.vue";
+
+import { Menu, Pencil, Trash2, FlagTriangleRight } from 'lucide-vue-next';
   const clickOutside = {
     mounted(el, binding) {
       el._handler = (e) => {
@@ -70,14 +84,24 @@ import { Menu, Pencil, Trash2 } from 'lucide-vue-next';
 export default {
   name: "MarketplaceItemCard",
   components:{
+    ReportModal,
+
     Menu,
     Pencil,
-    Trash2
+    Trash2,
+    FlagTriangleRight
   },
   data() {
   return {
     showMenu: false,
-    currentUser: JSON.parse(localStorage.getItem("user"))
+    currentUser: JSON.parse(localStorage.getItem("user")),
+
+    reportModal: { 
+      visible: false, 
+      targetType: '', 
+      targetId: null 
+    },
+
   };
 },
   props: {
@@ -152,6 +176,15 @@ export default {
       }).format(v);
 
     },
+
+    openReport() {
+      this.showMenu = false;
+      this.reportModal = {
+        visible: true,
+        targetType: 'item',
+        targetId: this.item._id
+      };
+    }
   }
 };
 </script>
@@ -339,6 +372,10 @@ export default {
 
 .menu-dropdown .danger {
   color: #ff4d4f;
+}
+
+.menu-dropdown .report {
+  color: #f59e0b;
 }
 
 /* ── MENU ITEM ── */

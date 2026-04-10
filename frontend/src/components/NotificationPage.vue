@@ -50,10 +50,17 @@
 
     <!-- List -->
     <div v-else class="notif-list">
+      <div v-if="activeTab ==='reports'" class="view-report-section">
+          <button @click="showMyReports = true" class="btn-open-report" style="margin-bottom: 16px;">
+            <span>View All Reports</span>
+          </button>
+        </div>
       <div class="notif-list-scroll">
       <!-- Date group -->
       <template v-for="(group, date) in grouped" :key="date">
         
+        
+
         <div class="notif-date-sep">{{ date }}</div>
         <div
           v-for="n in group"
@@ -92,15 +99,21 @@
         </button>
       </div>
     </div>
+
+
   </div>
+  <MyReportsModal :is-visible="showMyReports" :initial-report-id="openReportId" @close="showMyReports = false; openReportId = null" />
 </template>
 
 <script>
+import MyReportsModal from './MyReportsModal.vue';
 import { Trash2, ListCheck } from 'lucide-vue-next';
 
 export default {
   name: "NotificationsPage",
   components:{
+    MyReportsModal,
+
     Trash2,
     ListCheck
   },
@@ -117,8 +130,16 @@ export default {
         { key: "all",      label: "All" },
         { key: "social",   label: "Social" },
         { key: "orders",   label: "Orders" },
+        { key: "reports",  label: "Reports" },
         { key: "unread",   label: "Unread" }
-      ]
+      ],
+
+      myReports: [],
+      loadingReports: false,
+
+      showMyReports: false,
+
+      openReportId: null,
     };
   },
 
@@ -129,10 +150,14 @@ export default {
     orders() {
       return ["order_placed","order_status","new_order","review","order_cancelled"];
     },
+    reports() {
+      return ["report_received", "report_resolved"];
+    },
     filtered() {
       return this.notifications.filter(n => {
         if (this.activeTab === "social")  return this.social.includes(n.type);
         if (this.activeTab === "orders")  return this.orders.includes(n.type);
+        if (this.activeTab === "reports") return this.reports.includes(n.type);
         if (this.activeTab === "unread")  return !n.read;
         return true;
       });
@@ -141,8 +166,9 @@ export default {
       const all    = this.notifications.length;
       const social = this.notifications.filter(n => this.social.includes(n.type)).length;
       const orders = this.notifications.filter(n => this.orders.includes(n.type)).length;
+      const reports = this.notifications.filter(n => this.reports.includes(n.type)).length;
       const unread = this.notifications.filter(n => !n.read).length;
-      return { all, social, orders, unread };
+      return { all, social, orders, reports, unread };
     },
 
     grouped() {
@@ -153,14 +179,39 @@ export default {
         groups[key].push(n);
       }
       return groups;
-    }
+    },
+
+    reportStatusLabel() {
+      return {
+        pending:   { text: "Pending",   color: "#f59e0b", bg: "#fef3c7" },
+        reviewed:  { text: "Reviewing", color: "#3b82f6", bg: "#eff6ff" },
+        resolved:  { text: "Resolved",  color: "#22c55e", bg: "#f0fdf4" },
+        dismissed: { text: "Dismissed", color: "#6b7280", bg: "#f3f4f6" },
+      };
+    },
+
+    reportReasonLabel() {
+      return {
+        spam: "Spam", harassment: "Harassment", hate_speech: "Hate Speech",
+        misinformation: "Misinformation", inappropriate_content: "Inappropriate Content",
+        fake_account: "Fake Account", scam: "Scam / Fraud",
+        copyright: "Copyright", other: "Other"
+      };
+    },
   },
 
   async mounted() {
-    await this.fetchNotifications();
-    // Listen to realtime
-    window.addEventListener("notification:new", this.onNewNotif);
-  },
+  await this.fetchNotifications();
+  await this.fetchMyReports();
+  window.addEventListener("notification:new", this.onNewNotif);
+
+  // Tự động mở MyReports nếu có ?openReport=xxx trong URL
+  const reportId = this.$route?.query?.openReport;
+  if (reportId !== undefined) {
+    this.openReportId = reportId || null;
+    this.showMyReports = true;
+  }
+},
   beforeUnmount() {
     window.removeEventListener("notification:new", this.onNewNotif);
   },
@@ -205,6 +256,14 @@ export default {
 
     onNotifClick(n) {
       this.dismissOne(n);
+      
+      // Nếu là thông báo report → mở modal xem reports
+      if (n.type === 'report_received' || n.type === 'report_resolved') {
+        this.openReportId = n.meta?.reportId || null;
+        this.showMyReports = true;
+        return;
+      }
+      
       if (n.link) this.$router.push(n.link);
     },
 
@@ -284,6 +343,21 @@ async dismissOne(n) {
     });
   } catch (e) { console.error(e); }
 },
+
+async fetchMyReports() {
+  this.loadingReports = true;
+  try {
+    const token = localStorage.getItem("token");
+    const res = await fetch(`${process.env.VUE_APP_API_URL}/reports/my`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      this.myReports = data.reports || [];
+    }
+  } catch (e) { console.error(e); }
+  finally { this.loadingReports = false; }
+},
   }
 };
 </script>
@@ -322,6 +396,20 @@ async dismissOne(n) {
 }
 .btn-mark-all:hover:not(:disabled) { border-color: #FF642F; color: #FF642F; }
 .btn-mark-all:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.btn-open-report {
+  border: 1.5px solid var(--border-color);
+  background: var(--bg-card); color: var(--text-main);
+  font-size: 13px; font-weight: 600;
+  padding: 7px 14px; border-radius: 10px;
+  cursor: pointer; transition: all 0.15s; 
+}
+.btn-open-report:hover:not(:disabled) { border-color: #FF642F; color: #FF642F; }
+.btn-open-report:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.view-report-section{
+  display: flex; justify-content: flex-end;
+}
 
 .btn-delete-all {
   border: 1.5px solid #fecaca;
@@ -489,6 +577,59 @@ async dismissOne(n) {
 }
 .btn-load-more:hover:not(:disabled) { border-color: #FF642F; color: #FF642F; }
 .btn-load-more:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Report list section */
+.report-list { display: flex; flex-direction: column; gap: 12px; padding-top: 8px; }
+
+.report-card {
+  background: var(--bg-card);
+  border: 1.5px solid var(--border-color);
+  border-radius: 14px;
+  padding: 16px 18px;
+  display: flex; flex-direction: column; gap: 8px;
+  transition: border-color 0.15s;
+}
+.report-card:hover { border-color: #FF642F55; }
+
+.report-card-header { display: flex; align-items: center; justify-content: space-between; }
+
+.report-target-badge {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 3px 10px; border-radius: 20px;
+  background: var(--bg-input); color: var(--text-sub);
+  border: 1px solid var(--border-color);
+}
+
+.report-status-pill {
+  font-size: 12px; font-weight: 700;
+  padding: 3px 12px; border-radius: 20px;
+}
+
+.report-reason { font-size: 14px; color: var(--text-main); }
+.report-reason-label { font-weight: 700; color: var(--text-sub); font-size: 12px; margin-right: 4px; text-transform: uppercase; }
+
+.report-desc {
+  font-size: 13px; color: var(--text-sub);
+  font-style: italic;
+  padding: 8px 12px;
+  background: var(--bg-input);
+  border-radius: 8px;
+  border-left: 3px solid var(--border-color);
+}
+
+.report-admin-note {
+  font-size: 13px; color: #3b82f6;
+  padding: 8px 12px;
+  background: #eff6ff;
+  border-radius: 8px;
+  border-left: 3px solid #3b82f6;
+}
+.admin-note-label { font-weight: 700; margin-right: 4px; }
+
+.report-card-footer { display: flex; align-items: center; gap: 4px; }
+.report-date { font-size: 12px; color: var(--text-sub); }
+.report-resolved-by { font-size: 12px; color: var(--text-sub); }
 
 /* ── RESPONSIVE ── */
 @media (max-width: 1024px) { .notif-page { margin-left: 0; } }

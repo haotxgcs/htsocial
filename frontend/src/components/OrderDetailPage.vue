@@ -931,6 +931,22 @@ font-size: 13px;
 
 .evidence-thumb--video { background: #0f172a; }
 
+.evidence-video-label{
+  position: absolute; bottom: 4px; left: 4px; right: 4px;
+  background: rgba(0,0,0,0.7);
+  color: #fff;
+  font-size: 10px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  text-align: center;
+}
+
+.evidence-video-icon {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  color: #fff;
+}
+
 /* LIGHTBOX */
 .ev-lightbox {
   position: fixed; inset: 0; z-index: 9999;
@@ -955,6 +971,33 @@ font-size: 13px;
 }
 
 .ev-lightbox-close:hover { background: rgba(255,255,255,0.4); }
+
+.ev-lightbox-nav--next, .ev-lightbox-nav--prev {
+  position: absolute; top: 50%;
+  background: rgba(255,255,255,0.2); border: none;
+  color: #fff; width: 40px; height: 40px; border-radius: 50%;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: background 0.2s;
+}
+
+.ev-lightbox-counter{
+  position: absolute; bottom: 16px;
+  color: #fff;
+  font-size: 12px;
+  background: rgba(0,0,0,0.5);
+  padding: 4px 10px;
+  border-radius: 12px;
+}
+
+.ev-lightbox-nav{
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.ev-lightbox-nav--next { right: 24px; }
+.ev-lightbox-nav--prev { left: 24px; }
+
+
 
 /* MISC */
 .meta, .note, .address-content {

@@ -159,11 +159,11 @@ export default {
 
 <style scoped>
 .modal-overlay {
-  position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(255, 255, 255, 0.8); display: flex; justify-content: center; align-items: center; z-index: 9999; padding: 20px; box-sizing: border-box;
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.55); display: flex; justify-content: center; align-items: center; z-index: 9999; padding: 20px; box-sizing: border-box;
 }
 
 .modal-box {
-  background: white;
+  background: var(--bg-card);
   width: 420px;
   padding: 20px;
   border-radius: 18px;
@@ -172,7 +172,7 @@ export default {
 
 .modal-header {
   height: 64px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--border-color);
 
   display: flex;
   align-items: center;
@@ -200,8 +200,8 @@ export default {
   border-radius: 50%;
 
   border: none;
-  background: #f1f3f5;
-  color: #444;
+  background: var(--bg-input);
+  color: var(--text-sub);
 
   font-size: 20px;
   cursor: pointer;
@@ -214,40 +214,7 @@ export default {
 }
 
 .header-close:hover {
-  background: #e5e7eb;
-}
-
-
-
-
-/* .close-btn {
-  position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
-
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  border: none;
-  background: #f1f3f5;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  cursor: pointer;
-} */
-.close-btn { background: #f0f2f5; border: none; border-radius: 50%; width: 36px; height: 36px; font-size: 20px; color: #606770; display: flex; align-items: center; justify-content: center; cursor: pointer; position: absolute; right: 24px; top: 50%; transform: translateY(-50%); }
-
-.close-btn svg {
-  width: 18px;
-  height: 18px;
-  color: #555;
-}
-
-.close-btn:hover {
-  background: #e5e7eb;
+  background: var(--hover-bg);
 }
 
 .item-content{
@@ -296,7 +263,7 @@ export default {
 .qty-btn {
   width: 34px;
   height: 34px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-color);
   background: white;
   border-radius: 8px;
   display: flex;
@@ -311,7 +278,7 @@ export default {
   text-align: center;
   font-size: 16px;
   font-weight:600;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-color);
   border-radius: 10px;
   padding: 6px;
 }
@@ -335,9 +302,13 @@ export default {
 
 /* MODE STYLES */
 .main-btn.cart {
-  background: white;
+  background: var(--bg-card);
   border: 2px solid #ff642f;
   color: #ff642f;
+}
+
+.main-btn.cart:hover{
+  background: var(--hover-primary);
 }
 
 .main-btn.buy {

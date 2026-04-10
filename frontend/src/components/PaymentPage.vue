@@ -80,18 +80,6 @@
 
     </div>
 
-    <!-- <NotificationModal
-      v-if="showNotification"
-      :message="notificationMessage"
-      :type="notificationType"
-      @close="showNotification = false"
-      /> -->
-      <!-- <NotificationModal
-      v-if="showNotification"
-      :message="notificationMessage"
-      :type="notificationType"
-      @close="showNotification = false"
-    /> -->
     <NotificationModal
       :isVisible="notification.show"
       :message="notification.message"
@@ -250,30 +238,30 @@ export default {
 .breadcrumb-current { color: #FF642F; font-weight: 400; }
 
 /* Card */
-.payment-card { max-width: 480px; margin: 0 auto; background: white; padding: 30px; border-radius: 14px; box-shadow: 0 4px 24px rgba(0,0,0,0.10); box-sizing: border-box; }
+.payment-card { max-width: 480px; margin: 0 auto; background: var(--bg-card); padding: 30px; border-radius: 14px; box-shadow: 0 4px 24px rgba(0,0,0,0.10); box-sizing: border-box; }
 
 /* Header */
 .pay-header { margin-bottom: 20px; }
-.pay-title { margin: 0 0 4px; font-size: 20px; font-weight: 700; color: #1a1a1a; }
-.pay-orderid { font-size: 13px; color: #999; }
-.mono { font-family: monospace; color: #555; }
+.pay-title { margin: 0 0 4px; font-size: 20px; font-weight: 700; color: var(--text-main); }
+.pay-orderid { font-size: 13px; color: var(--text-sub); }
+.mono { font-family: monospace; color: var(--text-sub); }
 
 /* Order summary */
-.order-summary { background: #fafafa; border: 1px solid #eee; border-radius: 10px; margin-bottom: 20px; overflow: hidden; }
-.summary-seller { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; font-size: 13px; color: #666; border-bottom: 1px solid #eee; }
+.order-summary { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; margin-bottom: 20px; overflow: hidden; }
+.summary-seller { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; font-size: 13px; color: var(--text-main); border-bottom: 1px solid var(--border-color); }
 .summary-seller-label { font-weight: 500; }
 .summary-items { padding: 6px 0; max-height: 200px; overflow-y: auto; }
 .summary-items::-webkit-scrollbar { width: 4px; }
 .summary-items::-webkit-scrollbar-thumb { background: #ddd; border-radius: 3px; }
-.summary-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid #f0f0f0; }
+.summary-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--border-color); }
 .summary-item:last-child { border-bottom: none; }
 .summary-item-img { width: 52px; height: 52px; border-radius: 8px; object-fit: cover; flex-shrink: 0; background: #eee; }
 .summary-item-info { flex: 1; min-width: 0; }
-.summary-item-title { font-size: 13px; font-weight: 600; color: #222; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.summary-item-sub { font-size: 12px; color: #888; margin-top: 2px; }
-.summary-item-total { font-size: 13px; font-weight: 700; color: #1a1a1a; white-space: nowrap; }
-.summary-total { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; background: #fff3ee; font-size: 14px; color: #555; border-top: 1px solid #eee; }
-.summary-total-amount { font-size: 18px; font-weight: 800; color: #ff5757; }
+.summary-item-title { font-size: 13px; font-weight: 600; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.summary-item-sub { font-size: 12px; color: var(--text-sub); margin-top: 2px; }
+.summary-item-total { font-size: 13px; font-weight: 700; color: var(--text-sub); white-space: nowrap; }
+.summary-total { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; background: var(--bg-card); font-size: 14px; color: #555; border-top: 1px solid var(--border-color); }
+.summary-total-amount { font-size: 18px; font-weight: 800; color: var(--primary); }
 
 /* Skeleton */
 .summary-loading { padding: 16px; display: flex; gap: 12px; align-items: center; margin-bottom: 20px; }
@@ -285,11 +273,12 @@ export default {
 
 /* Divider */
 .pay-divider { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
-.pay-divider::before,.pay-divider::after { content:""; flex:1; height:1px; background:#eee; }
+.pay-divider::before,.pay-divider::after { content:""; flex:1; height:1px; background:var(--border-color); }
 .pay-divider span { font-size: 12px; color: #aaa; font-weight: 500; white-space: nowrap; }
 
 /* Stripe + button */
-.card-box { padding: 12px; border: 1px solid #ddd; border-radius: 6px; margin-bottom: 20px; }
+.card-box { padding: 12px; border: 1px solid var(--border-color); border-radius: 6px; margin-bottom: 20px; }
+.card-box div:focus{ color: var(--text-main); border-color: #ff642f; box-shadow: 0 0 0 2px rgba(255, 100, 47, 0.15); }
 .btn-pay { width: 100%; padding: 12px; background: #ee4d2d; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 15px; font-weight: 700; letter-spacing: 0.3px; }
 .btn-pay:disabled { opacity: 0.6; cursor: not-allowed; }
 .error { margin-top: 10px; color: red; }
@@ -304,7 +293,7 @@ export default {
 }
 
 @media (max-width: 480px) {
-  .payment-wrapper { padding: 16px 12px 80px; }
+  .payment-wrapper { padding: 160px 12px 80px; }
   .payment-card { padding: 16px 14px; border-radius: 10px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
   .pay-title { font-size: 17px; }
   .summary-item { gap: 8px; padding: 8px 12px; }

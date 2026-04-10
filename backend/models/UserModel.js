@@ -89,7 +89,9 @@ const userSchema = new mongoose.Schema(
     darkTheme: {
       type: Boolean,
       default: false
-    }
+    },
+
+    banned: { type: Boolean, default: false }
 
 
   },

@@ -161,7 +161,7 @@ export default {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(255, 255, 255, 0.75);
+  background-color: rgba(0, 0, 0, 0.45);
 
   display: flex;
   justify-content: center;
@@ -174,7 +174,7 @@ export default {
 .modal-box {
   width: 520px;
   border-radius: 18px;
-  background: white;
+  background: var(--bg-card);
   box-shadow: 0 10px 35px rgba(0, 0, 0, 0.25);
   overflow: hidden;
 
@@ -184,7 +184,7 @@ export default {
 /* ✅ Header chuẩn modal comment */
 .modal-header {
   height: 64px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--border-color);
 
   display: flex;
   align-items: center;
@@ -211,8 +211,8 @@ export default {
   border-radius: 50%;
 
   border: none;
-  background: #f0f2f5;
-  color: #444;
+  background: var(--bg-input);
+  color: var(--text-sub);
 
   font-size: 20px;
   cursor: pointer;
@@ -225,7 +225,7 @@ export default {
 }
 
 .close-btn:hover {
-  background: #e4e6eb;
+  background: var(--hover-bg);
 }
 
 /* ✅ Body spacing đẹp */
@@ -240,7 +240,7 @@ export default {
 .field label {
   font-size: 14px;
   font-weight: 600;
-  color: #333;
+  color: var(--text-main);
   display: block;
   margin-bottom: 6px;
 }
@@ -252,7 +252,9 @@ export default {
   max-width: 100%;
   box-sizing: border-box;
   border-radius: 14px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-color);
+  background: var(--bg-input);
+  color: var(--text-sub);
   padding: 12px 14px;
   font-size: 15px;
   outline: none;
@@ -263,6 +265,7 @@ export default {
 .field textarea:focus {
   border-color: #ff642f;
   box-shadow: 0 0 0 2px rgba(255, 100, 47, 0.15);
+  color: var(--text-main);
 }
 
 .field textarea {
@@ -279,12 +282,19 @@ export default {
   font-size: 14px;
   font-weight: 500;
   margin-top: 10px;
-  color: #444;
+  color: var(--text-main);
+}
+
+.default-row input[type="checkbox"] {
+  width: auto;
+  height: auto;
+  border-radius: 4px;
+  accent-color: var(--primary);
 }
 
 /* ✅ Footer giống comment modal */
 .modal-footer {
-  border-top: 1px solid #eee;
+  border-top: 1px solid var(--border-color);
   padding: 16px 22px;
 
   display: flex;

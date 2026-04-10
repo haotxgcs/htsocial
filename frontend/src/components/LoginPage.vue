@@ -40,6 +40,8 @@
           </span>
         </div>
 
+        <button @click="openSecurity">Forgot password?</button>
+
         <!-- Login Button -->
         <button type="submit" class="login-btn">
           Login
@@ -51,7 +53,21 @@
         Don’t have an account?
         <router-link to="/register">Register</router-link>
       </p>
+
+      <!-- Thêm vào cuối form -->
+    <div class="contact-wrap">
+      <span class="contact-hint">Account suspended?</span>
+      <button type="button" class="contact-link" @click="showContact = true">Contact Admin here</button>
     </div>
+
+    </div>
+
+    
+
+    <ContactModal
+      :is-visible="showContact"
+      @close="showContact = false"
+    />
 
     <!-- ✅ Notification Modal (Outside Card) -->
     <NotificationModal
@@ -63,15 +79,23 @@
       @confirm="showModal = false"
     />
 
+    <SecurityModal :is-visible="showSecurity" @close="showSecurity = false" />
+
   </div>
 </template>
 
 <script>
 import NotificationModal from "../components/NotificationModal.vue";
+import ContactModal from './ContactModal.vue';
+import SecurityModal from './SecurityModal.vue';
 
 export default {
   name: "LoginPage",
-  components: { NotificationModal },
+  components: { 
+    NotificationModal,
+    ContactModal,
+    SecurityModal 
+  },
 
   data() {
     return {
@@ -82,7 +106,11 @@ export default {
       // Modal state
       showModal: false,
       modalMessage: "",
-      modalType: "success"
+      modalType: "success",
+
+      showContact: false,
+
+      showSecurity: false
     };
   },
 
@@ -129,6 +157,10 @@ export default {
         this.modalMessage = "" + err.message;
         this.showModal = true;
       }
+    },
+
+    openSecurity() {
+      this.showSecurity = true;
     }
   }
 };
@@ -279,6 +311,11 @@ input:focus {
 .switch a:hover {
   text-decoration: underline;
 }
+
+/* Contact form */
+.contact-wrap { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 16px; font-size: 13px; }
+.contact-hint { color: #9ca3af; }
+.contact-link { background: none; border: none; color: #f59e0b; font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: underline; }
 
 /* ===============================
    RESPONSIVE

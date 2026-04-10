@@ -124,6 +124,10 @@
                     <div class="menu-icon-left"><Trash2/></div>
                     <span>Delete Post</span>
                   </button>
+                  <button v-if="!isMyPost(post)" @click="openReport('post', post._id)">
+                    <div class="menu-icon-left"><FlagTriangleRight/></div>
+                    <span>Report Post</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -322,6 +326,11 @@
                   <div  class="menu-icon-left"><Trash2/></div>
                   <span>Delete Share</span>
                 </button>
+
+                <button v-if="!isMyShare(post)" @click="openReport('share', post._id)">
+                  <div  class="menu-icon-left"><FlagTriangleRight/></div>
+                  <span>Report Share</span>
+                </button>
               </div>
             </div>
           </div>
@@ -453,6 +462,12 @@
       :total-pages="totalPages" 
       @update:page="changePage"
     />
+    <ReportModal
+      :is-visible="reportModal.visible"
+      :target-type="reportModal.targetType"
+      :target-id="reportModal.targetId"
+      @close="reportModal.visible = false"
+    />
   </div>
 </template>
 
@@ -465,8 +480,9 @@ import EditPostModal from './EditPostModal.vue';
 import CreatePostModal from './CreatePostModal.vue';
 import LoadingOverlay from './LoadingOverlay.vue';
 import Pagination from './Pagination.vue';
+import ReportModal from './ReportModal.vue';
 
-import { Menu, Pencil, EyeOff, Trash2 } from 'lucide-vue-next';
+import { Menu, Pencil, EyeOff, Trash2, FlagTriangleRight } from 'lucide-vue-next';
 
 // Custom directive để xử lý click ra ngoài menu (dropdown)
 const clickOutside = {
@@ -500,11 +516,13 @@ export default {
     CreatePostModal,
     LoadingOverlay,
     Pagination,
+    ReportModal,
 
     Menu,
     Pencil,
     EyeOff,
-    Trash2
+    Trash2, 
+    FlagTriangleRight
   },
   data() {
     return {
@@ -571,6 +589,12 @@ export default {
       loading:true,
 
       highlightCommentId: null,
+
+      reportModal: { 
+        visible: false, 
+        targetType: '', 
+        targetId: null 
+      },
 
     }
   },
@@ -1447,75 +1471,88 @@ async loadSearchHistory() {
     },
 
     getItemIndex(postId) {
-  return this.itemIndexMap[postId] ?? 0;
-},
+      return this.itemIndexMap[postId] ?? 0;
+    },
 
-currentItem(post) {
-  const index = this.getItemIndex(post._id);
-  return post.linkedItems[index] || null;
-},
+    currentItem(post) {
+      const index = this.getItemIndex(post._id);
+      return post.linkedItems[index] || null;
+    },
 
-nextItem(postId) {
-  const current = this.getItemIndex(postId);
-  this.$set
-    ? this.$set(this.itemIndexMap, postId, current + 1)
-    : (this.itemIndexMap[postId] = current + 1);
-},
+    nextItem(postId) {
+      const current = this.getItemIndex(postId);
+      this.$set
+        ? this.$set(this.itemIndexMap, postId, current + 1)
+        : (this.itemIndexMap[postId] = current + 1);
+    },
 
-prevItem(postId) {
-  const current = this.getItemIndex(postId);
-  this.$set
-    ? this.$set(this.itemIndexMap, postId, current - 1)
-    : (this.itemIndexMap[postId] = current - 1);
-},
+    prevItem(postId) {
+      const current = this.getItemIndex(postId);
+      this.$set
+        ? this.$set(this.itemIndexMap, postId, current - 1)
+        : (this.itemIndexMap[postId] = current - 1);
+    },
 
-async handleNotifNavigation() {
-  const { postId, highlightComment } = this.$route.query;
-  if (!postId) return;
+    async handleNotifNavigation() {
+      const { postId, highlightComment } = this.$route.query;
+      if (!postId) return;
 
-  // Đợi posts load xong
-  if (this.loading) {
-    await new Promise(resolve => {
-      const stop = this.$watch('loading', val => { if (!val) { stop(); resolve(); } });
-    });
-  }
+      // Đợi posts load xong
+      if (this.loading) {
+        await new Promise(resolve => {
+          const stop = this.$watch('loading', val => { if (!val) { stop(); resolve(); } });
+        });
+      }
 
-  // Tìm post trong feed (cả post gốc lẫn share)
-  let targetPost = this.posts.find(p =>
-    p._id === postId ||
-    (p.type === 'share' && p.post?._id === postId)
-  );
+      // Tìm post trong toàn bộ filteredPosts (có tính thứ tự pagination)
+      const allPosts = this.filteredPosts;
+      const postIndex = allPosts.findIndex(p =>
+        p._id === postId ||
+        (p.type === 'share' && p.post?._id === postId)
+      );
 
-  // Nếu không có trong feed → fetch riêng
-  if (!targetPost) {
-    try {
-      const res = await fetch(`http://localhost:3000/posts/${postId}`);
-      if (res.ok) targetPost = await res.json();
-    } catch(e) { console.error(e); }
-  }
+      let targetPost = postIndex !== -1 ? allPosts[postIndex] : null;
 
-  if (!targetPost) return;
+      // Nếu không tìm thấy trong feed → fetch riêng (post không thuộc feed của user)
+      if (!targetPost) {
+        try {
+          const res = await fetch(`http://localhost:3000/posts/${postId}`);
+          if (res.ok) targetPost = await res.json();
+        } catch(e) { console.error(e); }
+      }
 
-  // Scroll đến post trong feed nếu có
-  await this.$nextTick();
-  const el = document.getElementById(`post-${postId}`);
-  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (!targetPost) return;
 
-  // Nếu có highlightComment → mở CommentModal
-  if (highlightComment) {
-    const post = targetPost.type === 'share' ? targetPost.post : targetPost;
-    this.selectedPost = post;
-    this.highlightCommentId = highlightComment;
-    this.commentModalVisible = true;
-  }
+      // ✅ TÍNH ĐÚNG TRANG VÀ NHẢY ĐẾN ĐÓ
+      if (postIndex !== -1) {
+        const targetPage = Math.floor(postIndex / this.postsPerPage) + 1;
+        if (this.currentPage !== targetPage) {
+          this.currentPage = targetPage;
+          await this.$nextTick(); // Đợi DOM re-render trang mới
+        }
+      }
 
-  if (el) {
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    el.classList.add('post-highlighted');
-    setTimeout(() => el.classList.remove('post-highlighted'), 3000);
-  }
-  this.$router.replace({ path: '/home' });
-},
+      // Scroll đến post
+      await this.$nextTick();
+      const domId = `post-${postIndex !== -1 ? allPosts[postIndex]._id : postId}`;
+      const el = document.getElementById(domId);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('post-highlighted');
+        setTimeout(() => el.classList.remove('post-highlighted'), 3000);
+      }
+
+      // Nếu có highlightComment → mở CommentModal
+      if (highlightComment) {
+        const post = targetPost.type === 'share' ? targetPost.post : targetPost;
+        this.selectedPost = post;
+        this.highlightCommentId = highlightComment;
+        this.commentModalVisible = true;
+      }
+      this.$router.replace({ path: '/home', query: {} }); // Xóa query sau khi xử lý
+    },
+
+    openReport(type, id) { this.reportModal = { visible: true, targetType: type, targetId: id }; }
 
 
     
@@ -1535,6 +1572,7 @@ async handleNotifNavigation() {
 
   mounted() {
     const savedUser = localStorage.getItem("user");
+    
     if (savedUser) {
       this.user = JSON.parse(savedUser);
       this.fetchPosts();
@@ -1958,19 +1996,38 @@ async handleNotifNavigation() {
 
 /* Menus */
 .post-menu-wrapper { position: relative; }
-.menu-post-icon { width: 24px; cursor: pointer; opacity: 0.5; padding: 4px; }
+.menu-post-icon { width: 20px;  /* Đặt cứng kích thước */
+  height: 20px; cursor: pointer; opacity: 0.5; padding: 4px; }
 .dropdown-menu {
-  position: absolute; right: 0; top: 100%; background: var(--bg-card); 
+  position: absolute; 
+  right: 0; 
+  top: 100%;
+  margin: 8px 0 0 0;
+  background: var(--bg-card); 
   border: 1px solid var(--border-color);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden; z-index: 100; width: 140px; font-weight: 500;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1); 
+  border-radius: 8px; 
+  overflow: hidden; 
+  z-index: 100; 
+  width: 140px; 
+  font-weight: 500;
+  
 }
 .dropdown-menu button {
-  width: 100%; padding: 10px 12px; text-align: left; background: var(--bg-card); 
-  color: var(--text-main); border: none;
-  display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;
+  width: 100%; 
+  padding: 10px 12px; 
+  text-align: left; 
+  background: var(--bg-card); 
+  color: var(--text-main); 
+  border: none;
+  display: flex; 
+  align-items: center; 
+  gap: 12px; 
+  font-size: 13px; 
+  cursor: pointer;
 }
 .dropdown-menu button:hover { background: var(--hover-bg); }
-.dropdown-menu button img { width: 16px; opacity: 0.7; }
+
 
 /* Shared Specifics */
 /* ==========================================================================
