@@ -228,6 +228,7 @@ export default {
       const groups = {}
 
       this.cartItems.forEach(item => {
+        if (!item.item || !item.item.seller) return;
         const sellerId = item.item?.seller?._id
 
         if (!groups[sellerId]) {

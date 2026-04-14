@@ -17,6 +17,8 @@ exports.getCart = async (req, res) => {
       }
     });
 
+    cart.items = cart.items.filter(i => i.item !== null && i.item.seller !== null);
+
     res.json({
       success: true,
       cart: cart || { items: [] }

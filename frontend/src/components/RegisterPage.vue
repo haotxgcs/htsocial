@@ -321,6 +321,7 @@ textarea:focus {
 .switch {
   margin-top: 25px;
   font-size: 14px;
+  color:var(--text-sub);
 }
 
 .switch a {

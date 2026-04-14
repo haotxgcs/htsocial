@@ -6,9 +6,17 @@ const Post = require("../models/PostModel");
 const { getFriendStatus } = require("../services/userFriendLogic");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const nodemailer = require("nodemailer");
 const path = require('path');
 const fs = require('fs');
+const {
+  sendVerifyAccount,
+  sendEmailChangeOtp,
+  sendEmailChangedSuccess,
+  sendPasswordChangeOtp,
+  sendPasswordChangedSuccess,
+  sendPasswordResetOtp,
+  sendPasswordResetSuccess,
+} = require("../services/emailService");
 
 // Hàm helper: Chọn ảnh mặc định dựa trên Giới tính & Role
 const getGenderDefaultAvatar = (gender, role) => {
@@ -21,15 +29,6 @@ const getGenderDefaultAvatar = (gender, role) => {
   return 'uploads/generic_avatar.png';
 };
 
-const createTransporter = () => {
-  return nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.EMAIL_USER, // Load from .env
-      pass: process.env.EMAIL_PASS  // Load from .env
-    }
-  });
-};
 
 // ===== 1. Đăng ký (Register) =====
 exports.register = async (req, res) => {
@@ -115,93 +114,11 @@ exports.register = async (req, res) => {
 
     // ✅ 8. Gửi email verify
     const verificationLink = `http://localhost:8080/verify/${newUser._id}`;
-
-    const transporter = createTransporter(); // ✅ đúng helper
-
-    await transporter.sendMail({
-      from: `"HT Social" <${process.env.EMAIL_USER}>`,
+    await sendVerifyAccount({
       to: email,
-      subject: "Verify your HT Social Account",
-      html: `
-      <div style="
-          font-family: Arial, sans-serif;
-          background:#f6f6f6;
-          padding:40px;
-        ">
-        
-        <!-- Main Card -->
-        <div style="
-            max-width:600px;
-            margin:0 auto;
-            background:white;
-            border-radius:12px;
-            overflow:hidden;
-            box-shadow:0 6px 18px rgba(0,0,0,0.15);
-          ">
-
-          <!-- Header -->
-          <div style="
-              background:#ff5757;
-              padding:25px;
-              text-align:center;
-              color:white;
-              font-size:26px;
-              font-weight:bold;
-            ">
-            HT Social
-          </div>
-
-          <!-- Content -->
-          <div style="padding:35px; text-align:center;">
-            
-            <h2 style="color:#222; margin-bottom:15px;">
-              Verify Your Account 
-            </h2>
-
-            <p style="font-size:15px; color:#555; line-height:1.6;">
-              Hello <b>${firstname} ${lastname}</b>, <br/>
-              Welcome to <b>HT Social</b> — the community for sharing delicious recipes.
-            </p>
-
-            <p style="font-size:15px; color:#555;">
-              Please click the button below to verify your email address:
-            </p>
-
-            <!-- Button -->
-            <a href="${verificationLink}"
-              style="
-                display:inline-block;
-                margin-top:20px;
-                padding:14px 28px;
-                background:#ff5757;
-                color:white;
-                font-size:16px;
-                font-weight:bold;
-                border-radius:10px;
-                text-decoration:none;
-              ">
-              Verify Account
-            </a>
-
-            <p style="margin-top:30px; font-size:13px; color:#777;">
-              If you did not create this account, you can safely ignore this email.
-            </p>
-
-          </div>
-
-          <!-- Footer -->
-          <div style="
-              background:#fafafa;
-              padding:15px;
-              text-align:center;
-              font-size:12px;
-              color:#888;
-            ">
-            © ${new Date().getFullYear()} HT Social — Share Recipes, Cook Together
-          </div>
-        </div>
-      </div>
-      `
+      firstname,
+      lastname,
+      verificationLink,
     });
 
 
@@ -332,7 +249,12 @@ exports.login = async (req, res) => {
         active: user.active,
         requestSent: user.requestSent,
         requestReceived: user.requestReceived,
-        darkTheme: user.darkTheme
+        darkTheme: user.darkTheme,
+        createdAt: user.createdAt,        // ← THÊM
+        gender: user.gender,              // ← THÊM
+        birthday: user.birthday,          // ← THÊM
+        location: user.location, 
+        last_password_change: user.last_password_change, // ← THÊM
       }
     });
 
@@ -401,7 +323,7 @@ exports.getUserById = async (req, res) => {
 
     const user = await User.findById(
       req.params.id,
-      "firstname lastname username email avatar coverPhoto role bio birthday location gender friends requestSent requestReceived createdAt updatedAt active"
+      "firstname lastname username email avatar coverPhoto role bio birthday location gender friends requestSent requestReceived createdAt updatedAt active banned"
     );
 
     if (!user) return res.status(404).json({ msg: "User not found" });
@@ -646,87 +568,13 @@ exports.requestEmailChange = async (req, res) => {
     user.last_otp_sent_at = Date.now();
     await user.save();
 
-    const transporter = createTransporter();
-    const brandColor = "#ff5757"; 
-
-    await transporter.sendMail({
-          from: '"HT Social Security" <' + process.env.EMAIL_USER + '>',
-          to: user.email,
-          subject: "Verification Code for Email Change",
-          html: `
-            <!DOCTYPE html>
-            <html>
-            <head>
-              <meta charset="utf-8">
-              <style>
-              @import url('https://fonts.googleapis.com/css2?family=Berkshire+Swash&display=swap');
-              </style>
-            </head>
-            <body style="margin: 0; padding: 0; background-color: #f9f9f9; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;">
-              
-              <div style="max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
-                
-                <div style="background-color: ${brandColor}; padding: 30px 20px; text-align: center;">
-                  <h1 style="
-                    color: #ffffff; 
-                    margin: 0; 
-                    font-size: 36px; 
-                    font-weight: 400; 
-                    font-family: 'Berkshire Swash', cursive, serif;
-                  ">
-                    HT Social
-                  </h1>
-                </div>
-        
-                <div style="padding: 40px 30px; color: #333333;">
-                  <h2 style="margin-top: 0; color: #333; font-size: 20px; font-weight: 600;">Confirm your email change</h2>
-                  
-                  <p style="font-size: 16px; line-height: 1.6; color: #555;">
-                    Hello <b>${user.firstname} ${user.lastname}</b>,
-                    <br><br>
-                    We received a request to change the email address associated with your account to:
-                    <a href="mailto:${newEmail}" style="color: ${brandColor}; text-decoration: none; font-weight: bold;">${newEmail}</a>
-                  </p>
-        
-                  <p style="font-size: 16px; line-height: 1.6; color: #555;">
-                    Please use the verification code below to confirm this change.
-                  </p>
-        
-                  <div style="margin: 30px 0; text-align: center;">
-                    <span style="
-                      display: inline-block;
-                      font-size: 32px;
-                      font-weight: bold;
-                      letter-spacing: 5px;
-                      color: ${brandColor};
-                      background-color: #fff0f1;
-                      border: 2px dashed ${brandColor};
-                      padding: 15px 40px;
-                      border-radius: 8px;
-                    ">
-                      ${otp}
-                    </span>
-                  </div>
-        
-                  <p style="font-size: 14px; color: #777; text-align: center;">
-                    This code will expire in <b>5 minutes</b>.
-                  </p>
-        
-                  <div style="border-top: 1px solid #eee; margin-top: 30px; padding-top: 20px;">
-                    <p style="font-size: 14px; color: #999; line-height: 1.5;">
-                      <strong>Security Notice:</strong> If you did not request this change, please ignore this email.
-                    </p>
-                  </div>
-                </div>
-        
-                <div style="background-color: #f4f4f4; padding: 20px; text-align: center; font-size: 12px; color: #888;">
-                  <p style="margin: 0;">&copy; ${new Date().getFullYear()} HT Social. All rights reserved.</p>
-                </div>
-              </div>
-            </body>
-            </html>
-          `
-        });
+    await sendEmailChangeOtp({
+      to: user.email,
+      firstname: user.firstname,
+      lastname: user.lastname,
+      newEmail,
+      otp,
+    });
 
     res.status(200).json({ msg: `OTP sent to your current email: ${user.email}. Please check your inbox.` });
   } catch (err) {
@@ -734,8 +582,6 @@ exports.requestEmailChange = async (req, res) => {
     res.status(500).json({ msg: "Server error" });
   }
 };
-
-
 
 // ===== 10. Verify and Change Email (Link to Login) =====
 exports.verifyAndChangeEmail = async (req, res) => {
@@ -762,92 +608,11 @@ exports.verifyAndChangeEmail = async (req, res) => {
     await user.save();
 
     // 4. Gửi Email Thông Báo Thành Công
-    const transporter = createTransporter();
-    const brandColor = "#ff5757"; 
-
-    // --- CẤU HÌNH LINK LOGIN ---
-    // Thay đổi port 8080 thành port frontend thực tế của bạn nếu khác
-    const loginLink = "http://localhost:8080/login"; 
-
-    transporter.sendMail({
-      from: '"HT Social Security" <' + process.env.EMAIL_USER + '>',
+    sendEmailChangedSuccess({
       to: newEmail,
-      subject: "Email Changed Successfully",
-      html: `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <style>
-            @import url('https://fonts.googleapis.com/css2?family=berkshire+swash&display=swap');
-          </style>
-        </head>
-        <body style="margin: 0; padding: 0; background-color: #f9f9f9; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;">
-          
-          <div style="max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
-            
-            <div style="background-color: ${brandColor}; padding: 30px 20px; text-align: center;">
-              <h1 style="
-                color: #ffffff; 
-                margin: 0; 
-                font-size: 32px; 
-                font-weight: 700; 
-                letter-spacing: 1px;
-                font-family: 'Berkshire Swash', cursive, serif;
-              ">
-                HT Social
-              </h1>
-            </div>
-    
-            <div style="padding: 40px 30px; color: #333;">
-              
-              <div style="text-align: center; margin-bottom: 20px;">
-                <h2 style="color: #ff5757; margin: 0; font-size: 24px;">Email Updated</h2>
-              </div>
-              
-              <p style="font-size: 16px; line-height: 1.6; color: #555;">
-                Hello <b>${user.firstname} ${user.lastname}</b>,
-              </p>
-              
-              <p style="font-size: 16px; line-height: 1.6; color: #555;">
-                Your <b>HT Social</b> account email has been successfully changed to:
-              </p>
-              
-              <div style="margin: 25px 0; text-align: center;">
-                <span style="
-                  display: inline-block;
-                  font-size: 18px;
-                  font-weight: bold;
-                  color: ${brandColor};
-                  background-color: #fff0f1;
-                  padding: 12px 24px;
-                  border-radius: 50px;
-                  text-decoration: none;
-                ">
-                  ${newEmail}
-                </span>
-              </div>
-
-              <p style="font-size: 15px; color: #555; text-align: center;">
-                Please use this email address to 
-                <a href="${loginLink}" style="color: ${brandColor}; text-decoration: none; font-weight: bold;">log in</a> 
-                from now on.
-              </p>
-              
-              <div style="border-top: 1px solid #eee; margin-top: 30px; padding-top: 20px;">
-                <p style="font-size: 13px; color: #999; line-height: 1.5; text-align: center;">
-                  If you did not make this change, please contact our support team immediately.
-                </p>
-              </div>
-            </div>
-
-            <div style="background-color: #f4f4f4; padding: 20px; text-align: center; font-size: 12px; color: #888;">
-              <p style="margin: 0;">&copy; ${new Date().getFullYear()} HT Social. All rights reserved.</p>
-            </div>
-          </div>
-        </body>
-        </html>
-      `
+      firstname: user.firstname,
+      lastname: user.lastname,
+      newEmail,
     }).catch(err => console.error("Send success email error:", err));
 
     // 5. Trả về kết quả
@@ -891,50 +656,12 @@ exports.requestPasswordChange = async (req, res) => {
     user.last_password_otp_sent_at = Date.now();
     await user.save();
 
-    // 4. Gửi Email OTP (Template đẹp)
-    const transporter = createTransporter();
-    const brandColor = "#ff5757";
-
-    await transporter.sendMail({
-      from: '"HT Social Security" <' + process.env.EMAIL_USER + '>',
+    // 4. Gửi Email OTP
+    await sendPasswordChangeOtp({
       to: user.email,
-      subject: "Verification Code for Password Change",
-      html: `
-        <!DOCTYPE html>
-        <html>
-        <head><meta charset="utf-8"></head>
-        <style>
-              @import url('https://fonts.googleapis.com/css2?family=berkshire+swash&display=swap');
-        </style>
-        <body style="margin: 0; padding: 0; background-color: #f9f9f9; font-family: Helvetica, Arial, sans-serif;">
-          <div style="max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
-            <div style="background-color: ${brandColor}; padding: 30px 20px; text-align: center;">
-              <h1 style="color: #ffffff; margin: 0; font-size: 32px; font-weight: 700; font-family: 'Berkshire Swash', cursive, serif; letter-spacing: 1px;">HT Social</h1>
-            </div>
-            <div style="padding: 40px 30px; color: #333;">
-              <h2 style="margin-top: 0; font-size: 20px;">Request to Change Password</h2>
-              <p>Hello <b>${user.firstname}</b>,</p>
-              <p>We received a request to reset or change your password.</p>
-              <p>Please use the code below to proceed:</p>
-              
-              <div style="margin: 30px 0; text-align: center;">
-                <span style="display: inline-block; font-size: 32px; font-weight: bold; letter-spacing: 5px; color: ${brandColor}; background-color: #fff0f1; border: 2px dashed ${brandColor}; padding: 15px 40px; border-radius: 8px;">
-                  ${otp}
-                </span>
-              </div>
-              
-              <p style="font-size: 14px; color: #777; text-align: center;">This code expires in <b>5 minutes</b>.</p>
-              <div style="border-top: 1px solid #eee; margin-top: 30px; padding-top: 20px;">
-                <p style="font-size: 14px; color: #999;"><strong>Security Notice:</strong> If you did not request this, someone may be trying to access your account. Do not share this code.</p>
-              </div>
-            </div>
-            <div style="background-color: #f4f4f4; padding: 20px; text-align: center; color: #888; font-size: 12px;">
-              <p>&copy; ${new Date().getFullYear()} HT Social. All rights reserved.</p>
-            </div>
-          </div>
-        </body>
-        </html>
-      `
+      firstname: user.firstname,
+      lastname: user.lastname,
+      otp,
     });
 
     res.status(200).json({ msg: `OTP sent to ${user.email}` });
@@ -985,6 +712,7 @@ exports.verifyAndChangePassword = async (req, res) => {
     // 4. Mã hóa mật khẩu mới
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(newPassword, salt);
+    user.last_password_change = Date.now();
 
     // 5. Dọn dẹp OTP & Logout các thiết bị khác
     user.password_otp = null;
@@ -999,52 +727,9 @@ exports.verifyAndChangePassword = async (req, res) => {
     await user.save();
 
     // 6. Gửi Email Thông Báo Thành Công
-    const transporter = createTransporter();
-    const brandColor = "#ff5757";
-    // Đảm bảo port này đúng với frontend của bạn (8080 hoặc 3000)
-    const loginLink = "http://localhost:8080/login"; 
-
-    // Sử dụng .catch để lỗi gửi mail không làm crash luồng chính
-    transporter.sendMail({
-      from: '"HT Social Security" <' + process.env.EMAIL_USER + '>',
+    sendPasswordChangedSuccess({
       to: user.email,
-      subject: "Password Changed Successfully",
-      html: `
-        <!DOCTYPE html>
-        <html>
-        <head><meta charset="utf-8"></head>
-        <style>
-              @import url('https://fonts.googleapis.com/css2?family=berkshire+swash&display=swap');
-        </style>
-        <body style="margin: 0; padding: 0; background-color: #f9f9f9; font-family: Helvetica, Arial, sans-serif;">
-          <div style="max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
-            <div style="background-color: ${brandColor}; padding: 30px 20px; text-align: center;">
-              <h1 style="color: #ffffff; margin: 0; font-size: 32px; font-weight: 700; font-family: 'Berkshire Swash', cursive, serif; letter-spacing: 1px;">HT Social</h1>
-            </div>
-            <div style="padding: 40px 30px; color: #333;">
-              <div style="text-align: center; margin-bottom: 20px;">
-                <h2 style="color: #ff5757; margin: 0; font-size: 24px;">Password Updated!</h2>
-              </div>
-              <p>Hello <b>${user.firstname}</b>,</p>
-              <p>Your password has been successfully changed. You can now log in with your new password.</p>
-              
-              <div style="margin: 30px 0; text-align: center;">
-                 <a href="${loginLink}" style="background-color: ${brandColor}; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">
-                   Login Now
-                 </a>
-              </div>
-
-              <div style="border-top: 1px solid #eee; margin-top: 30px; padding-top: 20px;">
-                <p style="font-size: 13px; color: #999; text-align: center;">If you did not make this change, please contact support immediately.</p>
-              </div>
-            </div>
-            <div style="background-color: #f4f4f4; padding: 20px; text-align: center; color: #888; font-size: 12px;">
-              <p>&copy; ${new Date().getFullYear()} HT Social. All rights reserved.</p>
-            </div>
-          </div>
-        </body>
-        </html>
-      `
+      firstname: user.firstname,
     }).catch(err => console.error("Send password success email error:", err));
 
     res.status(200).json({ msg: "Password changed successfully! All other devices have been logged out." });
@@ -1054,6 +739,94 @@ exports.verifyAndChangePassword = async (req, res) => {
     res.status(500).json({ msg: "Server error" });
   }
 };
+
+
+exports.requestResetPassword = async (req, res) => {
+  const { email } = req.body;
+  try {
+    const user = await User.findOne({ email: email })
+      .select("email firstname lastname avatar gender password_otp password_otp_expire last_password_otp_sent_at");
+    if (!user) return res.status(404).json({ msg: "User not found" });
+    // Rate limit: 5 phút
+    if (user.last_password_otp_sent_at) {
+      const diffMinutes = (Date.now() - new Date(user.last_password_otp_sent_at)) / (1000 * 60);
+      if (diffMinutes < 5) {
+        const waitTime = Math.ceil(5 - diffMinutes);
+        return res.status(429).json({ msg: `Please wait ${waitTime} minute(s) before requesting new OTP.` });
+      }
+    }
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    user.password_otp = otp;
+    user.password_otp_expire = Date.now() + 5 * 60 * 1000;
+    user.last_password_otp_sent_at = Date.now();
+    await user.save();
+    await sendPasswordResetOtp({
+      to: user.email,
+      firstname: user.firstname,
+      lastname: user.lastname,
+      otp,
+    });
+    res.status(200).json({ 
+      msg: `OTP sent to ${user.email}`,
+        user: {
+          firstname: user.firstname,
+          lastname: user.lastname,
+          avatar: user.avatar,
+        } 
+    });
+  } catch (err) {
+    console.error("Request password reset error:", err);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
+
+exports.verifyAndResetPassword = async (req, res) => {
+  const { email, otp, newPassword } = req.body;
+  try {
+    const user = await User.findOne({ email });
+
+    if (!user) return res.status(404).json({ msg: "User not found" });
+    if (String(user.password_otp).trim() !== String(otp).trim()) {
+      return res.status(400).json({ msg: "Invalid OTP code" });
+    }
+    if (Date.now() > user.password_otp_expire) {
+      return res.status(400).json({ msg: "OTP has expired" });
+    }
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ msg: "Password must be at least 6 characters long." });
+    }
+    if (newPassword.length > 50) {
+      return res.status(400).json({ msg: "Password is too long (max 50 characters)." });
+    }
+    const isSameAsOld = await bcrypt.compare(newPassword, user.password);
+    if (isSameAsOld) {
+      return res.status(400).json({ msg: "New password cannot be the same as your current password." });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    user.password            = await bcrypt.hash(newPassword, salt);
+    user.last_password_change = Date.now();
+    user.password_otp        = null;
+    user.password_otp_expire = null;
+    user.token_version       = (user.token_version || 0) + 1;
+    user.active              = false;
+    await user.save();
+
+    // ── Gửi email thông báo reset thành công ──────────────────
+    sendPasswordResetSuccess({
+      to: user.email,
+      firstname: user.firstname,
+      lastname: user.lastname,
+    }).catch(err => console.error("Send password reset email error:", err));
+    // ─────────────────────────────────────────────────────────
+
+    res.status(200).json({ msg: "Password reset successfully! Please log in with your new password." });
+  } catch (err) {
+    console.error("Reset password error:", err);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
+
 
 // ===== 13. Gửi lời mời kết bạn (Send Friend Request) =====
 exports.sendFriendRequest = async (req, res) => {

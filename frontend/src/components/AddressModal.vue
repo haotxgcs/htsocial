@@ -53,13 +53,18 @@
       </div>
     </div>
   </div>
+  <NotificationModal :is-visible="notification.visible" :type="notification.type" :title="notification.title" :message="notification.message" @confirm="closeNotify" />
 </template>
 
 <script>
 import axios from "axios";
+import NotificationModal from "../components/NotificationModal.vue";
 
 export default {
   name: "AddressModal",
+  components:{
+    NotificationModal
+  },
 
   props: {
     mode: {
@@ -82,7 +87,14 @@ export default {
         phone: "",
         address: "",
         isDefault: false
-      }
+      },
+
+      notification: {
+        visible: false,
+        type: 'success', // 'success', 'error', 'warning'
+        title: '',
+        message: ''
+      },
     };
   },
 
@@ -105,7 +117,8 @@ export default {
 
       // ✅ Validate
       if (!this.form.fullName || !this.form.phone || !this.form.address) {
-        return alert("Please fill all fields");
+        return this.showNotify("error", "Error", "Please fill all fields");
+        
       }
 
       this.loading = true;
@@ -140,18 +153,31 @@ export default {
         }
 
         // ✅ Notify parent
+        this.showNotify("success", "Success", "Address saved successfully!");
         this.$emit("saved", res.data.addresses);
 
-        alert("✅ Address saved successfully!");
+        
         this.$emit("close");
 
       } catch (err) {
         console.error("Address save error:", err.response?.data);
-        alert("Failed to save address");
+        
+         this.showNotify("error", "Error", "Fail to save address");
       }
 
       this.loading = false;
-    }
+    },
+
+    showNotify(type, title, message) {
+      this.notification.type = type;
+      this.notification.title = title;
+      this.notification.message = message;
+      this.notification.visible = true;
+    },
+
+    closeNotify() {
+      this.notification.visible = false;
+    },
   }
 };
 </script>

@@ -624,7 +624,12 @@ export default {
 
   addItem(item) {
     if (this.linkedItems.length >= 6) {
-      alert("You can link up to 6 items only");
+      this.notification = {
+        visible: true,
+        type: "error",
+        title: "Limit reached",
+        message: "You can link up to 6 items only"
+      };
       return;
     }
 

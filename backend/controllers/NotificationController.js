@@ -47,6 +47,7 @@ function formatNotif(n) {
     order_status:     `Order <b>#${shortId}</b>: <b>${statusLabel}</b>`,
     new_order:        `<b>${n.meta?.buyerName || "Someone"}</b> placed order <b>#${shortId}</b>`,
     review:           `<b>${senderName}</b> reviewed <b>${n.meta?.itemName || "your item"}</b>`,
+    reply_review:     `Seller replied your review!`,
     order_cancelled:  `Order <b>#${shortId}</b> was cancelled${n.meta?.by ? " by <b>" + n.meta.by + "</b>" : ""}`,
     // Refund
     refund_requested: `<b>${senderName}</b> requested a refund for order <b>#${shortId}</b>`,
@@ -64,7 +65,7 @@ function formatNotif(n) {
     comment: "💬", reply: "↩️", share: "🔁",
     friend_request: "👤", friend_accepted: "🤝",
     order_placed: "🛒", order_status: "📦", new_order: "🛍️",
-    review: "⭐", order_cancelled: "❌",
+    review: "⭐",reply_review: "💬", order_cancelled: "❌",
     refund_requested: "🔄", refund_approved: "💰", refund_rejected: "❌", 
     report_received: "🚩", report_resolved: "✅",
   };
@@ -86,6 +87,9 @@ function formatNotif(n) {
     review:           itemId
       ? `/marketplace/${itemId}?scrollToReviews=true${reviewId ? "&reviewId=" + reviewId : ""}`
       : "/marketplace",
+    reply_review: itemId
+      ? `/marketplace/${itemId}?scrollToReviews=true${reviewId ? "&reviewId=" + reviewId : ""}`
+      : "/marketplace",  
     // Refund: seller xem request → /seller-orders?tab=refund&orderId=xxx
     // Buyer xem kết quả approve/reject → /orders/:id
     refund_requested: orderId

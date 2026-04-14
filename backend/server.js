@@ -27,6 +27,7 @@ const contactRoutes = require("./routes/ContactRoute");
 
 const Message  = require("./models/MessageModel");
 const Notification = require("./models/NotificationModel");
+const User = require("./models/UserModel");
 const { createNotification } = require("./controllers/NotificationController");
 
 const app    = express();
@@ -74,12 +75,14 @@ function emitToUser(userId, event, data) {
 io.on("connection", (socket) => {
 
   // ── Online presence ──────────────────────────────────────────
-  socket.on("user:online", (userId) => {
+  socket.on("user:online", async (userId) => {
     socket.userId = userId.toString();
     addOnline(socket.userId, socket.id);
     socket.join(`user:${socket.userId}`); // Dùng cho notification room
     socket.broadcast.emit("user:status", { userId: socket.userId, online: true });
     socket.emit("users:online", Array.from(onlineUsers.keys()));
+
+    await User.findByIdAndUpdate(socket.userId, { active: true }).catch(() => {});
   });
 
   // ── Send message ─────────────────────────────────────────────
@@ -231,11 +234,13 @@ io.on("connection", (socket) => {
   });
 
   // ── Disconnect ───────────────────────────────────────────────
-  socket.on("disconnect", () => {
+  socket.on("disconnect", async () => {
     if (socket.userId) {
       removeOnline(socket.userId, socket.id);
       if (!isOnline(socket.userId)) {
         socket.broadcast.emit("user:status", { userId: socket.userId, online: false });
+
+        await User.findByIdAndUpdate(socket.userId, { active: false }).catch(() => {});
       }
     }
   });

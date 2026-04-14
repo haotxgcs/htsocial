@@ -40,13 +40,15 @@
           </span>
         </div>
 
-        <button @click="openSecurity">Forgot password?</button>
+        
 
         <!-- Login Button -->
         <button type="submit" class="login-btn">
           Login
         </button>
       </form>
+
+      <button type="button" class="forgot-btn" @click="showForgot = true">Forgot password?</button>
 
       <!-- Switch -->
       <p class="switch">
@@ -79,7 +81,7 @@
       @confirm="showModal = false"
     />
 
-    <SecurityModal :is-visible="showSecurity" @close="showSecurity = false" />
+    <ForgotPasswordModal :is-visible="showForgot" @close="showForgot = false" />
 
   </div>
 </template>
@@ -87,14 +89,14 @@
 <script>
 import NotificationModal from "../components/NotificationModal.vue";
 import ContactModal from './ContactModal.vue';
-import SecurityModal from './SecurityModal.vue';
+import ForgotPasswordModal from './ForgotPasswordModal.vue';
 
 export default {
   name: "LoginPage",
   components: { 
     NotificationModal,
     ContactModal,
-    SecurityModal 
+    ForgotPasswordModal
   },
 
   data() {
@@ -110,7 +112,8 @@ export default {
 
       showContact: false,
 
-      showSecurity: false
+      showForgot: false
+
     };
   },
 
@@ -148,7 +151,11 @@ export default {
 
         // Redirect after 1.8s
         setTimeout(() => {
-          this.$router.push("/home");
+          if (data.user.role === "admin") {
+            this.$router.push("/admin");
+          } else {
+            this.$router.push("/home");
+          }
         }, 1800);
 
       } catch (err) {
@@ -159,9 +166,6 @@ export default {
       }
     },
 
-    openSecurity() {
-      this.showSecurity = true;
-    }
   }
 };
 </script>
@@ -271,6 +275,19 @@ input:focus {
   opacity: 1;
 }
 
+.forgot-btn{
+  margin-top: 22px;
+  font-size: 14px;
+  color: #ff642f;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.forgot-btn:hover{
+  text-decoration: underline;
+}
+
 /* ===============================
    BUTTON
 ================================ */
@@ -300,6 +317,7 @@ input:focus {
 .switch {
   margin-top: 28px;
   font-size: 14px;
+  color: var(--text-sub);
 }
 
 .switch a {
@@ -313,9 +331,10 @@ input:focus {
 }
 
 /* Contact form */
-.contact-wrap { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 16px; font-size: 13px; }
-.contact-hint { color: #9ca3af; }
-.contact-link { background: none; border: none; color: #f59e0b; font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: underline; }
+.contact-wrap { display: flex; align-items: center; justify-content: center; margin-top: 16px; font-size: 12px; }
+.contact-hint { color: #9ca3af; font-style: italic; }
+.contact-link { background: none; border: none; color: #f59e0b; font-size: 12px; font-weight: 600; cursor: pointer; font-style:italic}
+.contact-link:hover { text-decoration: underline; }
 
 /* ===============================
    RESPONSIVE

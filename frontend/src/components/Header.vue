@@ -172,7 +172,7 @@
         <div class="profile-card">
           <img :src="currentUser.avatarUrl || defaultAssetAvatar" class="avatar" />
           <div class="user-info">
-            <p class="name">{{ currentUser.name }}</p>
+            <p class="name">{{ currentUser.name }} <span class="admin-badge" v-if="currentUser.role === 'admin'">Admin</span></p>
             <p class="username">{{ currentUser.username }}</p>
           </div>
         </div>
@@ -186,7 +186,7 @@
             <Settings/>
             <span class="menu-title">Settings</span>
           </div>
-          <div class="menu-item logout" @click="logout">
+          <div class="menu-item logout" @click="showLogoutConfirm = true; showUserDropdown = false">
             <LogOut/> 
             <span class="menu-title">Logout</span>
           </div>
@@ -198,9 +198,17 @@
     <div v-if="isOpen" class="sidebar-overlay" @click="isOpen = false"></div>
 
   </div>
+  <ConfirmDialog
+  v-if="showLogoutConfirm"
+  message="Are you sure you want to logout?"
+  @confirm="doLogout"
+  @cancel="showLogoutConfirm = false"
+/>
+
 </template>
 
 <script>
+import ConfirmDialog from './ConfirmDialog.vue';
 import { io } from 'socket.io-client';
 
 const API = process.env.VUE_APP_API_URL || 'http://localhost:3000';
@@ -208,7 +216,9 @@ import { House, Users, Store, Bookmark, EyeOff, ShoppingBag, Moon, Sun, MessageC
 
 export default {
   name: 'VerticalHeader',
-  components: { 
+  components: {
+    ConfirmDialog,
+    
     House,
     Users,
     Store,
@@ -255,6 +265,8 @@ export default {
       defaultAssetAvatar: require('../assets/user.png'),
 
       isDark: false,
+
+      showLogoutConfirm: false,
     };
   },
   computed: {
@@ -298,18 +310,24 @@ export default {
       if (id) this.$router.push(`/profile/${id}`);
       this.closeDropdowns();
     },
-    goToSettings() { console.log('Settings'); this.closeDropdowns(); },
+    goToSettings() { 
+      console.log('Settings'); this.closeDropdowns(); 
+      this.$router.push('/settings');
+    },
     closeDropdowns() {
       this.showUserDropdown = false;
       this.showMessageDropdown = false; 
       this.showNotificationDropdown = false;
     },
     
-    async logout() {
+// Đổi logout() thành doLogout()
+    doLogout() {
+      this.showLogoutConfirm = false;
       this.isDark = false;
       this.applyTheme(false);
       localStorage.removeItem("user");
       localStorage.removeItem("token");
+      if (this.socket) this.socket.disconnect();
       this.$router.push("/login");
     },
 
@@ -386,12 +404,23 @@ export default {
 
       this.socket.on('users:online', ids => {
         this.onlineUserIds = new Set(ids.map(String));
+        window.__onlineUserIds = ids.map(String);
+        // Broadcast danh sách ban đầu
+        window.dispatchEvent(new CustomEvent('friends:online-list', {
+          detail: ids.map(String)
+        }));
       });
 
       this.socket.on('user:status', ({ userId, online }) => {
         const set = new Set(this.onlineUserIds);
         online ? set.add(String(userId)) : set.delete(String(userId));
         this.onlineUserIds = set;
+        // Broadcast từng thay đổi realtime
+        window.__onlineUserIds = [...set];
+        window.dispatchEvent(new CustomEvent(
+          online ? 'friend:online' : 'friend:offline',
+          { detail: String(userId) }
+        ));
       });
 
       // Tin nhắn mới → tăng badge + cập nhật contacts
@@ -585,6 +614,20 @@ export default {
           avatar: payload.from?.avatar,
           text: payload.text || `<b>${payload.from?.firstname} ${payload.from?.lastname}</b> reviewed <b>${payload.meta?.itemName || 'your item'}</b>`,
           link: payload.link || '/marketplace',  // ✅ dùng link từ backend đã có itemId
+          createdAt: payload.createdAt
+        });
+      });
+
+      this.socket.on('notification:reply_review', (payload) => {
+        this.addNotif({
+          type: 'reply_review', icon: '💬',
+          avatar: payload.from?.avatar
+            ? (payload.from.avatar.startsWith('http') ? payload.from.avatar : `http://localhost:3000/${payload.from.avatar}`)
+            : null,
+          text: payload.text || `Seller replied to your review`,
+          link: payload.link || (payload.meta?.itemId
+            ? `/marketplace/${payload.meta.itemId}?scrollToReviews=true${payload.meta?.reviewId ? '&reviewId=' + payload.meta.reviewId : ''}`
+            : '/marketplace'),
           createdAt: payload.createdAt
         });
       });
@@ -982,6 +1025,13 @@ export default {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px;
 }
 .user-info .username { font-size: 12px; color: var(--text-sub); margin: 0; }
+
+.admin-badge{
+  background: #22c55e; color: #fff;
+  font-size: 11px; font-weight: 700;
+  padding: 1px 7px; border-radius: 20px;
+  margin-left: 6px;
+}
 
 /* ── POPOVERS ── */
 .popover-panel {

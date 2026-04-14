@@ -215,6 +215,7 @@
                 <td>
                   <div class="report-actions">
                     <select
+                      v-if="r.status !== 'resolved' && r.status !== 'dismissed'"
                       class="status-select"
                       :value="r.status"
                       @change="openReportCommentModal(r, $event.target.value)"
@@ -403,7 +404,7 @@ export default {
 
       contacts: [],
       contactReplyModal: { visible: false, contact: null, reply: "" },
-      
+       
     };
   },
 
@@ -415,7 +416,23 @@ export default {
     activeTab() { this.page = 1; this.searchQuery = ""; this.activeSearch = ""; this.postSubTab = "posts"; this.loadData(); }
   },
 
-  mounted() { this.checkAdmin(); this.fetchStats(); this.loadData(); },
+  mounted() { 
+    this.checkAdmin(); 
+    this.fetchStats(); 
+
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    if (user.darkTheme) {
+      document.documentElement.setAttribute("data-theme", "dark");
+    } else {
+      document.documentElement.removeAttribute("data-theme");
+    }
+    
+    if (this.$route?.query?.tab) {
+      this.activeTab = this.$route.query.tab;
+    }
+
+    this.loadData(); 
+  },
 
   methods: {
     checkAdmin() {

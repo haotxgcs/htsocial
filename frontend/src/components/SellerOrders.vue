@@ -924,12 +924,12 @@ export default {
 .action-cell { display: flex; gap: 6px; align-items: center; }
 
 .btn-view {
-  padding: 5px 12px; background: white; color: #FF642F;
+  padding: 5px 12px; background: var(--bg-card); color: #FF642F;
   border: 1.5px solid #FF642F; border-radius: 7px;
   font-size: 13px; font-weight: 600; cursor: pointer;
   transition: background 0.15s;
 }
-.btn-view:hover { background: #fff4f1; }
+.btn-view:hover { background: #FF642F; color:white;}
 
 .btn-update {
   padding: 5px 12px; background: var(--primary); color: white;
@@ -940,7 +940,7 @@ export default {
 .btn-update:hover { background: #e05522; }
 
 .btn-cancel-order {
-  padding: 5px 12px; background: white; color: #ef4444;
+  padding: 5px 12px; background: var(--bg-card); color: #ef4444;
   border: 1.5px solid #ef4444; border-radius: 7px;
   font-size: 13px; font-weight: 600; cursor: pointer;
   transition: background 0.15s, color 0.15s;

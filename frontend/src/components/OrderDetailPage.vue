@@ -46,20 +46,30 @@
             :key="item._id"
             class="order-item"
           >
-            <img
-              :src="getItemImage(item.item?.images || item.itemSnapshot?.images)"
-              class="item-img"
-            />
-
-            <div class="item-content">
-              <div
-                @click="$router.push(`/marketplace/${item.item?._id}`)"
-                class="item-title"
-              >
-                {{ item.item?.title || item.itemSnapshot?.title }}
+            <template v-if="!item.itemDeleted">
+              <img
+                :src="getItemImage(item.item?.images || item.itemSnapshot?.images)"
+                class="item-img"
+              />
+              <div class="item-content">
+                <div
+                  @click="$router.push(`/marketplace/${item.item?._id}`)"
+                  class="item-title link"
+                >
+                  {{ item.item?.title || item.itemSnapshot?.title }}
+                </div>
+                <div class="item-sub">x{{ item.quantity }}</div>
               </div>
-              <div class="item-sub">x{{ item.quantity }}</div>
-            </div>
+            </template>
+
+            <!-- Item đã bị xóa -->
+            <template v-else>
+              <div class="item-img item-deleted-thumb">🚫</div>
+              <div class="item-content">
+                <div class="item-title item-deleted-label">Deleted Item</div>
+                <div class="item-sub">x{{ item.quantity }}</div>
+              </div>
+            </template>
 
             <div class="item-price">{{ formatPrice(item.price) }}</div>
           </div>
@@ -366,6 +376,11 @@ export default {
         // Normalize: gán order.buyer = order.user để template dùng 1 key
         const o = data.order;
         if (o.user && !o.buyer) o.buyer = o.user;
+
+        o.items = (o.items || []).map(i => ({
+          ...i,
+          itemDeleted: i.item === null
+        }));
 
         this.order = o;
 
@@ -777,6 +792,34 @@ font-size: 13px;
 
 .item-price { font-weight: 700; color: var(--text-main); margin-top: 4px; }
 
+.item-deleted-thumb {
+  width: 80px;
+  height: 80px;
+  border-radius: 10px;
+  background: var(--bg-input);
+  border: 1px dashed var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.item-deleted-label {
+  color: #ef4444;
+  font-style: italic;
+  font-size: 13px;
+  text-transform: uppercase;
+}
+
+.item-title.link {
+  cursor: pointer;
+}
+.item-title.link:hover {
+  color: var(--primary);
+  text-decoration: underline;
+}
+
 /* TOTAL */
 .order-total {
   text-align: right;
@@ -829,6 +872,15 @@ font-size: 13px;
   background: var(--hover-bg);
   border-color: var(--primary);
   color: var(--primary);
+}
+
+.refund-sent-note{
+  font-size: 11px;
+  padding: 10px 10px;
+  border-radius: 8px;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: #fef3c7; color: #92400e;
 }
 
 .btn-outline.danger {

@@ -2,9 +2,6 @@
   <div class="modal-overlay" @click.self="$emit('cancel')">
     <div class="modal" :class="'modal--' + type">
 
-      <!-- ===== CLOSE BUTTON ===== -->
-      <!-- <button class="modal-close" @click="$emit('cancel')"><X /></button> -->
-
       <!-- ===================== -->
       <!-- STATUS UPDATE         -->
       <!-- ===================== -->

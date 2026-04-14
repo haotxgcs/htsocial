@@ -433,17 +433,26 @@
       </div>
     </div>
   </div>
+    <NotificationModal 
+      :is-visible="notification.visible" 
+      :type="notification.type" 
+      :title="notification.title" 
+      :message="notification.message" 
+      @confirm="closeNotify" 
+    />
 </template>
 
 <script>
 // Import thư viện Emoji
 import EmojiPicker from 'vue3-emoji-picker';
 import 'vue3-emoji-picker/css';
+import NotificationModal from "./NotificationModal.vue";
 
 export default {
   name: "CommentModal",
   components: {
-    EmojiPicker
+    EmojiPicker,
+    NotificationModal
   },
   props: {
     post: {
@@ -515,6 +524,13 @@ export default {
       currentItemIndex: 0,
 
       highlightedId: null,
+
+      notification: {
+        visible: false,
+        type: 'success', // 'success', 'error', 'warning'
+        title: '',
+        message: ''
+      },
 
     }
   },
@@ -823,7 +839,7 @@ closeEmojiPickerOnClickOutside(event) {
 
     async toggleSavePost() {
       const savedUser = JSON.parse(localStorage.getItem("user"));
-      if (!savedUser) return alert("Please login to save posts");
+      if (!savedUser) return this.showNotify("error", "Error", "Please login to save posts");
 
       try {
         const postId = this.post._id;
@@ -853,20 +869,20 @@ closeEmojiPickerOnClickOutside(event) {
             this.postSaveCount = Math.max(0, this.postSaveCount - 1);
             this.$emit('save-count-updated', { postId: postId, count: this.postSaveCount });
             this.$emit('save-status-changed', { postId: postId, isSaved: false });
-            alert(data.msg || 'Item unsaved successfully');
+            this.showNotify("success", "Success", data.msg || 'Item unsaved successfully');
           } else {
             this.savedPosts.push(postId);
             this.postSaveCount++;
             this.$emit('save-count-updated', { postId: postId, count: this.postSaveCount });
             this.$emit('save-status-changed', { postId: postId, isSaved: true });
-            alert(data.msg || 'Item saved successfully');
+            this.showNotify("success", "Success", data.msg || 'Item saved successfully');
           }
         } else {
-          alert(data.msg || 'Failed to save/unsave item');
+          this.showNotify("error", "Error", data.msg || 'Failed to save/unsave item');
         }
       } catch (err) {
         console.error("Cannot save/unsave item:", err);
-        alert("Unable to save/unsave item");
+        this.showNotify("error", "Error", 'Unable to save/unsave item');
       }
     },
 
@@ -888,11 +904,11 @@ closeEmojiPickerOnClickOutside(event) {
       if (!this.newComment.trim()) return;
       
       if (this.showRatingOption && this.selectedRating === 0) {
-        return alert("Please select a rating");
+        return this.showNotify("error", "Error", 'Please select a rating');
       }
 
       if (this.showRatingOption && this.userHasRated) {
-        return alert("You have already rated this post. You can only rate once.");
+        return this.showNotify("error", "Error", 'You have already rated this post. You can only rate once');
       }
 
       const user = JSON.parse(localStorage.getItem("user"));
@@ -932,13 +948,13 @@ closeEmojiPickerOnClickOutside(event) {
         });
       } catch (err) {
         console.error("Error to send comment:", err);
-        alert("Unable to send comment: " + err.message);
+        this.showNotify("error", "Error", 'Unable to send comment' + err.message);
       }
     },
       
     async toggleCommentLike(comment) {
       const savedUser = JSON.parse(localStorage.getItem("user"));
-      if (!savedUser) return alert("Please log in to like comments");
+      if (!savedUser) return this.showNotify("error", "Error", 'Please login to like comments');
 
       try {
         const res = await fetch(`http://localhost:3000/comments/like/${comment._id}`, {
@@ -1022,7 +1038,7 @@ closeEmojiPickerOnClickOutside(event) {
         }
       } catch (err) {
         console.error("Error to update comment:", err);
-        alert("Unable to update comment");
+        this.showNotify("error", "Error", 'Unable to update comment');
       }
     },
 
@@ -1066,7 +1082,7 @@ closeEmojiPickerOnClickOutside(event) {
         }
       } catch (err) {
         console.error("Error to delete comment:", err);
-        alert("Unable to delete comment");
+        this.showNotify("error", "Error", 'Unable to delete comment');
       }
     },
 
@@ -1191,7 +1207,7 @@ closeEmojiPickerOnClickOutside(event) {
 
     async toggleReplyLike(reply, commentId) {
       const savedUser = JSON.parse(localStorage.getItem("user"));
-      if (!savedUser) return alert("Please log in to like replies");
+      if (!savedUser) return this.showNotify("error", "Error", 'Please login to like replies');
 
       try {
         const res = await fetch(`http://localhost:3000/comments/reply/${commentId}/${reply._id}/like`, {
@@ -1241,11 +1257,11 @@ closeEmojiPickerOnClickOutside(event) {
           }
         } else {
           const err = await res.json();
-          alert(err.msg || "Fail to delete reply");
+          this.showNotify("error", "Error", err.msg || 'Fail to delete reply');
         }
       } catch (err) {
         console.error("Error to delete reply:", err);
-        alert("Unable to delete reply");
+        this.showNotify("error", "Error", 'Unable to delete reply');
       }
     },
 
@@ -1298,7 +1314,7 @@ closeEmojiPickerOnClickOutside(event) {
 
     async toggleLike() {
       const savedUser = JSON.parse(localStorage.getItem("user"));
-      if (!savedUser) return alert("Please login");
+      if (!savedUser) return this.showNotify("error", "Error", 'Please login');
 
       try {
         const res = await fetch(`http://localhost:3000/posts/${this.post._id}/like`, {
@@ -1316,7 +1332,7 @@ closeEmojiPickerOnClickOutside(event) {
         this.$emit('liked', { postId: this.post._id, likes: data.likes });
       } catch (err) {
         console.error("Cannot like this post:", err);
-        alert("Unable to like this post");
+        this.showNotify("error", "Error", 'Unable to like this post');
       }
     },
 
@@ -1405,7 +1421,18 @@ closeEmojiPickerOnClickOutside(event) {
 
     openItem(itemId) {
       window.open(`/marketplace/${itemId}`, "_blank");
-    }
+    },
+
+    showNotify(type, title, message) {
+      this.notification.type = type;
+      this.notification.title = title;
+      this.notification.message = message;
+      this.notification.visible = true;
+    },
+
+    closeNotify() {
+      this.notification.visible = false;
+    },
 
 
   },

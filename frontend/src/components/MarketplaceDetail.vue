@@ -1023,10 +1023,10 @@ watch: {
 .buy-btn {
   flex: 1; background: #FF642F; color: white;
   padding: 12px; border-radius: 10px; font-weight: bold; cursor: pointer;
-  transition: 0.2s;
+  transition: 0.2s;border: 2px solid #FF642F;
 }
 .buy-btn:hover { background: #e05522; }
-.buy-btn:disabled { background: #ffb3a2; cursor: not-allowed; }
+.buy-btn:disabled { background: var(--bg-input); border-color: var(--border-color); color: var(--text-sub); cursor: not-allowed; }
 
 .report-btn {
   flex: 1; background: var(--bg-card);

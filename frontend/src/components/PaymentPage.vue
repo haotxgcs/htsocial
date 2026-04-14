@@ -15,7 +15,7 @@
       <!-- HEADER -->
       <div class="pay-header">
         <h2 class="pay-title">Complete Payment</h2>
-        <div class="pay-orderid">Order <span class="mono">#{{ order?._id?.slice(-6)?.toUpperCase() || '...' }}</span></div>
+        <div class="pay-orderid">Order <span class="mono">#{{ order?._id?.slice(-6) || '...' }}</span></div>
       </div>
 
       <!-- ORDER SUMMARY -->

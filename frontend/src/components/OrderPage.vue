@@ -59,7 +59,7 @@
         
         <!-- HEADER -->
         <div class="order-header">
-          <div @click="$router.push(`/profile/${order.seller._id}`)" class="seller-info">
+          <div @click="order.seller && $router.push(`/profile/${order.seller._id}`)" class="seller-info">
             Seller: 
             <strong>{{ order.seller?.firstname }} {{ order.seller?.lastname }}</strong>
           </div>
@@ -75,21 +75,25 @@
         <!-- ITEMS -->
         <div @click="$router.push(`/orders/${order._id}`)" v-for="item in order.items" :key="item._id" class="order-item">
 
-          <img :src="getItemImage(item.item.images)" class="item-img" />
-
-          <div class="item-content">
-            <div class="item-title">
-              {{ item.item?.title }}
+          <!-- Item còn tồn tại -->
+          <template v-if="!item.itemDeleted">
+            <img :src="getItemImage(item.item.images)" class="item-img" />
+            <div class="item-content">
+              <div class="item-title">{{ item.item?.title }}</div>
+              <div class="item-sub">x{{ item.quantity }}</div>
             </div>
+            <div class="item-price">{{ formatPrice(item.price) }}</div>
+          </template>
 
-            <div class="item-sub">
-              x{{ item.quantity }}
+          <!-- Item đã bị xóa -->
+          <template v-else>
+            <div class="item-img item-deleted-thumb">🚫</div>
+            <div class="item-content">
+              <div class="item-title item-deleted-label">Deleted Item</div>
+              <div class="item-sub">x{{ item.quantity }}</div>
             </div>
-          </div>
-
-          <div class="item-price">
-            {{ formatPrice(item.price) }}
-          </div>
+            <div class="item-price">{{ formatPrice(item.price) }}</div>
+          </template>
 
         </div>
         </div>
@@ -297,7 +301,13 @@ async fetchOrders() {
 
     const data = await res.json();
 
-    this.orders = data.orders || [];
+    this.orders = (data.orders || []).map(order => ({
+      ...order,
+      items: (order.items || []).map(i => ({
+        ...i,
+        itemDeleted: i.item === null  // ← đánh dấu thay vì filter bỏ
+      }))
+    }));
     this.totalPages = data.totalPages || 1;
     this.totalOrders = data.total || 0;
     this.totalAll = data.totalAll;
@@ -756,6 +766,23 @@ async fetchOrders() {
   font-weight: 700;
   color: var(--primary); /* Sử dụng màu primary cho giá tiền thay vì đỏ cứng */
   margin-left: 8px;
+}
+
+.item-deleted-thumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  background: var(--bg-input);
+  border-radius: 8px;
+  border: 1px dashed var(--border-color);
+}
+
+.item-deleted-label {
+  color: #ef4444;
+  font-style: italic;
+  font-size: 13px;
+  text-transform: uppercase;
 }
 
 /* CÁC NÚT HÀNH ĐỘNG */

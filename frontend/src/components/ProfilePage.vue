@@ -44,34 +44,37 @@
       <div class="user-identity-card">
         <div class="avatar-wrapper">
           <img :src="getAvatarUrl(user)" class="profile-avatar clickable" @click.stop="toggleAvatarMenu"/>
+
+          <span v-if="!isMyProfile && isProfileUserOnline" class="online-dot" title="Online"></span>
+
           <div
-  v-if="showAvatarMenu"
-  class="image-options-menu avatar-menu"
-  v-click-outside="closeMenus"
->
-  <!-- VIEW: ai cũng thấy -->
-  <div class="menu-item" @click="openImageViewer(getAvatarUrl(user))">
-    <img src="../assets/view-image.png" class="menu-icon" /> View Avatar
-  </div>
+            v-if="showAvatarMenu"
+            class="image-options-menu avatar-menu"
+            v-click-outside="closeMenus"
+          >
+            <!-- VIEW: ai cũng thấy -->
+            <div class="menu-item" @click="openImageViewer(getAvatarUrl(user))">
+              <img src="../assets/view-image.png" class="menu-icon" /> View Avatar
+            </div>
 
-  <!-- UPDATE: chỉ chủ profile -->
-  <div
-    v-if="isMyProfile"
-    class="menu-item"
-    @click.stop="triggerAvatarUpload"
-  >
-    <img src="../assets/update.png" class="menu-icon" /> Update Avatar
-  </div>
+            <!-- UPDATE: chỉ chủ profile -->
+            <div
+              v-if="isMyProfile"
+              class="menu-item"
+              @click.stop="triggerAvatarUpload"
+            >
+              <img src="../assets/update.png" class="menu-icon" /> Update Avatar
+            </div>
 
-  <!-- DELETE: chỉ chủ profile & không phải avatar mặc định -->
-  <div
-    v-if="isMyProfile && !isDefaultAvatar"
-    class="menu-item delete"
-    @click.stop="deleteAvatar"
-  >
-    <img src="../assets/delete.png" class="menu-icon" /> Remove
-  </div>
-</div>
+            <!-- DELETE: chỉ chủ profile & không phải avatar mặc định -->
+            <div
+              v-if="isMyProfile && !isDefaultAvatar"
+              class="menu-item delete"
+              @click.stop="deleteAvatar"
+            >
+              <img src="../assets/delete.png" class="menu-icon" /> Remove
+            </div>
+          </div>
 
         </div>
         
@@ -90,7 +93,7 @@
           <div class="action-buttons">
             <!-- Chủ profile -->
             <button v-if="isMyProfile" class="btn-primary-gradient" @click="openEditProfileModal">
-              ✏️ Edit Profile
+              Edit Profile
             </button>
 
             <!-- Other users viewing -->
@@ -117,7 +120,8 @@
               </button>
 
               <button v-if="!isMyProfile" class="btn-action btn-report" @click.stop="openReport('user', user._id)">
-              🚩 Report
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-flag-triangle-right-icon lucide-flag-triangle-right"><path d="M6 22V2.8a.8.8 0 0 1 1.17-.71l11.38 5.69a.8.8 0 0 1 0 1.44L6 15.5"/></svg>
+                Report
             </button>
             </template>
           </div>
@@ -833,6 +837,8 @@ export default {
         targetId: null 
       },
 
+      isProfileUserOnline: false,
+
     };
   },
   computed: {
@@ -1023,6 +1029,9 @@ async fetchFriends(page = 1) {
         const data = await res.json();
         this.user = data;
         this.profileUser = data; // ⭐ BẮT BUỘC
+        // Kiểm tra cache online từ Header
+        const onlineIds = window.__onlineUserIds || [];
+        this.isProfileUserOnline = onlineIds.includes(String(data._id));
         this.friendStatus = data.friendStatus;
       } catch (err) {
         console.error("Get user error:", err);
@@ -1308,7 +1317,7 @@ async fetchFriends(page = 1) {
     deletePost(postId) {
       this.postToDeleteId = postId;
       this.deleteType = 'post'; // Đánh dấu là xóa bài viết gốc
-      this.confirmMessage = 'Bạn có chắc chắn muốn xóa bài viết này không?';
+      this.confirmMessage = 'Delete this post?';
       this.confirmVisible = true;
     },
 
@@ -1327,9 +1336,9 @@ async fetchFriends(page = 1) {
           if (res.ok) {
             // Cập nhật lại danh sách bài viết (Load lại hoặc filter bỏ đi)
             await this.fetchUserPosts(); 
-            this.showNotify("success", "Thành công", "Đã xóa bài chia sẻ.");
+            this.showNotify("success", "Success", "Delete successfully!");
           } else {
-            this.showNotify("error", "Lỗi", "Không thể xóa bài chia sẻ.");
+            this.showNotify("error", "Error", "Cannot delete this post!");
           }
         } 
         
@@ -1344,15 +1353,15 @@ async fetchFriends(page = 1) {
             await this.fetchUserPosts();
 
             this.openMenuId = null;
-            this.showNotify("success", "Thành công", "Đã xóa bài viết.");
+            this.showNotify("success", "Success", "Delete successfully.");
           } else {
-            this.showNotify("error", "Lỗi", "Không thể xóa bài viết.");
+            this.showNotify("error", "Error", "Cannot delete post!");
           }
         }
 
       } catch (err) {
-        console.error("Lỗi khi xóa:", err);
-        this.showNotify("error", "Lỗi", "Lỗi kết nối server.");
+        console.error("Delete error:", err);
+        this.showNotify("error", "Error", "Server error.");
       }
 
       // Reset biến tạm
@@ -1420,7 +1429,7 @@ async fetchFriends(page = 1) {
       // Bỏ confirm mặc định, dùng Modal Confirm
       this.postToDeleteId = shareId;
       this.deleteType = 'share'; // Đánh dấu là xóa bài chia sẻ
-      this.confirmMessage = "Bạn có chắc chắn muốn xóa bài chia sẻ này không?";
+      this.confirmMessage = "Delete this share?";
       this.confirmVisible = true;
     },
 
@@ -1694,13 +1703,13 @@ async fetchFriends(page = 1) {
           this.user = newUser; 
           localStorage.setItem("user", JSON.stringify({ ...savedUser, ...newUser }));
           this.closeEditProfileModal();
-          this.showNotify("success", "Đã lưu", "Cập nhật thông tin cá nhân thành công!");
+          this.showNotify("success", "Success", "Update profile successfully!");
         } else {
-          this.showNotify("error", "Lỗi", "Không thể cập nhật thông tin.");
+          this.showNotify("error", "Error", "Cannot update profile");
         }
       } catch (err) {
         console.error(err);
-        this.showNotify("error", "Lỗi mạng", "Không thể kết nối đến máy chủ.");
+        this.showNotify("error", "Error", "Server error");
       }
     },
 
@@ -2053,10 +2062,22 @@ handleReported() {
   this.initProfile();
   this.loadSavedPosts();
   window.addEventListener('scroll', this.handleScroll, true);
+
+  this._onOnline  = (e) => {
+    if (e.detail === String(this.profileUser?._id)) this.isProfileUserOnline = true;
+  };
+  this._onOffline = (e) => {
+    if (e.detail === String(this.profileUser?._id)) this.isProfileUserOnline = false;
+  };
+  window.addEventListener('friend:online',  this._onOnline);
+  window.addEventListener('friend:offline', this._onOffline);
 },
   beforeUnmount() {
     // 4. [MỚI] Dọn dẹp sự kiện khi rời trang
     window.removeEventListener('scroll', this.handleScroll, true);
+
+    window.removeEventListener('friend:online',  this._onOnline);
+    window.removeEventListener('friend:offline', this._onOffline);
   },
 watch: {
   '$route.params.id'(newId, oldId) {
@@ -2154,6 +2175,25 @@ watch: {
   display: flex; align-items: center; justify-content: center; font-size: 18px;
 }
 
+/* Online dot trên avatar */
+.online-dot {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #22c55e;
+  border: 3px solid white;
+  box-shadow: 0 0 0 2px #22c55e40;
+  animation: pulse-online 2s infinite;
+}
+
+@keyframes pulse-online {
+  0%, 100% { box-shadow: 0 0 0 2px #22c55e40; }
+  50%       { box-shadow: 0 0 0 6px #22c55e20; }
+}
+
 .identity-content { text-align: center; margin-top: 12px; max-width: 700px; }
 .user-name { font-size: 32px; font-weight: 800; color: var(--text-main); margin: 0 0 4px 0; }
 .user-bio-short { color: var(--primary); font-style:italic; margin: 0 auto 20px; font-size: 16px; }
@@ -2175,9 +2215,9 @@ watch: {
   font-size: 14px; font-weight: 600; cursor: pointer;
   transition: all 0.15s; white-space: nowrap;
 }
-.btn-chat    { background: var(--hover-primary); color: var(--primary); border: 1.5px solid var(--border-color); }
+.btn-chat    { background: var(--bg-card); color: var(--primary); border: 1.5px solid var(--primary); }
 .btn-chat:hover { background: var(--primary); color: #fff; }
-.btn-block   { background: var(--bg-card)1f2; color: #e11d48; border: 1.5px solid #fecdd3; }
+.btn-block   { background: var(--bg-card); color: #e11d48; border: 1.5px solid #e11d48; }
 .btn-block:hover { background: #e11d48; color: #fff; }
 .btn-unblock { background: color-mix(in srgb, #d97706 10%, var(--bg-card)); color: #d97706; border: 1.5px solid color-mix(in srgb, #d97706 25%, transparent); }
 .btn-unblock:hover { background: #d97706; color: #fff; }

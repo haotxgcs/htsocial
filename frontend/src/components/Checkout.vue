@@ -285,6 +285,13 @@
       @saved="updateAddresses"
     />
 
+    <ConfirmDialog 
+      v-if="confirmVisible" 
+      :message="confirmMessage" 
+      @confirm="confirmAction" 
+      @cancel="confirmVisible = false"
+    />
+
 
   </div>
 </template>
@@ -293,6 +300,7 @@
 import AddressModal from "./AddressModal.vue";
 import NotificationModal from "./NotificationModal.vue"
 import LoadingOverlay from "./LoadingOverlay.vue"
+import ConfirmDialog from "./ConfirmDialog.vue"
 
 import {
   Star,
@@ -308,6 +316,7 @@ export default {
     AddressModal,
     NotificationModal,
     LoadingOverlay,
+    ConfirmDialog,
 
     // icon
     Star,
@@ -348,6 +357,10 @@ export default {
         type: "success", // success | error
         message: ""
       },
+
+      confirmVisible: false,
+      confirmMessage: '',
+      pendingAction: null, 
 
       isSubmitting: false,
     };
@@ -655,62 +668,57 @@ export default {
 
   
 
-  async setDefault(id) {
+// Thay removeAddress cũ (line 697–726):
+async removeAddress(id) {
+  this.openMenuId = null;
+  this.showConfirm("Delete this address?", async () => {
     const token = localStorage.getItem("token");
-
-    try {
-      const res = await fetch(
-        `${process.env.VUE_APP_API_URL}/user-address/${id}/default`,
-        {
-          method: "PATCH",
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
-      );
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.msg);
-
-      // Reload lại address
-      await this.loadCheckoutData();
-      this.openMenuId = null;
-
-    } catch (err) {
-      alert(err.message || "Failed to set default address");
-    }
-  },
- 
-  async removeAddress(id) {
-    if (!confirm("Delete this address?")) return;
-
-    const token = localStorage.getItem("token");
-
     try {
       const res = await fetch(
         `${process.env.VUE_APP_API_URL}/user-address/${id}`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
+        { method: "DELETE", headers: { Authorization: `Bearer ${token}` } }
       );
-
       const data = await res.json();
       if (!res.ok) throw new Error(data.msg);
-
-      // Update lại list
-      this.addresses = this.addresses.filter(
-        a => a._id !== id
-      );
-
-      this.openMenuId = null;
-
+      this.addresses = this.addresses.filter(a => a._id !== id);
     } catch (err) {
-      alert(err.message || "Delete failed");
+      this.notification = { show: true, type: "error", message: err.message || "Delete failed" };
     }
+  });
+},
+
+// Thay setDefault catch (line 692–694):
+async setDefault(id) {
+  const token = localStorage.getItem("token");
+  try {
+    const res = await fetch(
+      `${process.env.VUE_APP_API_URL}/user-address/${id}/default`,
+      { method: "PATCH", headers: { Authorization: `Bearer ${token}` } }
+    );
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.msg);
+    await this.loadCheckoutData();
+    this.openMenuId = null;
+  } catch (err) {
+    // Thay alert → notification
+    this.notification = { show: true, type: "error", message: err.message || "Failed to set default address" };
   }
+},
+
+// Thêm 2 method mới:
+showConfirm(message, action) {
+  this.confirmMessage = message;
+  this.pendingAction = action;
+  this.confirmVisible = true;
+},
+
+async confirmAction() {
+  this.confirmVisible = false;
+  if (typeof this.pendingAction === "function") {
+    await this.pendingAction();
+  }
+  this.pendingAction = null;
+},
   
   },
 
@@ -1157,11 +1165,13 @@ export default {
   resize: vertical;     /* cho phép kéo nếu cần */
   transition: 0.2s;
   background: var(--bg-input);
+  color:var(--text-main);
 }
 
 .note-input:focus {
   outline: none;
   border-color: #ff5722;
+  color: var(--text-main);
   background: var(--bg-hover);
   box-shadow: 0 0 0 3px rgba(255, 87, 34, 0.08);
 }

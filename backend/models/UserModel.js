@@ -44,6 +44,7 @@ const userSchema = new mongoose.Schema(
 
     last_name_change: { type: Date, default: null },
     last_username_change: { type: Date, default: null },
+    last_password_change: { type: Date, default: null },
 
     email_otp: { type: String, default: null },
     email_otp_expire: { type: Date, default: null },
@@ -91,7 +92,9 @@ const userSchema = new mongoose.Schema(
       default: false
     },
 
-    banned: { type: Boolean, default: false }
+    banned: { type: Boolean, default: false },
+
+
 
 
   },

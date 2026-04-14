@@ -697,6 +697,7 @@ export default {
   font-family: 'Segoe UI', system-ui, sans-serif;
   background: var(--bg-body);
   transition: background-color 0.3s;
+  margin-bottom: 20px;
 }
 
 .content-body {

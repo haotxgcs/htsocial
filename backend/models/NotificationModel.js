@@ -22,6 +22,7 @@ const notificationSchema = new mongoose.Schema(
         "friend_request", "friend_accepted",
         "order_placed", "order_status", "new_order",
         "review",
+        "reply_review",
         "order_cancelled",
         "refund_requested", "refund_approved", "refund_rejected",
         "report_received",   // ← thêm

@@ -124,7 +124,7 @@
                     <div class="menu-icon-left"><Trash2/></div>
                     <span>Delete Post</span>
                   </button>
-                  <button v-if="!isMyPost(post)" @click="openReport('post', post._id)">
+                  <button v-if="!isMyPost(post)" @click="openReport('post', post._id)" style="color: #f59e0b;">
                     <div class="menu-icon-left"><FlagTriangleRight/></div>
                     <span>Report Post</span>
                   </button>
@@ -327,7 +327,7 @@
                   <span>Delete Share</span>
                 </button>
 
-                <button v-if="!isMyShare(post)" @click="openReport('share', post._id)">
+                <button v-if="!isMyShare(post)" @click="openReport('share', post._id)" style="color: #f59e0b;">
                   <div  class="menu-icon-left"><FlagTriangleRight/></div>
                   <span>Report Share</span>
                 </button>
@@ -595,6 +595,8 @@ export default {
         targetType: '', 
         targetId: null 
       },
+
+      banCheckInterval: null,
 
     }
   },
@@ -1341,6 +1343,7 @@ async loadSearchHistory() {
       return savedUser && post.author._id === savedUser?.id;
     },
 
+
     isLiked(post) {
       const savedUser = JSON.parse(localStorage.getItem("user"));
       return savedUser && post.likes && post.likes.includes(savedUser.id);
@@ -1493,66 +1496,108 @@ async loadSearchHistory() {
         : (this.itemIndexMap[postId] = current - 1);
     },
 
-    async handleNotifNavigation() {
-      const { postId, highlightComment } = this.$route.query;
-      if (!postId) return;
+async handleNotifNavigation() {
+  const { postId, highlightComment } = this.$route.query;
+  if (!postId) return;
 
-      // Đợi posts load xong
-      if (this.loading) {
-        await new Promise(resolve => {
-          const stop = this.$watch('loading', val => { if (!val) { stop(); resolve(); } });
-        });
-      }
+  if (this.loading) {
+    await new Promise(resolve => {
+      const stop = this.$watch('loading', val => { if (!val) { stop(); resolve(); } });
+    });
+  }
 
-      // Tìm post trong toàn bộ filteredPosts (có tính thứ tự pagination)
-      const allPosts = this.filteredPosts;
-      const postIndex = allPosts.findIndex(p =>
-        p._id === postId ||
-        (p.type === 'share' && p.post?._id === postId)
-      );
+  const allPosts = this.filteredPosts;
+  const postIndex = allPosts.findIndex(p =>
+    p._id === postId ||
+    (p.type === 'share' && p.post?._id === postId)
+  );
 
-      let targetPost = postIndex !== -1 ? allPosts[postIndex] : null;
+  let targetPost = postIndex !== -1 ? allPosts[postIndex] : null;
 
-      // Nếu không tìm thấy trong feed → fetch riêng (post không thuộc feed của user)
-      if (!targetPost) {
-        try {
-          const res = await fetch(`http://localhost:3000/posts/${postId}`);
-          if (res.ok) targetPost = await res.json();
-        } catch(e) { console.error(e); }
-      }
+  if (!targetPost) {
+    try {
+      const res = await fetch(`http://localhost:3000/posts/${postId}`);
+      if (res.ok) targetPost = await res.json();
+    } catch(e) { console.error(e); }
+  }
 
-      if (!targetPost) return;
+  if (!targetPost) return;
 
-      // ✅ TÍNH ĐÚNG TRANG VÀ NHẢY ĐẾN ĐÓ
-      if (postIndex !== -1) {
-        const targetPage = Math.floor(postIndex / this.postsPerPage) + 1;
-        if (this.currentPage !== targetPage) {
-          this.currentPage = targetPage;
-          await this.$nextTick(); // Đợi DOM re-render trang mới
-        }
-      }
-
-      // Scroll đến post
+  // Nhảy đến đúng trang
+  if (postIndex !== -1) {
+    const targetPage = Math.floor(postIndex / this.postsPerPage) + 1;
+    if (this.currentPage !== targetPage) {
+      this.currentPage = targetPage;
       await this.$nextTick();
-      const domId = `post-${postIndex !== -1 ? allPosts[postIndex]._id : postId}`;
-      const el = document.getElementById(domId);
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        el.classList.add('post-highlighted');
-        setTimeout(() => el.classList.remove('post-highlighted'), 3000);
-      }
+    }
+  }
 
-      // Nếu có highlightComment → mở CommentModal
-      if (highlightComment) {
-        const post = targetPost.type === 'share' ? targetPost.post : targetPost;
-        this.selectedPost = post;
-        this.highlightCommentId = highlightComment;
-        this.commentModalVisible = true;
+  // ✅ Đợi thêm để DOM + ảnh ổn định trước khi scroll
+  await new Promise(r => setTimeout(r, 150));
+  await this.$nextTick();
+
+  const domId = `post-${postIndex !== -1 ? allPosts[postIndex]._id : postId}`;
+  const el = document.getElementById(domId);
+
+  if (el) {
+    // ✅ Dùng instant thay vì smooth để tránh bị interrupt
+    el.scrollIntoView({ behavior: 'instant', block: 'center' });
+
+    // Highlight sau khi đã scroll xong
+    el.classList.add('post-highlighted');
+    setTimeout(() => {
+      el.classList.remove('post-highlighted');
+      this.$router.replace({ path: '/home', query: {} });
+    }, 3000);
+  } else {
+    this.$router.replace({ path: '/home', query: {} });
+  }
+
+  if (highlightComment) {
+    const post = targetPost.type === 'share' ? targetPost.post : targetPost;
+    this.selectedPost = post;
+    this.highlightCommentId = highlightComment;
+    this.commentModalVisible = true;
+  }
+},
+
+    openReport(type, id) { this.reportModal = { visible: true, targetType: type, targetId: id }; },
+
+    async checkBanStatus() {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) { this.$router.push("/login"); return; }
+
+        const res = await fetch(
+          `${process.env.VUE_APP_API_URL}/users/${this.user._id || this.user.id}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        if (!res.ok) {
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+          document.documentElement.removeAttribute("data-theme"); // ← reset dark mode
+          localStorage.removeItem("darkTheme");
+          this.$router.push("/login");
+          return;
+        }
+
+        const data = await res.json();
+        
+        // Thử tất cả các trường hợp có thể
+        const freshUser = data.user || data;
+
+        if (freshUser.banned === true) {
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+          document.documentElement.removeAttribute("data-theme"); // ← reset dark mode
+          localStorage.removeItem("darkTheme");
+          this.$router.push("/login");
+        }
+      } catch (e) {
+        console.error("checkBanStatus:", e);
       }
-      this.$router.replace({ path: '/home', query: {} }); // Xóa query sau khi xử lý
     },
-
-    openReport(type, id) { this.reportModal = { visible: true, targetType: type, targetId: id }; }
 
 
     
@@ -1575,6 +1620,23 @@ async loadSearchHistory() {
     
     if (savedUser) {
       this.user = JSON.parse(savedUser);
+
+      if (this.user.banned) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        document.documentElement.removeAttribute("data-theme"); // ← reset dark mode
+        localStorage.removeItem("darkTheme");
+        this.$router.push("/login");
+        return;
+      }
+
+      this.checkBanStatus();
+
+      // Check ban mỗi 30 giây khi đang online
+      this.banCheckInterval = setInterval(() => {
+        this.checkBanStatus();
+      }, 30000);
+
       this.fetchPosts();
       this.loadFriends();
       this.loadSavedPosts();
@@ -1584,13 +1646,15 @@ async loadSearchHistory() {
     } else {
       this.$router.push("/login");
     }
-    
 
     window.addEventListener('scroll', this.handleScroll, true);
   },
 
   beforeUnmount() {
     window.removeEventListener('scroll', this.handleScroll, true);
+    if (this.banCheckInterval) {
+      clearInterval(this.banCheckInterval);
+    }
   },
 
   

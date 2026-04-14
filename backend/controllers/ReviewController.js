@@ -215,7 +215,7 @@ exports.replyToReview = async (req, res) => {
       return res.status(400).json({ success: false, msg: "Reply cannot exceed 500 characters" });
     }
 
-    const review = await Review.findById(reviewId).populate("item", "seller");
+    const review = await Review.findById(reviewId).populate("item", "seller title");
     if (!review) return res.status(404).json({ success: false, msg: "Review not found" });
 
     if (review.item.seller.toString() !== sellerId) {
@@ -229,11 +229,24 @@ exports.replyToReview = async (req, res) => {
 
     await review.save();
 
+    await notify({
+      recipientId: review.user,        // buyer là người nhận thông báo
+      senderId:    req.user.id,        // seller là người gửi
+      type:        "reply_review",
+      meta: {
+        itemId:   String(review.item._id),
+        reviewId: String(review._id),
+        itemName: review.item?.title || "",   // tên sản phẩm nếu có
+      }
+    });
+
     res.json({
       success:     true,
       msg:         "Reply submitted successfully",
       sellerReply: review.sellerReply
     });
+
+    
   } catch (err) {
     console.error("replyToReview error:", err);
     res.status(500).json({ success: false, msg: "Server error" });

@@ -53,6 +53,9 @@ router.post("/change-email/verify", AuthController.verifyAndChangeEmail);
 router.post("/change-password/request", AuthController.requestPasswordChange);
 router.post("/change-password/verify", AuthController.verifyAndChangePassword);
 
+router.post("/reset-password/request", AuthController.requestResetPassword);
+router.post("/reset-password/verify", AuthController.verifyAndResetPassword);
+
 // 1. Upload Avatar → Cloudinary
 const { uploadAvatar, uploadCover } = require("../middleware/uploadCloudinary");
 router.post('/:id/avatar', uploadAvatar.single('avatar'), AuthController.uploadAvatar);

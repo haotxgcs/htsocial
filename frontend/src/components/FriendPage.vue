@@ -52,7 +52,7 @@
             
             <div class="card-image-wrapper">
               <img :src="getImageUrl(friend.avatar)" class="card-img" />
-              <div class="status-badge" v-if="friend.active">Online</div>
+              <div class="status-badge" v-if="isOnline(friend._id)">Online</div>
             </div>
 
             <div class="card-body">
@@ -191,7 +191,7 @@
           <div v-for="request in paginatedRequests" :key="request._id" class="modern-card">
             <div class="card-image-wrapper" @click.stop="$router.push(`/profile/${request._id}`)">
               <img :src="getImageUrl(request.avatar)" class="card-img" />
-              <div class="status-badge" v-if="request.active">Online</div>
+              <div class="status-badge" v-if="isOnline(request._id)">Online</div>
             </div>
             <div class="card-body">
               <h4>{{ request.firstname }} {{ request.lastname }}</h4>
@@ -333,6 +333,8 @@ export default {
     loadingSuggestions: false,
     loadingRequests: false,
     loadingSent: false,
+
+    onlineUserIds: [],
     
 
     };
@@ -442,6 +444,24 @@ watch: {
 mounted() {
   this.loadUserData();
 
+  if (window.__onlineUserIds) {
+    this.onlineUserIds = [...window.__onlineUserIds];
+  }
+
+  // Online status listeners
+  this._onOnlineList = (e) => { this.onlineUserIds = e.detail; };
+  this._onOnline  = (e) => {
+    if (!this.onlineUserIds.includes(e.detail))
+      this.onlineUserIds = [...this.onlineUserIds, e.detail];
+  };
+  this._onOffline = (e) => {
+    this.onlineUserIds = this.onlineUserIds.filter(id => id !== e.detail);
+  };
+
+  window.addEventListener('friends:online-list', this._onOnlineList);
+  window.addEventListener('friend:online',       this._onOnline);
+  window.addEventListener('friend:offline',      this._onOffline);
+
   this._onFriendStatusChanged = () => {
     this.loadAllFriends();
     this.loadFriendRequests();
@@ -456,10 +476,10 @@ mounted() {
 },
 
 beforeUnmount() {
-  window.removeEventListener(
-    'friend-status-changed',
-    this._onFriendStatusChanged
-  );
+  window.removeEventListener('friends:online-list', this._onOnlineList);
+  window.removeEventListener('friend:online',       this._onOnline);
+  window.removeEventListener('friend:offline',      this._onOffline);
+  window.removeEventListener('friend-status-changed',this._onFriendStatusChanged);
 },
  
   methods: {
@@ -820,7 +840,11 @@ changePage(tab, page) {
   if (tab === 'sent') this.pageSent = page;
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
-}
+},
+
+isOnline(userId) {
+  return this.onlineUserIds.includes(String(userId));
+},
 
 
   }
