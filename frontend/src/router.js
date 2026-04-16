@@ -1,27 +1,26 @@
 import { createRouter, createWebHistory } from 'vue-router';
-import WelcomePage from './components/WelcomePage.vue';
-import LoginPage from './components/LoginPage.vue';
-import RegisterPage from './components/RegisterPage.vue';
-import VerifyLinkPage from './components/VerifyLinkPage.vue';
-import HomePage from './components/HomePage.vue';
-import FriendPage from './components/FriendPage.vue';
-import MarketplacePage from './components/MarketplacePage.vue';
-import MarketplaceDetail from './components/MarketplaceDetail.vue'; 
-import GamePage from './components/GamePage.vue';
-import MessagePage from './components/MessagePage.vue';
-import NotificationPage from './components/NotificationPage.vue';
-import ProfilePage from './components/ProfilePage.vue';
-import HiddenItems from './components/HiddenItems.vue';
-import SavedPosts from './components/SavedPosts.vue';
-import CheckoutPage from './components/Checkout.vue';
-import OrderPage from './components/OrderPage.vue';
-import OrderDetailPage from './components/OrderDetailPage.vue';
-import PaymentPage from './components/PaymentPage.vue';
-import CartPage from './components/CartPage.vue';
-import SellerOrders from './components/SellerOrders.vue';
-import AdminPage from './components/AdminPage.vue';
-import SettingPage from './components/SettingPage.vue';
-
+import WelcomePage from './components/layout/WelcomePage.vue';
+import LoginPage from './components/auth/LoginPage.vue';
+import RegisterPage from './components/auth/RegisterPage.vue';
+import VerifyLinkPage from './components/auth/VerifyLinkPage.vue';
+import HomePage from './components/feed/HomePage.vue';
+import FriendPage from './components/auth/FriendPage.vue';
+import MarketplacePage from './components/marketplace/MarketplacePage.vue';
+import MarketplaceDetail from './components/marketplace/MarketplaceDetail.vue'; 
+import MessagePage from './components/messages/MessagePage.vue';
+import NotificationPage from './components/notifications/NotificationPage.vue';
+import ProfilePage from './components/profile/ProfilePage.vue';
+import HiddenItems from './components/feed/HiddenItems.vue';
+import SavedPosts from './components/feed/SavedPosts.vue';
+import CheckoutPage from './components/orders/Checkout.vue';
+import OrderPage from './components/orders/OrderPage.vue';
+import OrderDetailPage from './components/orders/OrderDetailPage.vue';
+import PaymentPage from './components/orders/PaymentPage.vue';
+import CartPage from './components/orders/CartPage.vue';
+import SellerOrders from './components/orders/SellerOrders.vue';
+import AdminPage from './components/admin/AdminPage.vue';
+import SettingPage from './components/profile/SettingPage.vue';
+ 
 
 
 const routes = [
@@ -33,7 +32,6 @@ const routes = [
   { path: '/friend', component: FriendPage },
   { path: '/marketplace', component: MarketplacePage }, 
   { path: '/marketplace/:id', component: MarketplaceDetail },
-  { path: '/game', component: GamePage },
   { path: '/messages', component: MessagePage },
   { path: '/notification', component: NotificationPage },
   { path: '/profile', component: ProfilePage },
