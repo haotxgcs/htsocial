@@ -14,6 +14,7 @@ const {
   hidePost,
   unhidePost,
   getHiddenPosts,
+  getPostSavesCount
   
 } = require("../controllers/PostController");
 
@@ -22,6 +23,7 @@ router.get("/", getAllPosts);
 router.get('/visible/:viewerId', getVisiblePosts);
 
 router.get("/:id", getPostById);
+router.get("/:id/saves-count", getPostSavesCount); 
 router.get("/user/:userId", getPostsByUser);
 router.put("/:id", uploadPostMedia.single("image"), updatePost);
 router.delete("/:id", deletePost);

@@ -76,11 +76,49 @@ exports.checkout = async (req, res) => {
     // =========================================================
     // ✅ 4. DETERMINE CHECKOUT ITEMS
     // =========================================================
-    let checkoutItems = cart.items;
+    // let checkoutItems = cart.items;
 
-    // ✅ Checkout selected items only
+    // // ✅ Checkout selected items only
+    // if (Array.isArray(itemIds) && itemIds.length > 0) {
+    //   const cartItemIds = cart.items.map(ci => ci.item._id.toString());
+
+    //   const invalidIds = itemIds.filter(id => !cartItemIds.includes(id));
+
+    //   if (invalidIds.length > 0) {
+    //     return res.status(400).json({
+    //       success: false,
+    //       msg: "Some selected items are not in your cart"
+    //     });
+    //   }
+
+    //   checkoutItems = cart.items.filter(ci =>
+    //     itemIds.includes(ci.item._id.toString())
+    //   );
+    // }
+    // ✅ 4. DETERMINE CHECKOUT ITEMS
+
+    // Filter bỏ item null TRƯỚC KHI làm bất cứ gì
+    const validCartItems = cart.items.filter(ci => ci.item !== null);
+
+    // Nếu có item bị xóa, thông báo user dọn cart
+    if (validCartItems.length < cart.items.length) {
+      // Tự động xóa item null khỏi cart
+      cart.items = validCartItems;
+      await cart.save();
+
+      if (validCartItems.length === 0) {
+        return res.status(400).json({
+          success: false,
+          msg: "All items in your cart are no longer available. Your cart has been updated."
+        });
+      }
+    }
+
+    let checkoutItems = validCartItems;
+
+    // Checkout selected items only
     if (Array.isArray(itemIds) && itemIds.length > 0) {
-      const cartItemIds = cart.items.map(ci => ci.item._id.toString());
+      const cartItemIds = validCartItems.map(ci => ci.item._id.toString()); // ← dùng validCartItems
 
       const invalidIds = itemIds.filter(id => !cartItemIds.includes(id));
 
@@ -91,9 +129,16 @@ exports.checkout = async (req, res) => {
         });
       }
 
-      checkoutItems = cart.items.filter(ci =>
+      checkoutItems = validCartItems.filter(ci =>
         itemIds.includes(ci.item._id.toString())
       );
+    }
+
+    if (checkoutItems.length === 0) {
+      return res.status(400).json({
+        success: false,
+        msg: "No items selected for checkout"
+      });
     }
 
     if (checkoutItems.length === 0) {

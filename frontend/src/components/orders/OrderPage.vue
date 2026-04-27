@@ -229,6 +229,7 @@ export default {
       loading: false,
       error: null,
 
+      totalAll:  0,
 
 
       currentPage: 1,

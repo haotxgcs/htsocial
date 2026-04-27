@@ -102,17 +102,32 @@
 
 
   </div>
-  <MyReportsModal :is-visible="showMyReports" :initial-report-id="openReportId" @close="showMyReports = false; openReportId = null" />
+  <MyReportsModal 
+    :is-visible="showMyReports" 
+    :initial-report-id="openReportId" 
+    @close="showMyReports = false; 
+    openReportId = null" 
+  />
+
+  <ConfirmDialog 
+    v-if="confirmVisible" 
+    :message="confirmMessage" 
+    @confirm="handleConfirmedAction" 
+    @cancel="confirmVisible = false" 
+  />
+
 </template>
 
 <script>
 import MyReportsModal from '../common/MyReportsModal.vue';
 import { Trash2, ListCheck } from 'lucide-vue-next';
+import ConfirmDialog from '../common/ConfirmDialog.vue';
 
 export default {
   name: "NotificationsPage",
   components:{
     MyReportsModal,
+    ConfirmDialog,
 
     Trash2,
     ListCheck
@@ -140,6 +155,14 @@ export default {
       showMyReports: false,
 
       openReportId: null,
+
+
+      // confirm
+      openMenuId: null,
+      confirmVisible: false,
+      confirmMessage: '',
+      pendingAction: null,   
+      
     };
   },
 
@@ -311,10 +334,24 @@ async deleteOne(n) {
 },
 
 // ✅ Xác nhận trước khi xóa tất cả
-confirmDeleteAll() {
-  if (!confirm("Delete all notifications? This cannot be undone.")) return;
+_confirmDeleteAll() {
   this.deleteAll();
 },
+
+async confirmDeleteAll() {
+    this.pendingAction  = 'delete-all';
+    this.confirmMessage = 'Delete all notifications? This cannot be undone.';
+    this.confirmVisible = true;
+}, 
+
+    handleConfirmedAction() {
+      this.confirmVisible = false;
+      const action = this.pendingAction;
+      this.pendingAction = null;
+      this.pendingConfirmMsg    = null;
+ 
+      if (action === 'delete-all')         this._confirmDeleteAll();
+    },
 
 // ✅ Xóa tất cả
 async deleteAll() {

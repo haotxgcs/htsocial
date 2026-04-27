@@ -262,6 +262,13 @@
       @confirm="notifModal.visible = false"
     />
 
+    <ConfirmDialog 
+      v-if="confirmVisible" 
+      :message="confirmMessage" 
+      @confirm="handleConfirmedAction" 
+      @cancel="confirmVisible = false" 
+    />
+
   </div>
 </template>
 
@@ -269,6 +276,7 @@
 import EditProfileModal from '../profile/EditProfileModal.vue';
 import SecurityModal    from '../auth/SecurityModal.vue';
 import NotificationModal from '../notifications/NotificationModal.vue';
+import ConfirmDialog from '../common/ConfirmDialog.vue';
 
 const API = process.env.VUE_APP_API_URL || 'http://localhost:3000';
 
@@ -278,7 +286,8 @@ export default {
   components: { 
     EditProfileModal, 
     SecurityModal,
-    NotificationModal 
+    NotificationModal,
+    ConfirmDialog
   },
 
   data() {
@@ -313,6 +322,13 @@ export default {
 
       showAvatarMenu: false,
       previewVisible: false,
+
+      // confirm
+      openMenuId: null,
+      confirmVisible: false,
+      confirmMessage: '',
+      pendingAction: null,   
+      pendingData: null, 
     };
   },
 
@@ -557,8 +573,7 @@ async handleAvatarChange(event) {
   event.target.value = null;
 },
 
-async removeAvatar() {
-  if (!confirm('Remove your profile photo?')) return;
+async _removeAvatar() {
   this.showAvatarMenu = false;
   try {
     const userId = this.user._id || this.user.id;
@@ -580,6 +595,21 @@ async removeAvatar() {
     this.showNotif('Error', 'Network error.');
   }
 },
+
+async removeAvatar() {
+  this.pendingAction  = 'remove-avatar';
+  this.confirmMessage = 'Remove your profile photo?';
+  this.confirmVisible = true;
+}, 
+
+    handleConfirmedAction() {
+      this.confirmVisible = false;
+      const action = this.pendingAction;
+      this.pendingAction = null;
+      this.pendingConfirmMsg    = null;
+ 
+      if (action === 'remove-avatar')         this._removeAvatar();
+    },
 
   async mounted() {
   const stored = JSON.parse(localStorage.getItem('user') || '{}');

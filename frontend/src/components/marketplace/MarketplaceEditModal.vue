@@ -218,6 +218,13 @@ watch: {
         this.initForm();
       }
     }
+  },
+    "form.type"(val) {
+    if (val !== "tool") {
+      this.form.condition = null;
+    } else if (!this.form.condition) {
+      this.form.condition = "new";
+    }
   }
 },
 

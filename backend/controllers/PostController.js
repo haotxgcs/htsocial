@@ -449,3 +449,21 @@ exports.toggleLike = async (req, res) => {
     res.status(500).json({ msg: "Server error" });
   }
 };
+
+// Lấy số lượng save của một bài viết
+exports.getPostSavesCount = async (req, res) => {
+  try {
+    const postId = req.params.id;
+    const post = await Post.findById(postId);
+    
+    if (!post) {
+      return res.status(404).json({ msg: "Post not found" });
+    }
+
+    // Trả về số lượng savesCount đã được lưu sẵn trong Post, nếu không có thì mặc định là 0
+    res.status(200).json({ savesCount: post.savesCount || 0 });
+  } catch (err) {
+    console.error("Get saves count error:", err);
+    res.status(500).json({ msg: "Server error" });
+  }
+};

@@ -111,11 +111,6 @@ export default {
       order: null,
       fromOrderDetail: false,
 
-        // Notification state
-        // showNotification: false,
-        // notificationMessage: "",
-        // notificationType: "success",
-
           // Centralized notification state
           notification: {
             show: false,

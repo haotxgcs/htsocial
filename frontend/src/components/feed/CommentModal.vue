@@ -228,7 +228,8 @@
                     
                     <div class="emoji-wrapper-edit">
                         <button @click.stop="toggleEmojiPicker('edit-comment-' + comment._id)" class="emoji-btn-small">
-                          <img src="@/assets/emoji.png" class="icon-emoji-img"/>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" :fill="'#FFFF00'" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-smile-icon lucide-smile"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" x2="9.01" y1="9" y2="9"/><line x1="15" x2="15.01" y1="9" y2="9"/>
+                        </svg>
                         </button>
                         <div v-if="activeEmojiPicker === 'edit-comment-' + comment._id" class="emoji-popover-up" @click.stop>
                           <EmojiPicker :native="true" @select="insertEmoji" theme="light" />
@@ -253,17 +254,24 @@
               <div class="comment-actions">
                 <span class="comment-time">{{ formatTime(comment.createdAt) }}</span>
                 <button @click="toggleCommentLike(comment)" class="comment-action-btn">
-                  <img :src="isCommentLiked(comment) ? require('@/assets/like.png') : require('@/assets/unlike.png')" class="action-icon-small" />
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" 
+                :fill="isCommentLiked(comment) ? '#FF4444' : 'none'" :stroke="isCommentLiked(comment) ? '#FF4444' : 'currentColor'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-heart-icon lucide-heart"><path d="M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5"/>
+                </svg>
                   <span>{{ comment.likeCount || comment.likes?.length || 0 }}</span>
                 </button>
                 <button v-if="!isMyComment(comment)" @click="toggleReply(comment._id)" class="comment-action-btn">
-                  <img src="@/assets/reply.png" class="action-icon-small">Reply
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-reply-icon lucide-reply"><path d="M20 18v-2a4 4 0 0 0-4-4H4"/><path d="m9 17-5-5 5-5"/>
+                  </svg>Reply
                 </button>
                 <button v-if="isMyComment(comment)" @click="editComment(comment)" class="comment-action-btn">
-                  <img src="@/assets/edit.png" class="action-icon-small">Edit
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-square-pen-icon lucide-square-pen"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"/>
+                  </svg>
+                  Edit
                 </button>
                 <button v-if="isMyComment(comment)" @click="deleteComment(comment._id)" class="comment-action-btn" style="color: red;">
-                  <img src="@/assets/delete.png" class="action-icon-small">Delete
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash-icon lucide-trash"><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                  </svg>
+                  Delete
                 </button>
               </div>
 
@@ -282,7 +290,8 @@
                     />
                     <div class="emoji-wrapper-small">
                        <button @click.stop="toggleEmojiPicker('reply-' + comment._id)" class="emoji-btn-small">
-                         <img src="@/assets/emoji.png" class="icon-emoji-img"/>
+                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" :fill="'#FFFF00'" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-smile-icon lucide-smile"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" x2="9.01" y1="9" y2="9"/><line x1="15" x2="15.01" y1="9" y2="9"/>
+                        </svg>
                        </button>
                        
                     </div>
@@ -322,7 +331,8 @@
 
                           <div class="emoji-wrapper-edit">
                               <button @click.stop="toggleEmojiPicker('edit-reply-' + reply._id)" class="emoji-btn-small">
-                                <img src="@/assets/emoji.png" class="icon-emoji-img"/>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" :fill="'#FFFF00'" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-smile-icon lucide-smile"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" x2="9.01" y1="9" y2="9"/><line x1="15" x2="15.01" y1="9" y2="9"/>
+                                </svg>
                               </button>
                               <div v-if="activeEmojiPicker === 'edit-reply-' + reply._id" class="emoji-popover-up" @click.stop>
                                 <EmojiPicker :native="true" @select="insertEmoji" theme="light" />
@@ -347,17 +357,23 @@
                       <div class="reply-actions">
                         <span class="reply-time">{{ formatTime(reply.createdAt) }}</span>
                         <button @click="toggleReplyLike(reply, comment._id)" class="comment-action-btn">
-                          <img :src="isReplyLiked(reply) ? require('@/assets/like.png') : require('@/assets/unlike.png')" class="action-icon-small" />
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" 
+                          :fill="isReplyLiked(reply) ? '#FF4444' : 'none'" :stroke="isReplyLiked(reply) ? '#FF4444' : 'currentColor'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-heart-icon lucide-heart"><path d="M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5"/>
+                          </svg>
                           <span>{{ reply.likeCount || reply.likes?.length || 0 }}</span>
                         </button>
                         <button v-if="!isMyReply(reply)" @click="toggleReplyToReply(reply._id, reply.author)" class="comment-action-btn">
-                          <img src="@/assets/reply.png" class="action-icon-small">Reply
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-reply-icon lucide-reply"><path d="M20 18v-2a4 4 0 0 0-4-4H4"/><path d="m9 17-5-5 5-5"/>
+                          </svg>Reply
                         </button>
                         <button v-if="isMyReply(reply)" @click="startEditReply(reply)" class="comment-action-btn">
-                          <img src="@/assets/edit.png" class="action-icon-small">Edit
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-square-pen-icon lucide-square-pen"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"/>
+                          </svg>
+                          Edit
                         </button>
                         <button v-if="isMyReply(reply)" @click="deleteReply(comment._id, reply._id)" class="comment-action-btn" style="color: red;">
-                          <img src="@/assets/delete.png" class="action-icon-small">Delete
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash-icon lucide-trash"><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                          </svg>Delete
                         </button>
                       </div>
 
@@ -375,7 +391,8 @@
                           />
                            <div class="emoji-wrapper-small">
                              <button @click.stop="toggleEmojiPicker('replyToReply-' + reply._id)" class="emoji-btn-small">
-                               <img src="@/assets/emoji.png" class="icon-emoji-img"/>
+                               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" :fill="'#FFFF00'" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-smile-icon lucide-smile"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" x2="9.01" y1="9" y2="9"/><line x1="15" x2="15.01" y1="9" y2="9"/>
+                              </svg>
                              </button>
                              
                           </div>
@@ -424,7 +441,8 @@
             
             <div class="emoji-wrapper-main">
               <button @click.stop="toggleEmojiPicker('main')" class="emoji-btn-main">
-                <img src="@/assets/emoji.png" class="icon-emoji-img"/>
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" :fill="'#FFFF00'" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-smile-icon lucide-smile"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" x2="9.01" y1="9" y2="9"/><line x1="15" x2="15.01" y1="9" y2="9"/>
+                </svg>
               </button>
               <div v-if="activeEmojiPicker === 'main'" class="emoji-popover-main" @click.stop>
                 <EmojiPicker :native="true" @select="insertEmoji" theme="light" />

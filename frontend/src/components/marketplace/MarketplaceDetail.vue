@@ -342,6 +342,21 @@
       @close="reportModal.visible = false"
     />
 
+    <NotificationModal 
+      :is-visible="notification.visible"
+      :type="notification.type" 
+      :title="notification.title" 
+      :message="notification.message" 
+      @confirm="closeNotify" 
+    />
+
+    <ConfirmDialog 
+      v-if="confirmVisible" 
+      :message="confirmMessage" 
+      @confirm="handleConfirmedAction" 
+      @cancel="confirmVisible = false" 
+    />
+
   </div>
 </template>
 
@@ -353,6 +368,8 @@ import MarketplaceEditModal from "../marketplace/MarketplaceEditModal.vue";
 import MarketplaceBuyModal from "../marketplace/MarketplaceBuyModal.vue";
 import ActionModal from "../common/ActionModal.vue";
 import ReportModal from "../common/ReportModal.vue";
+import NotificationModal from "../notifications/NotificationModal.vue";
+import ConfirmDialog from "../common/ConfirmDialog.vue"; 
 
 import {
   ShoppingCart,
@@ -372,6 +389,8 @@ export default {
     MarketplaceBuyModal,
     ActionModal,
     ReportModal,
+    NotificationModal,
+    ConfirmDialog,
 
     ShoppingCart,
     Zap,
@@ -420,6 +439,20 @@ export default {
         targetType: '', 
         targetId: null 
       },
+
+      notification: {
+        visible: false,
+        type: 'success', // 'success', 'error', 'warning'
+        title: '',
+        message: ''
+      },
+
+      // confirm
+      openMenuId: null,
+      confirmVisible: false,
+      confirmMessage: '',
+      pendingAction: null,   
+      pendingData: null, 
 
 
     };
@@ -553,7 +586,6 @@ watch: {
     imageFromPath(path) {
       if (!path) return "/no-image.png";
 
-      // ✅ Nếu cloudinary URL
       if (path.startsWith("http")) {
         return path;
       }
@@ -594,8 +626,7 @@ watch: {
   this.isLoading = false;
 },
 
-  async onDelete() {
-  if (!confirm("Bạn chắc chắn muốn xóa item này?")) return;
+  async _onDelete() {
 
   try {
     await axios.delete(
@@ -609,10 +640,16 @@ watch: {
 
     this.$router.push("/marketplace");
   } catch (err) {
-    alert("Xóa item thất bại");
+    this.showNotify("error", "Error", "Cannot delete item");
     console.error(err);
   }
 },
+
+    async onDelete() {
+      this.pendingAction  = 'delete-item';
+      this.confirmMessage = 'Delete this item?';
+      this.confirmVisible = true;
+    }, 
 
     
     
@@ -640,7 +677,7 @@ watch: {
       this.showBuyModal = false;
 
       const token = localStorage.getItem("token");
-      if (!token) return alert("Login first");
+      if (!token) return this.showNotify("error", "Error", "Login first");
 
       if (type === "cart") {
         await axios.post(
@@ -656,11 +693,10 @@ watch: {
           }
         );
 
-        alert("✅ Added to cart!");
+        this.showNotify("success", "Success", "Item added to cart!");
       }
 
       if (type === "buy") {
-        // this.$router.push(`/checkout?item=${this.item._id}&qty=${quantity}`);
         this.$router.push({
           path: "/checkout",
           query: {
@@ -785,12 +821,13 @@ watch: {
       }
       this.actionModal.visible = false;
     } catch (err) {
-      alert(err.response?.data?.msg || "Failed to update review.");
+      this.showNotify("error", "Error", err.response?.data?.msg || "Failed to update review.");
     }
   },
 
-  async deleteReview(review) {
-    if (!confirm("Delete your review? This cannot be undone.")) return;
+
+
+  async _deleteReview(review) {
     const token = localStorage.getItem("token");
     try {
       await axios.delete(
@@ -801,8 +838,15 @@ watch: {
       this.canReview = true;
       this.eligibleOrderId = review.order;
     } catch (err) {
-      alert(err.response?.data?.msg || "Failed to delete review.");
+      this.showNotify("error", "Error", err.response?.data?.msg || "Failed to delete review.");
     }
+  },
+
+  async deleteReview(review) {
+    this.pendingAction  = 'delete-review';
+    this.pendingData = review;
+    this.confirmMessage = "Delete your review? This cannot be undone.";
+    this.confirmVisible = true;
   },
 
   async handleModalConfirm(payload) {
@@ -833,7 +877,7 @@ watch: {
       this.actionModal.visible = false;
       await this.fetchReviews();
     } catch (err) {
-      alert(err.response?.data?.msg || "Failed to submit review.");
+      this.showNotify("error", "Error", err.response?.data?.msg || "Failed to submit review.");
     }
   },
 
@@ -854,7 +898,7 @@ watch: {
       if (review) review.sellerReply = res.data.sellerReply;
       this.actionModal.visible = false;
     } catch (err) {
-      alert(err.response?.data?.msg || "Failed to submit reply.");
+      this.showNotify("error", "Error", err.response?.data?.msg || "Failed to submit reply.");
     }
   },
 
@@ -869,9 +913,33 @@ watch: {
       if (review) review.sellerReply = null;
       this.actionModal.visible = false;
     } catch (err) {
-      alert(err.response?.data?.msg || "Failed to delete reply.");
+      this.showNotify("error", "Error", err.response?.data?.msg || "Failed to delete reply.");
     }
   },
+
+  showNotify(type, title, message) {
+      this.notification.type = type;
+      this.notification.title = title;
+      this.notification.message = message;
+      this.notification.visible = true;
+    },
+
+    // Hàm đóng thông báo
+    closeNotify() {
+      this.notification.visible = false;
+    },
+
+    handleConfirmedAction() {
+      this.confirmVisible = false;
+      const action = this.pendingAction;
+      const review = this.pendingData;
+      this.pendingAction = null;
+      this.pendingConfirmMsg    = null;
+      this.pendingData = null;
+ 
+      if (action === 'delete-item')         this._onDelete();
+      if (action === 'delete-review')         this._deleteReview(review);
+    },
 
 
 }

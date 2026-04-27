@@ -126,6 +126,7 @@ exports.updateItem = async (req, res) => {
     const {
       title,
       description,
+      type,
       price,
       quantity,
       condition,
@@ -161,10 +162,25 @@ exports.updateItem = async (req, res) => {
     }
 
     // ===== CONDITION (TOOL ONLY) =====
-    if (item.type === "tool") {
+    // if (item.type === "tool") {
+    //   if (condition && ["new", "used"].includes(condition)) {
+    //     item.condition = condition;
+    //   }
+    // }
+    // ===== TYPE =====
+    if (type !== undefined && ["ingredient", "dish", "tool"].includes(type)) {
+      item.type = type;
+    }
+
+    // ===== CONDITION (dùng type MỚI, không phải type cũ) =====
+    const effectiveType = type !== undefined ? type : item.type;
+    if (effectiveType === "tool") {
       if (condition && ["new", "used"].includes(condition)) {
         item.condition = condition;
       }
+    } else {
+      // Nếu đổi từ tool sang loại khác thì xóa condition
+      item.condition = null;
     }
 
     // ===== HANDLE REMOVED IMAGES =====

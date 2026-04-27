@@ -17,7 +17,8 @@
         >
           <!-- VIEW: ai cũng thấy -->
           <div class="menu-item" @click="openImageViewer(resolveCoverUrl(user.coverPhoto))">
-            <img src="@/assets/view-image.png" class="menu-icon" /> View Cover
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-book-image-icon lucide-book-image"><path d="m20 13.7-2.1-2.1a2 2 0 0 0-2.8 0L9.7 17"/><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20"/><circle cx="10" cy="8" r="2"/>
+            </svg>View Cover
           </div>
 
           <!-- UPDATE: chỉ chủ profile -->
@@ -26,16 +27,18 @@
             class="menu-item"
             @click.stop="triggerCoverUpload"
           >
-            <img src="@/assets/update.png" class="menu-icon" /> Update Cover
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-camera-icon lucide-camera"><path d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z"/><circle cx="12" cy="13" r="3"/>
+            </svg>Update Cover
           </div>
 
           <!-- DELETE: chỉ chủ profile & không phải cover mặc định -->
           <div
             v-if="isMyProfile && !isDefaultCover"
             class="menu-item delete"
-            @click.stop="deleteCoverPhoto"
+            @click.stop="handleDeleteCover"
           >
-            <img src="@/assets/delete.png" class="menu-icon" /> Remove 
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash-icon lucide-trash"><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            </svg>Remove 
           </div>
         </div>
 
@@ -54,7 +57,8 @@
           >
             <!-- VIEW: ai cũng thấy -->
             <div class="menu-item" @click="openImageViewer(getAvatarUrl(user))">
-              <img src="@/assets/view-image.png" class="menu-icon" /> View Avatar
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-book-image-icon lucide-book-image"><path d="m20 13.7-2.1-2.1a2 2 0 0 0-2.8 0L9.7 17"/><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20"/><circle cx="10" cy="8" r="2"/>
+              </svg>View Avatar
             </div>
 
             <!-- UPDATE: chỉ chủ profile -->
@@ -63,16 +67,18 @@
               class="menu-item"
               @click.stop="triggerAvatarUpload"
             >
-              <img src="@/assets/update.png" class="menu-icon" /> Update Avatar
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-camera-icon lucide-camera"><path d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z"/><circle cx="12" cy="13" r="3"/>
+            </svg>Update Avatar
             </div>
 
             <!-- DELETE: chỉ chủ profile & không phải avatar mặc định -->
             <div
               v-if="isMyProfile && !isDefaultAvatar"
               class="menu-item delete"
-              @click.stop="deleteAvatar"
+              @click.stop="handleDeleteAvatar"
             >
-              <img src="@/assets/delete.png" class="menu-icon" /> Remove
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash-icon lucide-trash"><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+              </svg>Remove
             </div>
           </div>
 
@@ -1190,55 +1196,6 @@ async fetchFriends(page = 1) {
       event.target.value = null;
     },
 
-    // --- Xóa ảnh ---
-    async deleteAvatar() {
-      if (!this.isMyProfile) return;
-      if (!confirm("Bạn có chắc muốn gỡ ảnh đại diện?")) return;
-      this.closeMenus();
-      
-      try {
-         const savedUser = JSON.parse(localStorage.getItem("user"));
-         const res = await fetch(`http://localhost:3000/users/${savedUser.id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ avatar: "" }) 
-         });
-         
-         if(res.ok) {
-             const data = await res.json(); // Nhận data từ backend (chứa ảnh mặc định mới)
-             
-             // === [SỬA ĐOẠN NÀY] ===
-             // Đồng bộ avatar mới (hoặc avatar mặc định) vào list post
-             this.updateLocalAvatar(data.user.avatar);
-             
-             this.showNotify("success", "Đã gỡ ảnh", "Ảnh đại diện đã trở về mặc định.");
-         }
-      } catch(err) {
-          console.error(err);
-      }
-    },
-
-    async deleteCoverPhoto() {
-      if (!this.isMyProfile) return;
-      if (!confirm("Bạn có chắc muốn gỡ ảnh bìa?")) return;
-      this.closeMenus();
-
-      try {
-         const savedUser = JSON.parse(localStorage.getItem("user"));
-         const res = await fetch(`http://localhost:3000/users/${savedUser.id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ coverPhoto: "" }) 
-         });
-         
-         if(res.ok) {
-             this.user.coverPhoto = ""; 
-             this.showNotify("success", "Đã gỡ ảnh", "Ảnh bìa đã được gỡ bỏ.");
-         }
-      } catch(err) {
-          console.error(err);
-      }
-    },
 
     // --- HÀM ĐỒNG BỘ AVATAR TRÊN GIAO DIỆN ---
     updateLocalAvatar(newAvatarUrl) {
@@ -1797,6 +1754,20 @@ async handleFriendAction() {
       this.confirmVisible = true;
     },
 
+    async handleDeleteAvatar() {
+      this.pendingAction  = 'delete-avatar';
+      this.confirmMessage = "Delete current avatar?";
+      this.confirmVisible = true;
+    },
+
+    async handleDeleteCover() {
+      this.pendingAction  = 'delete-cover';
+      this.confirmMessage = 'Delete current cover image?';
+      this.confirmVisible = true;
+    },
+
+
+
     goToChat() {
       if (!this.profileUser?._id) return;
       this.$router.push(`/messages?userId=${this.profileUser._id}`);
@@ -2045,6 +2016,51 @@ async handleConfirmedAction() {
       }
     } catch { this.showNotify("error", "Network error", "Unable to connect to server."); }
     finally { this.loadingBlock = false; }
+  }
+
+  else if (action === 'delete-avatar') {
+    this.closeMenus();
+      
+      try {
+         const savedUser = JSON.parse(localStorage.getItem("user"));
+         const res = await fetch(`http://localhost:3000/users/${savedUser.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ avatar: "" }) 
+         });
+         
+         if(res.ok) {
+             const data = await res.json(); // Nhận data từ backend (chứa ảnh mặc định mới)
+             
+             // === [SỬA ĐOẠN NÀY] ===
+             // Đồng bộ avatar mới (hoặc avatar mặc định) vào list post
+             this.updateLocalAvatar(data.user.avatar);
+             
+             this.showNotify("success", "Success", "Delete avatar successfully");
+         }
+      } catch(err) {
+          console.error(err);
+      }
+  }
+ 
+  else if (action === 'delete-cover') {
+      this.closeMenus();
+
+      try {
+         const savedUser = JSON.parse(localStorage.getItem("user"));
+         const res = await fetch(`http://localhost:3000/users/${savedUser.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ coverPhoto: "" }) 
+         });
+         
+         if(res.ok) {
+             this.user.coverPhoto = ""; 
+             this.showNotify("success", "Đã gỡ ảnh", "Ảnh bìa đã được gỡ bỏ.");
+         }
+      } catch(err) {
+          console.error(err);
+      }
   }
 },
 
