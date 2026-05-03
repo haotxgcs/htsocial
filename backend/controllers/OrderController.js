@@ -73,28 +73,6 @@ exports.checkout = async (req, res) => {
       });
     }
 
-    // =========================================================
-    // ✅ 4. DETERMINE CHECKOUT ITEMS
-    // =========================================================
-    // let checkoutItems = cart.items;
-
-    // // ✅ Checkout selected items only
-    // if (Array.isArray(itemIds) && itemIds.length > 0) {
-    //   const cartItemIds = cart.items.map(ci => ci.item._id.toString());
-
-    //   const invalidIds = itemIds.filter(id => !cartItemIds.includes(id));
-
-    //   if (invalidIds.length > 0) {
-    //     return res.status(400).json({
-    //       success: false,
-    //       msg: "Some selected items are not in your cart"
-    //     });
-    //   }
-
-    //   checkoutItems = cart.items.filter(ci =>
-    //     itemIds.includes(ci.item._id.toString())
-    //   );
-    // }
     // ✅ 4. DETERMINE CHECKOUT ITEMS
 
     // Filter bỏ item null TRƯỚC KHI làm bất cứ gì
