@@ -283,17 +283,11 @@ export default {
       const token = localStorage.getItem("token")
 
       try {
-        const res = await fetch(
-          `${process.env.VUE_APP_API_URL}/cart`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
-          }
-        )
-
-        const data = await res.json()
-        this.cartItems = data.cart?.items || []
+        const res = await this.$axios.get('/cart', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        // Axios tự động parse JSON nên gọi thẳng res.data
+        this.cartItems = res.data.cart?.items || [];
 
         // Reset selected items nếu item không còn tồn tại
         this.selectedItems = this.selectedItems.filter(id =>
@@ -363,17 +357,12 @@ export default {
     async updateQuantity(itemId, quantity) {
       const token = localStorage.getItem("token")
 
-      await fetch(
-        `${process.env.VUE_APP_API_URL}/cart/update`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`
-          },
-          body: JSON.stringify({ itemId, quantity })
+      await this.$axios.put('/cart/update', 
+        { itemId, quantity }, // Payload (body) truyền trực tiếp không cần JSON.stringify
+        { 
+          headers: { Authorization: `Bearer ${token}` } 
         }
-      )
+      );
 
       await this.fetchCart()
     },
@@ -410,15 +399,9 @@ export default {
     async handleRemoveItem(cartItemId) {
       const token = localStorage.getItem("token")
 
-      await fetch(
-        `${process.env.VUE_APP_API_URL}/cart/${cartItemId}`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
-      )
+      await this.$axios.delete(`/cart/${cartItemId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
 
       this.selectedItems = this.selectedItems.filter(
         id => id !== cartItemId

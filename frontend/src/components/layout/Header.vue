@@ -61,6 +61,11 @@
           <div class="icon-box"><ShieldUser/></div>
           <span>Admin Panel</span>
         </router-link>
+
+        <router-link to="/newpage" class="nav-item" active-class="active">
+          <div class="icon-box"><MessageCircle/></div>
+          <span>new page</span>
+        </router-link>
         
       </nav>
 

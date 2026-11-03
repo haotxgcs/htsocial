@@ -1,4 +1,5 @@
 <template>
+  <div>
   <div v-if="isVisible" class="comment-modal-overlay" @click="handleOverlayClick">
     <div class="comment-modal-content" @click.stop>
       
@@ -455,6 +456,7 @@
       </div>
     </div>
   </div>
+  </div>
     <NotificationModal 
       :is-visible="notification.visible" 
       :type="notification.type" 
@@ -476,6 +478,17 @@ export default {
     EmojiPicker,
     NotificationModal
   },
+  emits: [
+    'close', 
+    'commented', 
+    'commentDeleted', 
+    'liked', 
+    'share', 
+    'commentCountUpdated', 
+    'saveCountUpdated', 
+    'saveStatusChanged', 
+    'ratingUpdated'
+  ],
   props: {
     post: {
       type: Object,
