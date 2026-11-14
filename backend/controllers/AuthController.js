@@ -113,7 +113,8 @@ exports.register = async (req, res) => {
     await newUser.save();
 
     // ✅ 8. Gửi email verify
-    const verificationLink = `http://localhost:8080/verify/${newUser._id}`;
+    const clientUrl = (process.env.CLIENT_URL || "http://localhost:8080").replace(/\/+$/, "");
+    const verificationLink = `${clientUrl}/verify/${newUser._id}`;
     await sendVerifyAccount({
       to: email,
       firstname,
