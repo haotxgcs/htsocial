@@ -19,14 +19,73 @@ const {
   stripeRefundTemplate,
 } = require("./emailTemplates");
 
-// ✅ Create transporter only once
-const transporter = nodemailer.createTransport({
+// Keep Gmail SMTP available for local development. Render Free blocks SMTP
+// ports, so production can use Brevo's HTTPS API instead.
+const smtpTransporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
   }
 });
+
+function parseMailbox(value, fallbackName) {
+  const match = String(value || "").match(/^\s*"?([^"<]*)"?\s*<([^>]+)>\s*$/);
+  if (match) {
+    return {
+      name: match[1].trim() || fallbackName,
+      email: match[2].trim()
+    };
+  }
+
+  return { name: fallbackName, email: String(value || "").trim() };
+}
+
+async function sendWithBrevo({ from, to, replyTo, subject, html }) {
+  const apiKey = process.env.BREVO_API_KEY;
+  const senderEmail = process.env.EMAIL_FROM;
+
+  if (!apiKey || !senderEmail) {
+    throw new Error("BREVO_API_KEY and EMAIL_FROM are required for Brevo email delivery");
+  }
+
+  const sender = parseMailbox(from, "HT Social");
+  const payload = {
+    sender: { name: sender.name, email: senderEmail },
+    to: (Array.isArray(to) ? to : [to]).map(email => ({ email })),
+    subject,
+    htmlContent: html
+  };
+
+  if (replyTo) {
+    payload.replyTo = parseMailbox(replyTo, "HT Social");
+  }
+
+  const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: {
+      accept: "application/json",
+      "api-key": apiKey,
+      "content-type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const responseBody = await response.text();
+    throw new Error(`Brevo API error ${response.status}: ${responseBody.slice(0, 500)}`);
+  }
+
+  return response.json();
+}
+
+const transporter = {
+  sendMail(options) {
+    return process.env.BREVO_API_KEY
+      ? sendWithBrevo(options)
+      : smtpTransporter.sendMail(options);
+  }
+};
 
 /**
  * ✅ Send Email Helper
@@ -216,9 +275,12 @@ exports.sendOrderPaidEmail = async (order) => {
         totalPrice: order.totalPrice,
       }),
     });
+
     console.log("✅ Order paid email sent to:", order.user.email);
+    return true;
   } catch (err) {
     console.error("❌ Order paid email failed:", err.message);
+    return false;
   }
 };
 
@@ -238,7 +300,9 @@ exports.sendStripeRefundEmail = async (order) => {
       }),
     });
     console.log("✅ Stripe refund email sent to:", order.user.email);
+    return true;
   } catch (err) {
     console.error("❌ Stripe refund email failed:", err.message);
+    return false;
   }
 };

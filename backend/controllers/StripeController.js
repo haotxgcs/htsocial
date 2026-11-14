@@ -45,9 +45,10 @@ exports.stripeWebhook = async (req, res) => {
       order.estimatedDeliveryDate = new Date(Date.now() + deliveryDays * 24 * 60 * 60 * 1000);
 
       await order.save();
-      await sendOrderPaidEmail(order);
-
-      console.log("✅ Order paid + email sent:", order._id);
+      const emailSent = await sendOrderPaidEmail(order);
+      if (emailSent) {
+        console.log("✅ Order paid email sent:", order._id);
+      }
     }
   }
 
@@ -67,9 +68,10 @@ exports.stripeWebhook = async (req, res) => {
       order.refund.resolvedAt = new Date();
 
       await order.save();
-      await sendStripeRefundEmail(order);
-
-      console.log("✅ Refund completed + email sent:", order._id);
+      const emailSent = await sendStripeRefundEmail(order);
+      if (emailSent) {
+        console.log("✅ Refund email sent:", order._id);
+      }
     }
   }
 
