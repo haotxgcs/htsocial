@@ -206,6 +206,8 @@
 </template>
 
 <script>
+import { API_BASE_URL } from "@/api";
+
 import LoadingOverlay from "../layout/LoadingOverlay.vue"
 import ConfirmDialog from "../common/ConfirmDialog.vue"
 import Pagination from "../layout/Pagination.vue"
@@ -434,7 +436,7 @@ async fetchOrders() {
         const token = localStorage.getItem("token")
 
         const response = await fetch(
-          "http://localhost:3000/stripe/create-intent",
+          `${API_BASE_URL}/stripe/create-intent`,
           {
             method: "POST",
             headers: {

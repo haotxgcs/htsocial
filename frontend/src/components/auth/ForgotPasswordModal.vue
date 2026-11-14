@@ -94,7 +94,9 @@
 </template>
 
 <script>
-const API = process.env.VUE_APP_API_URL || "http://localhost:3000";
+import { API_BASE_URL } from "@/api";
+
+const API = API_BASE_URL;
 
 export default {
   name: "ForgotPasswordModal",

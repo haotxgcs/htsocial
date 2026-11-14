@@ -273,12 +273,14 @@
 </template>
 
 <script>
+import { API_BASE_URL } from "@/api";
+
 import EditProfileModal from '../profile/EditProfileModal.vue';
 import SecurityModal    from '../auth/SecurityModal.vue';
 import NotificationModal from '../notifications/NotificationModal.vue';
 import ConfirmDialog from '../common/ConfirmDialog.vue';
 
-const API = process.env.VUE_APP_API_URL || 'http://localhost:3000';
+const API = API_BASE_URL;
 
 
 export default {

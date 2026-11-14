@@ -57,6 +57,8 @@
 </template>
 
 <script>
+import { API_BASE_URL } from "@/api";
+
 import axios from "axios";
 import NotificationModal from "../notifications/NotificationModal.vue";
 
@@ -129,7 +131,7 @@ export default {
         // ✅ CREATE
         if (this.mode === "create") {
           res = await axios.post(
-            "http://localhost:3000/user-address",
+            `${API_BASE_URL}/user-address`,
             this.form,
             {
               headers: {
@@ -142,7 +144,7 @@ export default {
         // ✅ EDIT
         if (this.mode === "edit") {
           res = await axios.put(
-            `http://localhost:3000/user-address/${this.address._id}`,
+            `${API_BASE_URL}/user-address/${this.address._id}`,
             this.form,
             {
               headers: {

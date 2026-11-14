@@ -63,6 +63,8 @@
 
 
 <script>
+import { API_BASE_URL } from "@/api";
+
 import ReportModal from "../common/ReportModal.vue";
 
 import { Menu, Pencil, Trash2, FlagTriangleRight } from 'lucide-vue-next';
@@ -132,14 +134,14 @@ export default {
   }
 
   // ✅ Nếu là ảnh local (cũ) thì mới thêm localhost
-  return `http://localhost:3000/${img}`;
+  return `${API_BASE_URL}/${img}`;
 },
 
     avatarUrl() {
-      if (!this.item.seller.avatar) return 'http://localhost:3000/uploads/user.png';
+      if (!this.item.seller.avatar) return `${API_BASE_URL}/uploads/user.png`;
       // Cloudinary URL đã có https:// → dùng thẳng, không prefix
       if (this.item.seller.avatar.startsWith('http')) return this.item.seller.avatar;
-      return `http://localhost:3000/${this.item.seller.avatar}`;
+      return `${API_BASE_URL}/${this.item.seller.avatar}`;
     },
 
     typeLabel() {

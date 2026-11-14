@@ -362,6 +362,8 @@
 
 
 <script>
+import { API_BASE_URL } from "@/api";
+
 import axios from "axios";
 import LoadingOverlay from "../layout/LoadingOverlay.vue";
 import MarketplaceEditModal from "../marketplace/MarketplaceEditModal.vue";
@@ -462,7 +464,7 @@ export default {
     this.isLoading = true;
     try {
       const res = await axios.get(
-        `http://localhost:3000/marketplace/${this.$route.params.id}`
+        `${API_BASE_URL}/marketplace/${this.$route.params.id}`
       );
       this.item = res.data;
 
@@ -506,7 +508,7 @@ export default {
       }
 
       // ✅ Local image
-      return `http://localhost:3000/${img}`;
+      return `${API_BASE_URL}/${img}`;
     },
 
 
@@ -591,7 +593,7 @@ watch: {
       }
 
       // ✅ Nếu local
-      return `http://localhost:3000/${path}`;
+      return `${API_BASE_URL}/${path}`;
     },
 
 
@@ -619,7 +621,7 @@ watch: {
   this.isLoading = true;
 
   const res = await axios.get(
-    `http://localhost:3000/marketplace/${this.$route.params.id}`
+    `${API_BASE_URL}/marketplace/${this.$route.params.id}`
   );
 
   this.item = res.data;
@@ -630,7 +632,7 @@ watch: {
 
   try {
     await axios.delete(
-      `http://localhost:3000/marketplace/${this.item._id}`,
+      `${API_BASE_URL}/marketplace/${this.item._id}`,
       {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`
@@ -681,7 +683,7 @@ watch: {
 
       if (type === "cart") {
         await axios.post(
-          "http://localhost:3000/cart/add",
+          `${API_BASE_URL}/cart/add`,
           {
             itemId: this.item._id,
             quantity

@@ -320,6 +320,8 @@
 </template>
 
 <script>
+import { API_BASE_URL } from "@/api";
+
 import EmojiPicker from 'vue3-emoji-picker';
 import 'vue3-emoji-picker/css';
 import NotificationModal from '../notifications/NotificationModal.vue';
@@ -395,13 +397,13 @@ export default {
       const img = images[0];
       if (!img) return '';
       if (img.startsWith('http')) return img;
-      return `http://localhost:3000/${img}`;
+      return `${API_BASE_URL}/${img}`;
     },
 
     resolveUrl(url, fallback = 'uploads/user.png') {
-      if (!url) return `http://localhost:3000/${fallback}`;
+      if (!url) return `${API_BASE_URL}/${fallback}`;
       if (url.startsWith('http')) return url;
-      return `http://localhost:3000/${url}`;
+      return `${API_BASE_URL}/${url}`;
     },
 
     openItem(itemId) {
@@ -456,7 +458,7 @@ export default {
         }
 
         // Gọi API
-        const res = await fetch('http://localhost:3000/posts', {
+        const res = await fetch(`${API_BASE_URL}/posts`, {
           method: 'POST',
           body: formData
         });
@@ -606,7 +608,7 @@ export default {
     this.isSearchingItems = true;
     const token = localStorage.getItem("token");
 
-    let url = `http://localhost:3000/marketplace?search=${this.itemSearch}`;
+    let url = `${API_BASE_URL}/marketplace?search=${this.itemSearch}`;
 
     if (this.itemFilterMode === "mine") {
       url += "&mine=true";
@@ -673,7 +675,7 @@ export default {
   async fetchItemsByMode() {
     const token = localStorage.getItem("token");
 
-    let url = "http://localhost:3000/marketplace";
+    let url = `${API_BASE_URL}/marketplace`;
 
     if (this.itemFilterMode === "mine") {
       url += "?mine=true";

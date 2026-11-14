@@ -279,6 +279,8 @@
 </template>
 
 <script>
+import { API_BASE_URL } from "@/api";
+
 import ConfirmDialog from '../common/ConfirmDialog.vue';
 import NotificationModal from '../notifications/NotificationModal.vue';
 import Pagination from '../layout/Pagination.vue';
@@ -508,9 +510,9 @@ async loadUserData() {
 
 
     getImageUrl(avatar) {
-      if (!avatar) return `http://localhost:3000/${this.defaultAvatar}`;
+      if (!avatar) return `${API_BASE_URL}/${this.defaultAvatar}`;
       if (avatar.startsWith('http')) return avatar;
-      return `http://localhost:3000/${avatar}`;
+      return `${API_BASE_URL}/${avatar}`;
     },
 
     // --- API CALLS ---
@@ -518,13 +520,13 @@ async loadUserData() {
     async loadFriendRequests() {
       this.loadingRequests = true;
       try {
-        const res = await fetch(`http://localhost:3000/users/${this.currentUser.id}`);
+        const res = await fetch(`${API_BASE_URL}/users/${this.currentUser.id}`);
         const userData = await res.json();
         
         if (userData.requestReceived?.length > 0) {
           this.friendRequests = await Promise.all(
             userData.requestReceived.map(id =>
-              fetch(`http://localhost:3000/users/${id}`).then(r => r.json())
+              fetch(`${API_BASE_URL}/users/${id}`).then(r => r.json())
             )
           );
         } else {
@@ -540,13 +542,13 @@ async loadUserData() {
     async loadSentRequests() {
       this.loadingSent = true;
       try {
-        const res = await fetch(`http://localhost:3000/users/${this.currentUser.id}`);
+        const res = await fetch(`${API_BASE_URL}/users/${this.currentUser.id}`);
         const userData = await res.json();
         
         if (userData.requestSent?.length > 0) {
           this.sentRequests = await Promise.all(
             userData.requestSent.map(id =>
-              fetch(`http://localhost:3000/users/${id}`).then(r => r.json())
+              fetch(`${API_BASE_URL}/users/${id}`).then(r => r.json())
             )
           );
         } else {
@@ -563,7 +565,7 @@ async loadAllFriends() {
   this.loadingFriends = true;
   try {
     const res = await fetch(
-      `http://localhost:3000/users/${this.currentUser.id}/friends`
+      `${API_BASE_URL}/users/${this.currentUser.id}/friends`
     );
     const data = await res.json();
 
@@ -585,7 +587,7 @@ async loadAllUsers() {
   this.loadingSuggestions = true;
   try {
     const res = await fetch(
-      `http://localhost:3000/users?viewerId=${this.currentUser.id}`
+      `${API_BASE_URL}/users?viewerId=${this.currentUser.id}`
     );
     this.allUsers = await res.json();
     this.filterSuggestedUsers();
@@ -600,7 +602,7 @@ async loadAllUsers() {
 
     async acceptFriendRequest(requesterId) {
       try {
-        const res = await fetch("http://localhost:3000/users/friend-request/accept", {
+        const res = await fetch(`${API_BASE_URL}/users/friend-request/accept`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ userId: this.currentUser.id, requesterId })
@@ -627,7 +629,7 @@ async loadAllUsers() {
     "Do you want to delete this friend request?",
     async () => {
       try {
-        const res = await fetch("http://localhost:3000/users/friend-request/cancel", {
+        const res = await fetch(`${API_BASE_URL}/users/friend-request/cancel`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -653,7 +655,7 @@ cancelFriendRequest(toUserId) {
     "Are you sure you want to cancel this friend request?",
     async () => {
       try {
-        const res = await fetch("http://localhost:3000/users/friend-request/cancel", {
+        const res = await fetch(`${API_BASE_URL}/users/friend-request/cancel`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -695,7 +697,7 @@ cancelFriendRequest(toUserId) {
 
 async sendFriendRequest(toUserId) {
   try {
-    const res = await fetch("http://localhost:3000/users/friend-request/send", {
+    const res = await fetch(`${API_BASE_URL}/users/friend-request/send`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -729,7 +731,7 @@ async sendFriendRequest(toUserId) {
     "Are you sure you want to unfriend this person?",
     async () => {
       try {
-        const res = await fetch("http://localhost:3000/users/unfriend", {
+        const res = await fetch(`${API_BASE_URL}/users/unfriend`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

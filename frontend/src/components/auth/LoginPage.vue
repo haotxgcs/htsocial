@@ -87,6 +87,8 @@
 </template>
 
 <script>
+import { API_BASE_URL } from "@/api";
+
 import NotificationModal from "../notifications/NotificationModal.vue";
 import ContactModal from '../common/ContactModal.vue';
 import ForgotPasswordModal from '../auth/ForgotPasswordModal.vue';
@@ -124,7 +126,7 @@ export default {
 
     async handleLogin() {
       try {
-        const res = await fetch("http://localhost:3000/users/login", {
+        const res = await fetch(`${API_BASE_URL}/users/login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

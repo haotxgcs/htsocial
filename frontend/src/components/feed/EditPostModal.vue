@@ -299,6 +299,8 @@
 </template>
 
 <script>
+import { API_BASE_URL } from "@/api";
+
 import EmojiPicker from 'vue3-emoji-picker';
 import 'vue3-emoji-picker/css';
 import NotificationModal from '../notifications/NotificationModal.vue';
@@ -404,7 +406,7 @@ export default {
       const img = images[0];
       if (!img) return '';
       if (img.startsWith('http')) return img;
-      return `http://localhost:3000/${img}`;
+      return `${API_BASE_URL}/${img}`;
     },
 
     // --- KHỞI TẠO DỮ LIỆU TỪ POST CŨ (LOGIC MỚI) ---
@@ -429,7 +431,7 @@ export default {
         // Cloudinary URL đã đầy đủ, local path cần prefix
         this.editMediaPreview = this.post.media.startsWith('http')
           ? this.post.media
-          : `http://localhost:3000/${this.post.media}`;
+          : `${API_BASE_URL}/${this.post.media}`;
       } else {
         this.editMediaPreview = '';
       }
@@ -476,7 +478,7 @@ export default {
         // Case 3: Giữ nguyên ảnh cũ (backend tự hiểu nếu không gửi gì)
 
         // Gọi API PUT
-        const res = await fetch(`http://localhost:3000/posts/${this.post._id}`, {
+        const res = await fetch(`${API_BASE_URL}/posts/${this.post._id}`, {
           method: 'PUT',
           body: formData
         });
@@ -524,9 +526,9 @@ export default {
       this.$emit('close');
     },
     getAvatarUrl(author) {
-      if (!author || !author.avatar) return 'http://localhost:3000/uploads/user.png';
+      if (!author || !author.avatar) return `${API_BASE_URL}/uploads/user.png`;
       if (author.avatar.startsWith('http')) return author.avatar;
-      return `http://localhost:3000/${author.avatar}`;
+      return `${API_BASE_URL}/${author.avatar}`;
     },
     adjustTextareaHeight(textarea) {
       if (!textarea) return;
@@ -622,7 +624,7 @@ async searchItems() {
     : ''; // ⭐ QUAN TRỌNG
 
   const res = await fetch(
-    `http://localhost:3000/marketplace${query}`,
+    `${API_BASE_URL}/marketplace${query}`,
     {
       headers: token
         ? { Authorization: `Bearer ${token}` }

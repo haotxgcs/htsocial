@@ -213,10 +213,12 @@
 </template>
 
 <script>
+import { API_BASE_URL } from "@/api";
+
 import ConfirmDialog from '../common/ConfirmDialog.vue';
 import { io } from 'socket.io-client';
 
-const API = process.env.VUE_APP_API_URL || 'http://localhost:3000';
+const API = API_BASE_URL;
 import { House, Users, Store, Bookmark, EyeOff, ShoppingBag, Moon, Sun, MessageCircle, Bell, CircleUserRound, Settings, LogOut, ShoppingCart, PanelLeftClose, PanelLeftOpen,ShieldUser  } from 'lucide-vue-next';
 
 export default {
@@ -352,7 +354,7 @@ export default {
           if (user.avatar && user.avatar !== 'uploads/user.png') {
             this.currentUser.avatarUrl = user.avatar.startsWith('http')
               ? user.avatar
-              : `http://localhost:3000/${user.avatar}`;
+              : `${API_BASE_URL}/${user.avatar}`;
           } else {
             this.currentUser.avatarUrl = this.defaultAssetAvatar;
           }
@@ -627,7 +629,7 @@ export default {
         this.addNotif({
           type: 'reply_review', icon: '💬',
           avatar: payload.from?.avatar
-            ? (payload.from.avatar.startsWith('http') ? payload.from.avatar : `http://localhost:3000/${payload.from.avatar}`)
+            ? (payload.from.avatar.startsWith('http') ? payload.from.avatar : `${API_BASE_URL}/${payload.from.avatar}`)
             : null,
           text: payload.text || `Seller replied to your review`,
           link: payload.link || (payload.meta?.itemId
@@ -641,7 +643,7 @@ export default {
         const orderId = payload.meta?.orderId;
         this.addNotif({
           type: 'refund_requested', icon: '🔄',
-          avatar: payload.from?.avatar ? (payload.from.avatar.startsWith('http') ? payload.from.avatar : `http://localhost:3000/${payload.from.avatar}`) : null,
+          avatar: payload.from?.avatar ? (payload.from.avatar.startsWith('http') ? payload.from.avatar : `${API_BASE_URL}/${payload.from.avatar}`) : null,
           text: payload.text || `<b>${(`${payload.from?.firstname || ""} ${payload.from?.lastname || ""}`.trim() || "Someone")}</b> requested a refund`,
           link: orderId
             ? `/seller-orders?tab=refunds&orderId=${orderId}`
@@ -772,7 +774,7 @@ export default {
     resolveAvatar(user) {
       if (!user?.avatar) return this.defaultAssetAvatar;
       if (user.avatar.startsWith('http')) return user.avatar;
-      return `http://localhost:3000/${user.avatar}`;
+      return `${API_BASE_URL}/${user.avatar}`;
     },
 
     onAvErr(e) {
@@ -816,7 +818,7 @@ export default {
       this.notifications.unshift({
         id: Date.now() + Math.random(),
         type, text, icon,
-        avatar: avatar ? (avatar.startsWith('http') ? avatar : `http://localhost:3000/${avatar}`) : null,
+        avatar: avatar ? (avatar.startsWith('http') ? avatar : `${API_BASE_URL}/${avatar}`) : null,
         link: link || null,
         reportId: reportId || meta?.reportId || null,
         meta: meta || null,

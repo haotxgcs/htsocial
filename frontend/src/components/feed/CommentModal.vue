@@ -467,6 +467,8 @@
 </template>
 
 <script>
+import { API_BASE_URL } from "@/api";
+
 // Import thư viện Emoji
 import EmojiPicker from 'vue3-emoji-picker';
 import 'vue3-emoji-picker/css';
@@ -699,7 +701,7 @@ export default {
     getItemImage(images) {
       if (!images?.length) return "";
       const img = images[0];
-      return img.startsWith("http") ? img : `http://localhost:3000/${img}`;
+      return img.startsWith("http") ? img : `${API_BASE_URL}/${img}`;
     },
 
     // --- EMOJI LOGIC METHODS ---
@@ -821,16 +823,16 @@ closeEmojiPickerOnClickOutside(event) {
     },
 
     getAvatarUrl(author) {
-      if (!author || !author.avatar) return 'http://localhost:3000/uploads/user.png';
+      if (!author || !author.avatar) return `${API_BASE_URL}/uploads/user.png`;
       // Cloudinary URL đã có https:// → dùng thẳng, không prefix
       if (author.avatar.startsWith('http')) return author.avatar;
-      return `http://localhost:3000/${author.avatar}`;
+      return `${API_BASE_URL}/${author.avatar}`;
     },
 
     resolveMediaUrl(media) {
       if (!media) return '';
       if (media.startsWith('http')) return media;
-      return `http://localhost:3000/${media}`;
+      return `${API_BASE_URL}/${media}`;
     },
 
     formatTime(dateStr) {
@@ -847,7 +849,7 @@ closeEmojiPickerOnClickOutside(event) {
         const savedUser = JSON.parse(localStorage.getItem("user"));
         if (!savedUser) return;
 
-        const res = await fetch(`http://localhost:3000/feeds/users/${savedUser.id}/saved-items`);
+        const res = await fetch(`${API_BASE_URL}/feeds/users/${savedUser.id}/saved-items`);
         if (res.ok) {
           const data = await res.json();
           this.savedPosts = data.savedItems || [];
@@ -861,7 +863,7 @@ closeEmojiPickerOnClickOutside(event) {
       if (!this.post || !this.post._id) return;
 
       try {
-        const res = await fetch(`http://localhost:3000/posts/${this.post._id}/saves-count`);
+        const res = await fetch(`${API_BASE_URL}/posts/${this.post._id}/saves-count`);
         if (res.ok) {
           const data = await res.json();
           this.postSaveCount = data.savesCount || 0;
@@ -880,7 +882,7 @@ closeEmojiPickerOnClickOutside(event) {
         const postId = this.post._id;
         const isSaved = this.savedPosts.includes(postId);
         
-        const res = await fetch(`http://localhost:3000/feeds/save/${postId}`, {
+        const res = await fetch(`${API_BASE_URL}/feeds/save/${postId}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -924,7 +926,7 @@ closeEmojiPickerOnClickOutside(event) {
     async fetchComments(postId) {
       try {
         const isShare = this.post.isSharePost || false; 
-        const url = `http://localhost:3000/comments/posts/${postId}${isShare ? '?isShare=true' : ''}`;
+        const url = `${API_BASE_URL}/comments/posts/${postId}${isShare ? '?isShare=true' : ''}`;
         
         const res = await fetch(url);
         const data = await res.json();
@@ -950,7 +952,7 @@ closeEmojiPickerOnClickOutside(event) {
       if (!user || !this.post) return;
 
       try {
-        const res = await fetch(`http://localhost:3000/comments/posts/${this.post._id}`, {
+        const res = await fetch(`${API_BASE_URL}/comments/posts/${this.post._id}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -992,7 +994,7 @@ closeEmojiPickerOnClickOutside(event) {
       if (!savedUser) return this.showNotify("error", "Error", 'Please login to like comments');
 
       try {
-        const res = await fetch(`http://localhost:3000/comments/like/${comment._id}`, {
+        const res = await fetch(`${API_BASE_URL}/comments/like/${comment._id}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId: savedUser.id })
@@ -1041,7 +1043,7 @@ closeEmojiPickerOnClickOutside(event) {
           updateData.rating = this.editingRating;
         }
         
-        const res = await fetch(`http://localhost:3000/comments/${commentId}`, {
+        const res = await fetch(`${API_BASE_URL}/comments/${commentId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(updateData)
@@ -1092,7 +1094,7 @@ closeEmojiPickerOnClickOutside(event) {
         const deletedComment = this.comments.find(c => c._id === commentId);
         const hadRating = deletedComment && deletedComment.rating > 0;
 
-        const res = await fetch(`http://localhost:3000/comments/${commentId}`, {
+        const res = await fetch(`${API_BASE_URL}/comments/${commentId}`, {
           method: 'DELETE'
         });
 
@@ -1173,7 +1175,7 @@ closeEmojiPickerOnClickOutside(event) {
       if (!replyContent?.trim()) return;
 
       try {
-        const res = await fetch(`http://localhost:3000/comments/reply/${commentId}`, {
+        const res = await fetch(`${API_BASE_URL}/comments/reply/${commentId}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1210,7 +1212,7 @@ closeEmojiPickerOnClickOutside(event) {
       if (!content?.trim()) return;
 
       try {
-        const res = await fetch(`http://localhost:3000/comments/reply/${commentId}`, {
+        const res = await fetch(`${API_BASE_URL}/comments/reply/${commentId}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1245,7 +1247,7 @@ closeEmojiPickerOnClickOutside(event) {
       if (!savedUser) return this.showNotify("error", "Error", 'Please login to like replies');
 
       try {
-        const res = await fetch(`http://localhost:3000/comments/reply/${commentId}/${reply._id}/like`, {
+        const res = await fetch(`${API_BASE_URL}/comments/reply/${commentId}/${reply._id}/like`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId: savedUser.id })
@@ -1280,7 +1282,7 @@ closeEmojiPickerOnClickOutside(event) {
       if (!confirm("Do you want to delete this reply?")) return;
 
       try {
-        const res = await fetch(`http://localhost:3000/comments/reply/${commentId}/${replyId}`, {
+        const res = await fetch(`${API_BASE_URL}/comments/reply/${commentId}/${replyId}`, {
           method: 'DELETE'
         });
 
@@ -1325,7 +1327,7 @@ closeEmojiPickerOnClickOutside(event) {
 
     async saveReply(commentId, replyId) {
       try {
-        const res = await fetch(`http://localhost:3000/comments/reply/${commentId}/${replyId}`, {
+        const res = await fetch(`${API_BASE_URL}/comments/reply/${commentId}/${replyId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ content: this.editedReplyContent })
@@ -1352,7 +1354,7 @@ closeEmojiPickerOnClickOutside(event) {
       if (!savedUser) return this.showNotify("error", "Error", 'Please login');
 
       try {
-        const res = await fetch(`http://localhost:3000/posts/${this.post._id}/like`, {
+        const res = await fetch(`${API_BASE_URL}/posts/${this.post._id}/like`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -1380,7 +1382,7 @@ closeEmojiPickerOnClickOutside(event) {
       if (!savedUser || !this.post) return;
 
       try {
-        const res = await fetch(`http://localhost:3000/comments/posts/${this.post._id}`);
+        const res = await fetch(`${API_BASE_URL}/comments/posts/${this.post._id}`);
         const data = await res.json();
         
         // Check if user has already rated (comment with rating)
@@ -1397,7 +1399,7 @@ closeEmojiPickerOnClickOutside(event) {
       if (!this.post || !this.post._id) return;
       
       try {
-        const res = await fetch(`http://localhost:3000/comments/posts/${this.post._id}/rating-stats`);
+        const res = await fetch(`${API_BASE_URL}/comments/posts/${this.post._id}/rating-stats`);
         if (res.ok) {
           const stats = await res.json();
           this.localTotalRatings = stats.totalRatings || 0;

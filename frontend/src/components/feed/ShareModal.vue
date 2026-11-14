@@ -111,6 +111,8 @@
 </template>
 
 <script>
+import { API_BASE_URL } from "@/api";
+
 import EmojiPicker from 'vue3-emoji-picker';
 import 'vue3-emoji-picker/css';
 import NotificationModal from '../notifications/NotificationModal.vue';
@@ -209,7 +211,7 @@ export default {
 
       try {
         // Dùng fetch để đồng bộ với các file khác
-        const res = await fetch(`http://localhost:3000/shares/${this.post._id}`, {
+        const res = await fetch(`${API_BASE_URL}/shares/${this.post._id}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -296,13 +298,13 @@ export default {
       if (!user?.avatar) return require("@/assets/user.png");
       // Cloudinary URL đã có https:// → dùng thẳng
       if (user.avatar.startsWith('http')) return user.avatar;
-      return `http://localhost:3000/${user.avatar}`;
+      return `${API_BASE_URL}/${user.avatar}`;
     },
 
     resolveMediaUrl(media) {
       if (!media) return '';
       if (media.startsWith('http')) return media;
-      return `http://localhost:3000/${media}`;
+      return `${API_BASE_URL}/${media}`;
     },
   },
 };

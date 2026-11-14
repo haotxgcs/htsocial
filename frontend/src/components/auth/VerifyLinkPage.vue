@@ -32,6 +32,8 @@
 </template>
 
 <script>
+import { API_BASE_URL } from "@/api";
+
 export default {
   name: "VerifyLinkPage",
   data() {
@@ -47,7 +49,7 @@ export default {
 
     try {
       const res = await fetch(
-        `http://localhost:3000/users/verify/${userId}`
+        `${API_BASE_URL}/users/verify/${userId}`
       );
 
       const data = await res.json();

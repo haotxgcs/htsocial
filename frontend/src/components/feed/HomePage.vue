@@ -484,6 +484,8 @@
 </template>
 
 <script>
+import { API_BASE_URL } from "@/api";
+
 import ConfirmDialog from '../common/ConfirmDialog.vue';
 import EditShareModal from '../feed/EditShareModal.vue';
 import ShareModal from '../feed/ShareModal.vue';
@@ -719,7 +721,7 @@ export default {
     getItemImage(images) {
       if (!images?.length) return "";
       const img = images[0];
-      return img.startsWith("http") ? img : `http://localhost:3000/${img}`;
+      return img.startsWith("http") ? img : `${API_BASE_URL}/${img}`;
     },
 
     // --- UI HELPERS ---
@@ -747,22 +749,22 @@ export default {
     },
 
     getAvatarUrl(author) {
-      if (!author || !author.avatar) return 'http://localhost:3000/uploads/user.png';
+      if (!author || !author.avatar) return `${API_BASE_URL}/uploads/user.png`;
       // Cloudinary URL đã có https:// → dùng thẳng, không prefix
       if (author.avatar.startsWith('http')) return author.avatar;
-      return `http://localhost:3000/${author.avatar}`;
+      return `${API_BASE_URL}/${author.avatar}`;
     },
     
     getImageUrl(path) {
       if (!path) return '';
       if (path.startsWith('http')) return path;
-      return `http://localhost:3000/${path}`;
+      return `${API_BASE_URL}/${path}`;
     },
 
     resolveMediaUrl(media) {
       if (!media) return '';
       if (media.startsWith('http')) return media;
-      return `http://localhost:3000/${media}`;
+      return `${API_BASE_URL}/${media}`;
     },
 
     formatTime(dateStr) {
@@ -822,7 +824,7 @@ onInputSearch() {
 
     async fetchAllUsers() {
       try {
-        const res = await fetch('http://localhost:3000/users'); // API lấy list user
+        const res = await fetch(`${API_BASE_URL}/users`); // API lấy list user
         if (res.ok) {
           this.allUsers = await res.json();
         }
@@ -836,7 +838,7 @@ async loadSearchHistory() {
   if (!this.user) return;
   try {
     const res = await fetch(
-      `http://localhost:3000/users/${this.user.id}/search-history?context=home`
+      `${API_BASE_URL}/users/${this.user.id}/search-history?context=home`
     );
     if (res.ok) {
       const data = await res.json();
@@ -868,7 +870,7 @@ async loadSearchHistory() {
 
       // 2. Gửi API lưu ngầm xuống database
       try {
-        await fetch(`http://localhost:3000/users/${this.user.id}/search-history`, {
+        await fetch(`${API_BASE_URL}/users/${this.user.id}/search-history`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ query, context: "home" })
@@ -897,7 +899,7 @@ async loadSearchHistory() {
 
       // 2. Gọi API xóa trong database
       try {
-        await fetch(`http://localhost:3000/users/${this.user.id}/search-history`, {
+        await fetch(`${API_BASE_URL}/users/${this.user.id}/search-history`, {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ query: itemToDelete , context:"home"})
@@ -912,7 +914,7 @@ async loadSearchHistory() {
 
   try {
     await fetch(
-      `http://localhost:3000/users/${this.user.id}/search-history/all`,
+      `${API_BASE_URL}/users/${this.user.id}/search-history/all`,
       {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
@@ -1023,7 +1025,7 @@ async loadSearchHistory() {
         }
         this.loading=true;
         const viewerId = savedUser.id;
-        const res = await fetch(`http://localhost:3000/feeds/${viewerId}`);
+        const res = await fetch(`${API_BASE_URL}/feeds/${viewerId}`);
         if (!res.ok) {
           throw new Error(`HTTP error! status: ${res.status}`);
         }
@@ -1049,7 +1051,7 @@ async loadSearchHistory() {
       }
 
       try {
-        const res = await fetch(`http://localhost:3000/posts/${postId}/saves-count`);
+        const res = await fetch(`${API_BASE_URL}/posts/${postId}/saves-count`);
         if (res.ok) {
           const data = await res.json();
           this.postSaveCounts[postId] = data.savesCount || 0;
@@ -1120,7 +1122,7 @@ async loadSearchHistory() {
         const postId = post._id;
         const isSaved = this.savedPosts.includes(postId);
         
-        const res = await fetch(`http://localhost:3000/feeds/save/${postId}`, {
+        const res = await fetch(`${API_BASE_URL}/feeds/save/${postId}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1181,7 +1183,7 @@ async loadSearchHistory() {
       try {
         const savedUser = JSON.parse(localStorage.getItem("user"));
         if (!savedUser) return;
-        const res = await fetch(`http://localhost:3000/feeds/users/${savedUser.id}/saved-items`);
+        const res = await fetch(`${API_BASE_URL}/feeds/users/${savedUser.id}/saved-items`);
         if (res.ok) {
           const data = await res.json();
           this.savedPosts = data.savedItems || [];
@@ -1206,7 +1208,7 @@ async loadSearchHistory() {
       if (!savedUser) return alert("Please log in");
 
       try {
-        const res = await fetch(`http://localhost:3000/posts/hide-post/${postId}`, {
+        const res = await fetch(`${API_BASE_URL}/posts/hide-post/${postId}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ userId: savedUser.id })
@@ -1226,7 +1228,7 @@ async loadSearchHistory() {
       if (!savedUser) return alert("Please log in to hide shares");
 
       try {
-        const res = await fetch(`http://localhost:3000/shares/hide-share/${shareId}`, {
+        const res = await fetch(`${API_BASE_URL}/shares/hide-share/${shareId}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ userId: savedUser.id })
@@ -1247,7 +1249,7 @@ async loadSearchHistory() {
       if (!savedUser) return alert("Please login");
 
       try {
-        const res = await fetch(`http://localhost:3000/posts/${post._id}/like`, {
+        const res = await fetch(`${API_BASE_URL}/posts/${post._id}/like`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username: savedUser.username })
@@ -1406,7 +1408,7 @@ async loadSearchHistory() {
        try {
           // --- TRƯỜNG HỢP 1: XÓA BÀI SHARE (Giữ nguyên logic cũ) ---
           if(this.deleteType === 'share') {
-             const res = await fetch(`http://localhost:3000/shares/${this.itemToDeleteId}`, {method:'DELETE'});
+             const res = await fetch(`${API_BASE_URL}/shares/${this.itemToDeleteId}`, {method:'DELETE'});
              if(res.ok) { 
                 this.posts = this.posts.filter(p => p._id !== this.itemToDeleteId);
                 
@@ -1423,7 +1425,7 @@ async loadSearchHistory() {
 
           // --- TRƯỜNG HỢP 2: XÓA BÀI GỐC (SỬA Ở ĐÂY) ---
           } else {
-             const res = await fetch(`http://localhost:3000/posts/${this.itemToDeleteId}`, {method:'DELETE'});
+             const res = await fetch(`${API_BASE_URL}/posts/${this.itemToDeleteId}`, {method:'DELETE'});
              
              if(res.ok) { 
                 const deletedPostId = this.itemToDeleteId; // Lưu ID bài vừa xóa
@@ -1461,7 +1463,7 @@ async loadSearchHistory() {
       try {
         const savedUser = JSON.parse(localStorage.getItem("user"));
         if (!savedUser) return;
-        const res = await fetch(`http://localhost:3000/users/${savedUser.id}/friends`);
+        const res = await fetch(`${API_BASE_URL}/users/${savedUser.id}/friends`);
         const data = await res.json();
         this.friends = data;
       } catch (err) {
@@ -1537,7 +1539,7 @@ async handleNotifNavigation() {
 
   if (!targetPost) {
     try {
-      const res = await fetch(`http://localhost:3000/posts/${postId}`);
+      const res = await fetch(`${API_BASE_URL}/posts/${postId}`);
       if (res.ok) targetPost = await res.json();
     } catch(e) { console.error(e); }
   }

@@ -230,6 +230,8 @@
 </template>
 
 <script>
+import { API_BASE_URL } from "@/api";
+
 import LoadingOverlay from "../layout/LoadingOverlay.vue";
 import Pagination from "../layout/Pagination.vue";
 import NotificationModal from "../notifications/NotificationModal.vue";
@@ -306,8 +308,8 @@ export default {
         this.loading = true;
 
         const [postsRes, sharesRes] = await Promise.all([
-          fetch(`http://localhost:3000/feeds/hidden-posts/${this.userId}`),
-          fetch(`http://localhost:3000/feeds/hidden-shares/${this.userId}`)
+          fetch(`${API_BASE_URL}/feeds/hidden-posts/${this.userId}`),
+          fetch(`${API_BASE_URL}/feeds/hidden-shares/${this.userId}`)
         ]);
 
         const posts = await postsRes.json();
@@ -328,7 +330,7 @@ export default {
     },
     async unhidePost(postId) {
       try {
-        const res = await fetch(`http://localhost:3000/posts/unhide-post/${postId}`, {
+        const res = await fetch(`${API_BASE_URL}/posts/unhide-post/${postId}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ userId: this.userId })
@@ -344,7 +346,7 @@ export default {
     },
     async unhideShare(shareId) {
       try {
-        const res = await fetch(`http://localhost:3000/shares/unhide-share/${shareId}`, {
+        const res = await fetch(`${API_BASE_URL}/shares/unhide-share/${shareId}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ userId: this.userId })
@@ -359,14 +361,14 @@ export default {
       }
     },
     getAvatarUrl(user) {
-      if (!user || !user.avatar) return "http://localhost:3000/uploads/user.png";
+      if (!user || !user.avatar) return `${API_BASE_URL}/uploads/user.png`;
       if (user.avatar.startsWith('http')) return user.avatar;
-      return `http://localhost:3000/${user.avatar}`;
+      return `${API_BASE_URL}/${user.avatar}`;
     },
     getMediaUrl(path) {
       if (!path) return '';
       if (path.startsWith('http')) return path;
-      return `http://localhost:3000/${path}`;
+      return `${API_BASE_URL}/${path}`;
     },
     formatTime(dateStr) {
       const date = new Date(dateStr);

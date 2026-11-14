@@ -20,7 +20,7 @@
         <img
           :src="user?.avatar?.startsWith('http')
             ? user.avatar
-            : `http://localhost:3000/${user?.avatar || 'user.png'}`
+            : `${$apiBaseUrl}/${user?.avatar || 'user.png'}`
           "
           class="creator-avatar"
         />
@@ -156,6 +156,8 @@
 </template>
 
 <script>
+import { API_BASE_URL } from "@/api";
+
 import NotificationModal from "../notifications/NotificationModal.vue";
 
 export default {
@@ -247,7 +249,7 @@ watch: {
       this.item.images?.map(img =>
         img.startsWith("http")
           ? img
-          : `http://localhost:3000/${img}`
+          : `${API_BASE_URL}/${img}`
       ) || [];
 
 
@@ -344,7 +346,7 @@ handleFiles(e) {
       this.loading = true;
 
       const res = await fetch(
-        `http://localhost:3000/marketplace/${this.item._id}`,
+        `${API_BASE_URL}/marketplace/${this.item._id}`,
         {
           method: "PUT",
           headers: {

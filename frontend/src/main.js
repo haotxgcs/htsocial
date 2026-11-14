@@ -1,10 +1,11 @@
+import { API_BASE_URL } from "@/api";
 import { createApp } from 'vue';
 import App from './App.vue';
 import router from './router.js';
 import axios from "axios";
 
 // 1. Configure Base URL
-axios.defaults.baseURL = "http://localhost:3000";
+axios.defaults.baseURL = API_BASE_URL;
 
 // 2. Add Response Interceptor (Global Gatekeeper)
 // This runs for every response received from the backend
@@ -40,5 +41,6 @@ app.use(router);
 
 // Attach axios to global properties
 app.config.globalProperties.$axios = axios;
+app.config.globalProperties.$apiBaseUrl = API_BASE_URL;
 
 app.mount('#app');

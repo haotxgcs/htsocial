@@ -350,11 +350,13 @@
 </template>
 
 <script>
+import { API_BASE_URL } from "@/api";
+
 import ConfirmDialog     from '../common/ConfirmDialog.vue';
 import NotificationModal from '../notifications/NotificationModal.vue';
 import Pagination        from '../layout/Pagination.vue';
 
-const API = process.env.VUE_APP_API_URL || "http://localhost:3000";
+const API = API_BASE_URL;
 
 export default {
   name: "AdminPage",

@@ -679,6 +679,8 @@
 </template>
 
 <script>
+import { API_BASE_URL } from "@/api";
+
 import ConfirmDialog from '../common/ConfirmDialog.vue';
 import EditShareModal from '../feed/EditShareModal.vue';
 import CommentModal from '../feed/CommentModal.vue';
@@ -917,7 +919,7 @@ friendButtonText() {
     getItemImage(images) {
       if (!images?.length) return "";
       const img = images[0];
-      return img.startsWith("http") ? img : `http://localhost:3000/${img}`;
+      return img.startsWith("http") ? img : `${API_BASE_URL}/${img}`;
     },
 
     // === CÁC METHOD CŨ GIỮ NGUYÊN ===
@@ -938,7 +940,7 @@ friendButtonText() {
     resolveMediaUrl(media) {
       if (!media) return '';
       if (media.startsWith('http')) return media;
-      return `http://localhost:3000/${media}`;
+      return `${API_BASE_URL}/${media}`;
     },
 
     // 2. getAvatarUrl: Cloudinary URL đã đầy đủ, local path cần prefix
@@ -946,17 +948,17 @@ friendButtonText() {
       if (user && user.avatar) {
         // Cloudinary URL đã có https:// → dùng thẳng
         if (user.avatar.startsWith('http')) return user.avatar;
-        return `http://localhost:3000/${user.avatar}`;
+        return `${API_BASE_URL}/${user.avatar}`;
       }
       const defaultPath = this.getDefaultAvatarPath(user);
-      return `http://localhost:3000/${defaultPath}`;
+      return `${API_BASE_URL}/${defaultPath}`;
     },
 
     // Helper resolve cover URL
     resolveCoverUrl(coverPhoto) {
-      if (!coverPhoto) return `http://localhost:3000/${this.defaultCover}`;
+      if (!coverPhoto) return `${API_BASE_URL}/${this.defaultCover}`;
       if (coverPhoto.startsWith('http')) return coverPhoto;
-      return `http://localhost:3000/${coverPhoto}`;
+      return `${API_BASE_URL}/${coverPhoto}`;
     },
 
     formatTime(dateStr) {
@@ -1005,7 +1007,7 @@ async fetchFriends(page = 1) {
     if (!userId) return;
     this.loadingFriends = true;
 
-    const res = await fetch(`http://localhost:3000/users/${userId}/friends?page=${page}&limit=${this.limitFriends}`);
+    const res = await fetch(`${API_BASE_URL}/users/${userId}/friends?page=${page}&limit=${this.limitFriends}`);
     const data = await res.json();
 
     // THỬ CÁC TRƯỜNG HỢP CẤU TRÚC DỮ LIỆU KHÁC NHAU
@@ -1035,7 +1037,7 @@ async fetchFriends(page = 1) {
         const viewer = JSON.parse(localStorage.getItem("user"));
         const viewerId = viewer?._id || viewer?.id;
         const res = await fetch(
-          `http://localhost:3000/users/${userId}?viewerId=${viewerId}`
+          `${API_BASE_URL}/users/${userId}?viewerId=${viewerId}`
         );
         if (!res.ok) throw new Error("User not found");
 
@@ -1062,7 +1064,7 @@ async fetchFriends(page = 1) {
         const viewerId = viewer?._id || viewer?.id;
 
         const res = await fetch(
-          `http://localhost:3000/feeds/users/${profileUserId}` +
+          `${API_BASE_URL}/feeds/users/${profileUserId}` +
           `?page=${page}&limit=${this.limitPosts}&viewerId=${viewerId}`
         );
 
@@ -1115,7 +1117,7 @@ async fetchFriends(page = 1) {
       // URL đã được resolve trước khi truyền vào
       this.previewImageUrl = imageUrl.startsWith('http')
         ? imageUrl
-        : `http://localhost:3000/${imageUrl}`;
+        : `${API_BASE_URL}/${imageUrl}`;
       this.imagePreviewVisible = true;
     },
 
@@ -1148,7 +1150,7 @@ async fetchFriends(page = 1) {
 
       try {
         const savedUser = JSON.parse(localStorage.getItem("user"));
-        const res = await fetch(`http://localhost:3000/users/${savedUser.id}/avatar`, {
+        const res = await fetch(`${API_BASE_URL}/users/${savedUser.id}/avatar`, {
           method: "POST",
           body: formData,
         });
@@ -1177,7 +1179,7 @@ async fetchFriends(page = 1) {
 
       try {
         const savedUser = JSON.parse(localStorage.getItem("user"));
-        const res = await fetch(`http://localhost:3000/users/${savedUser.id}/cover`, {
+        const res = await fetch(`${API_BASE_URL}/users/${savedUser.id}/cover`, {
           method: "POST",
           body: formData,
         });
@@ -1361,7 +1363,7 @@ async fetchFriends(page = 1) {
   if (!viewer) return;
 
   try {
-    await fetch(`http://localhost:3000/posts/hide-post/${postId}`, {
+    await fetch(`${API_BASE_URL}/posts/hide-post/${postId}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId: viewer.id })
@@ -1379,7 +1381,7 @@ async fetchFriends(page = 1) {
       if (!viewer) return;
 
       try {
-        await fetch(`http://localhost:3000/shares/hide-share/${shareId}`, {
+        await fetch(`${API_BASE_URL}/shares/hide-share/${shareId}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ userId: viewer.id })
@@ -1416,7 +1418,7 @@ async fetchFriends(page = 1) {
       const savedUser = JSON.parse(localStorage.getItem("user"));
       if (!savedUser) return alert("Please login");
       try {
-        const res = await fetch(`http://localhost:3000/posts/${post._id}/like`, {
+        const res = await fetch(`${API_BASE_URL}/posts/${post._id}/like`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username: savedUser.username })
@@ -1440,7 +1442,7 @@ async fetchFriends(page = 1) {
       try {
         const savedUser = JSON.parse(localStorage.getItem("user"));
         if (!savedUser) return;
-        const res = await fetch(`http://localhost:3000/feeds/users/${savedUser.id}/saved-items`);
+        const res = await fetch(`${API_BASE_URL}/feeds/users/${savedUser.id}/saved-items`);
         if (res.ok) {
           const data = await res.json();
           this.savedPosts = data.savedItems || [];
@@ -1453,7 +1455,7 @@ async fetchFriends(page = 1) {
     async fetchPostSaveCount(postId) {
       if (this.postSaveCounts[postId] !== undefined) return this.postSaveCounts[postId];
       try {
-        const res = await fetch(`http://localhost:3000/posts/${postId}/saves-count`);
+        const res = await fetch(`${API_BASE_URL}/posts/${postId}/saves-count`);
         if (res.ok) {
           const data = await res.json();
           this.postSaveCounts[postId] = data.savesCount || 0;
@@ -1504,7 +1506,7 @@ async fetchFriends(page = 1) {
       try {
         const postId = post._id;
         const isSaved = this.savedPosts.includes(postId);
-        const res = await fetch(`http://localhost:3000/feeds/save/${postId}`, {
+        const res = await fetch(`${API_BASE_URL}/feeds/save/${postId}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId: savedUser.id, action: isSaved ? 'unsave' : 'save' })
@@ -1610,7 +1612,7 @@ async fetchFriends(page = 1) {
     async handleProfileSave(updatedData) {
       try {
         const savedUser = JSON.parse(localStorage.getItem("user"));
-        const res = await fetch(`http://localhost:3000/users/${savedUser.id}`, {
+        const res = await fetch(`${API_BASE_URL}/users/${savedUser.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(updatedData)
@@ -1690,7 +1692,7 @@ async handleFriendAction() {
   try {
     // ADD FRIEND
     if (this.friendStatus === 'none') {
-      await fetch("http://localhost:3000/users/friend-request/send", {
+      await fetch(`${API_BASE_URL}/users/friend-request/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1702,7 +1704,7 @@ async handleFriendAction() {
 
     // ACCEPT FRIEND
     else if (this.friendStatus === 'received') {
-      await fetch("http://localhost:3000/users/friend-request/accept", {
+      await fetch(`${API_BASE_URL}/users/friend-request/accept`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1731,7 +1733,7 @@ async handleFriendAction() {
       const profileId = this.getProfileUserId();
       if (!viewerId || !profileId || viewerId === profileId) return;
       try {
-        const res = await fetch(`http://localhost:3000/block/check/${profileId}`, {
+        const res = await fetch(`${API_BASE_URL}/block/check/${profileId}`, {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
         });
         if (res.ok) {
@@ -1813,7 +1815,7 @@ async fetchUserMedia(page = 1) {
     // 'all' thì không cần truyền type
 
     const res = await fetch(
-      `http://localhost:3000/feeds/users/${userId}/media?page=${page}&limit=${this.limitMedia}${typeParam}`
+      `${API_BASE_URL}/feeds/users/${userId}/media?page=${page}&limit=${this.limitMedia}${typeParam}`
     );
     const data = await res.json();
 
@@ -1837,7 +1839,7 @@ async fetchUserMedia(page = 1) {
     async openMediaPost(mediaItem) {
     try {
       const res = await fetch(
-        `http://localhost:3000/posts/${mediaItem._id}`
+        `${API_BASE_URL}/posts/${mediaItem._id}`
       );
 
       if (!res.ok) throw new Error("Cannot load post");
@@ -1925,7 +1927,7 @@ async handleConfirmedAction() {
   // ── Xóa post ──────────────────────────────────────────────
   if (action === 'deletePost') {
     try {
-      const res = await fetch(`http://localhost:3000/posts/${this.postToDeleteId}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE_URL}/posts/${this.postToDeleteId}`, { method: 'DELETE' });
       if (res.ok) {
         this.userPosts = this.userPosts.filter(p => p._id !== this.postToDeleteId);
         await this.fetchUserPosts();
@@ -1938,7 +1940,7 @@ async handleConfirmedAction() {
   // ── Xóa share ─────────────────────────────────────────────
   else if (action === 'deleteShare') {
     try {
-      const res = await fetch(`http://localhost:3000/shares/${this.postToDeleteId}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE_URL}/shares/${this.postToDeleteId}`, { method: 'DELETE' });
       if (res.ok) {
         await this.fetchUserPosts();
         this.showNotify("success", "Success", "Share deleted.");
@@ -1950,7 +1952,7 @@ async handleConfirmedAction() {
   else if (action === 'cancelFriend') {
     this.loadingFriend = true;
     try {
-      await fetch("http://localhost:3000/users/friend-request/cancel", {
+      await fetch(`${API_BASE_URL}/users/friend-request/cancel`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fromUserId: viewerId, toUserId: this.profileUser._id })
@@ -1966,7 +1968,7 @@ async handleConfirmedAction() {
   else if (action === 'unfriend') {
     this.loadingFriend = true;
     try {
-      await fetch("http://localhost:3000/users/unfriend", {
+      await fetch(`${API_BASE_URL}/users/unfriend`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: viewerId, friendId: this.profileUser._id })
@@ -1982,7 +1984,7 @@ async handleConfirmedAction() {
   else if (action === 'block') {
     this.loadingBlock = true;
     try {
-      const res = await fetch("http://localhost:3000/block", {
+      const res = await fetch(`${API_BASE_URL}/block`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ targetId: this.profileUser._id })
@@ -2002,7 +2004,7 @@ async handleConfirmedAction() {
   else if (action === 'unblock') {
     this.loadingBlock = true;
     try {
-      const res = await fetch("http://localhost:3000/block/unblock", {
+      const res = await fetch(`${API_BASE_URL}/block/unblock`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ targetId: this.profileUser._id })
@@ -2023,7 +2025,7 @@ async handleConfirmedAction() {
       
       try {
          const savedUser = JSON.parse(localStorage.getItem("user"));
-         const res = await fetch(`http://localhost:3000/users/${savedUser.id}`, {
+         const res = await fetch(`${API_BASE_URL}/users/${savedUser.id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ avatar: "" }) 
@@ -2048,7 +2050,7 @@ async handleConfirmedAction() {
 
       try {
          const savedUser = JSON.parse(localStorage.getItem("user"));
-         const res = await fetch(`http://localhost:3000/users/${savedUser.id}`, {
+         const res = await fetch(`${API_BASE_URL}/users/${savedUser.id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ coverPhoto: "" }) 

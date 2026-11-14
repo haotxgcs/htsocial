@@ -152,6 +152,8 @@
 
 
 <script>
+import { API_BASE_URL } from "@/api";
+
 import MarketplaceItemCard from "../marketplace/MarketplaceItemCard.vue";
 import MarketplaceCreateModal from "../marketplace/MarketplaceCreateModal.vue";
 import MarketplaceEditModal from "../marketplace/MarketplaceEditModal.vue"
@@ -244,7 +246,7 @@ async fetchItems({ saveHistory = false } = {}) {
     }
 
     const res = await fetch(
-      `http://localhost:3000/marketplace?${params.toString()}`,
+      `${API_BASE_URL}/marketplace?${params.toString()}`,
       { headers }
     );
 
@@ -262,7 +264,7 @@ async fetchItems({ saveHistory = false } = {}) {
     // ✅ CHỈ LƯU KHI USER SEARCH
     if (saveHistory && user && token && this.search.trim()) {
       fetch(
-        `http://localhost:3000/users/${user.id || user._id}/search-history?context=marketplace`,
+        `${API_BASE_URL}/users/${user.id || user._id}/search-history?context=marketplace`,
         {
           method: "POST",
           headers: {
@@ -328,7 +330,7 @@ async fetchSearchHistory() {
 
   try {
     const res = await fetch(
-      `http://localhost:3000/users/${user.id || user._id}/search-history?context=marketplace`,
+      `${API_BASE_URL}/users/${user.id || user._id}/search-history?context=marketplace`,
       {
         headers: {
           Authorization: `Bearer ${token}`
@@ -383,7 +385,7 @@ handleSearch() {
     if (!user || !token) return;
 
     await fetch(
-      `http://localhost:3000/users/${user.id || user._id}/search-history?context=marketplace`,
+      `${API_BASE_URL}/users/${user.id || user._id}/search-history?context=marketplace`,
       {
         method: "DELETE",
         headers: {
@@ -407,7 +409,7 @@ handleSearch() {
   if (!user || !token) return;
 
   await fetch(
-    `http://localhost:3000/users/${user.id || user._id}/search-history/all`,
+    `${API_BASE_URL}/users/${user.id || user._id}/search-history/all`,
     {
       method: "DELETE",
       headers: {
@@ -456,7 +458,7 @@ openEditModal(item) {
   }
 
   const res = await fetch(
-    `http://localhost:3000/marketplace/${item._id}`,
+    `${API_BASE_URL}/marketplace/${item._id}`,
     {
       method: "DELETE",
       headers: {

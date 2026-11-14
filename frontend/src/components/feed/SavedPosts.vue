@@ -270,6 +270,8 @@
 </template>
 
 <script>
+import { API_BASE_URL } from "@/api";
+
 import ShareModal from '../feed/ShareModal.vue';
 import CommentModal from '../feed/CommentModal.vue';
 import LoadingOverlay from '../layout/LoadingOverlay.vue';
@@ -337,19 +339,19 @@ export default {
     getItemImage(images) {
       if (!images?.length) return "";
       const img = images[0];
-      return img.startsWith("http") ? img : `http://localhost:3000/${img}`;
+      return img.startsWith("http") ? img : `${API_BASE_URL}/${img}`;
     },
 
     getAvatarUrl(author) {
-      if (!author || !author.avatar) return 'http://localhost:3000/uploads/user.png';
+      if (!author || !author.avatar) return `${API_BASE_URL}/uploads/user.png`;
       if (author.avatar.startsWith('http')) return author.avatar;
-      return `http://localhost:3000/${author.avatar}`;
+      return `${API_BASE_URL}/${author.avatar}`;
     },
 
     resolveMediaUrl(media) {
       if (!media) return '';
       if (media.startsWith('http')) return media;
-      return `http://localhost:3000/${media}`;
+      return `${API_BASE_URL}/${media}`;
     },
 
     async fetchSavedPosts() {
@@ -362,7 +364,7 @@ export default {
         }
 
         this.loading = true;
-        const res = await fetch(`http://localhost:3000/feeds/saved-items/${savedUser.id}`);
+        const res = await fetch(`${API_BASE_URL}/feeds/saved-items/${savedUser.id}`);
         
         if (!res.ok) {
           if (res.status === 404) {
@@ -401,7 +403,7 @@ export default {
       this.currentPage = 1;
 
       try {
-        const res = await fetch(`http://localhost:3000/feeds/save/${post._id}`, {
+        const res = await fetch(`${API_BASE_URL}/feeds/save/${post._id}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -448,7 +450,7 @@ export default {
       if (!savedUser) return alert("Please login");
 
       try {
-        const res = await fetch(`http://localhost:3000/posts/${post._id}/like`, {
+        const res = await fetch(`${API_BASE_URL}/posts/${post._id}/like`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

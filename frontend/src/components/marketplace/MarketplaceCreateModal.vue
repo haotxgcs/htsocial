@@ -19,7 +19,7 @@
         <img
           :src="user?.avatar?.startsWith('http')
             ? user.avatar
-            : `http://localhost:3000/${user?.avatar || 'user.png'}`
+            : `${$apiBaseUrl}/${user?.avatar || 'user.png'}`
           "
           class="creator-avatar"
         />
@@ -187,6 +187,8 @@
 
 
 <script>
+import { API_BASE_URL } from "@/api";
+
 import ConfirmDialog from "../common/ConfirmDialog.vue";
 import NotificationModal from "../notifications/NotificationModal";
 
@@ -342,7 +344,7 @@ async submit() {
 
   this.loading = true;
 
-  const res = await fetch("http://localhost:3000/marketplace/create", {
+  const res = await fetch(`${API_BASE_URL}/marketplace/create`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`
